@@ -1,0 +1,40 @@
+{
+    "private": true,
+    "scripts": {
+        "dev": "npm run development",
+        "development": "node scripts/local/run_phase15_build.js development",
+        "watch": "vite build --watch --mode development",
+        "watch-poll": "vite build --watch --mode development",
+        "hot": "vite",
+        "prod": "npm run production",
+        "production": "node scripts/local/run_phase15_build.js production",
+        "vite:development": "vite build --mode development",
+        "vite:production": "vite build",
+        "legacy:development": "node scripts/local/build_legacy_lane.js development",
+        "legacy:production": "node scripts/local/build_legacy_lane.js production",
+        "bridge:development": "node scripts/local/build_vite_bridge.js development",
+        "bridge:production": "node scripts/local/build_vite_bridge.js production"
+    },
+    "devDependencies": {
+        "@vitejs/plugin-vue": "^6.0.5",
+        "@vue/compiler-sfc": "3.5.30",
+        "axios": "1.13.6",
+        "bootstrap-sass": "3.4.3",
+        "esbuild": "^0.27.4",
+        "jquery": "3.7.1",
+        "laravel-mix": "6.0.49",
+        "laravel-vite-plugin": "^2.1.0",
+        "lodash": "4.17.23",
+        "vite": "^7.3.1",
+        "vue": "3.5.30",
+        "vue-loader": "16.8.3"
+    },
+    "dependencies": {
+        "laravel-echo": "1.4.0",
+        "pusher-js": "4.3.1"
+    },
+    "overrides": {
+        "follow-redirects": "1.15.11",
+        "websocket-extensions": "0.1.4"
+    }
+}

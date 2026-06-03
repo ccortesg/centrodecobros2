@@ -1,0 +1,69 @@
+name: Sandbox release validation
+
+on:
+  push:
+    branches:
+      - phase34-sandbox-release
+  pull_request:
+    branches:
+      - phase34-sandbox-release
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+
+    env:
+      APP_ENV: testing
+      APP_DEBUG: false
+      DB_CONNECTION: sqlite
+      DB_DATABASE: ":memory:"
+      PAGADETODO_MOCK: true
+      BROADCAST_DRIVER: log
+      CACHE_DRIVER: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: pdo_sqlite, sqlite3, mbstring, xml, curl, zip, gd, intl
+          coverage: none
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare Laravel environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate --force
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Build production assets
+        run: npm run production
+
+      - name: Validate runtime npm audit
+        run: npm audit --omit=dev --audit-level=low
+
+      - name: Validate Laravel routes and scheduler
+        run: |
+          php artisan route:list
+          php artisan schedule:list
+
+      - name: Run Unit tests
+        run: php vendor/bin/phpunit --testsuite Unit
+
+      - name: Run Feature tests with mock Pagadetodo
+        run: php vendor/bin/phpunit --testsuite Feature

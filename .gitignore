@@ -1,0 +1,60 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# PHP dependencies and generated caches
+/vendor/
+/bootstrap/cache/*.php
+/storage/*.key
+/storage/*.sqlite
+/storage/*.sqlite3
+/storage/phase*_browser.sqlite
+/storage/logs/*
+!/storage/logs/.gitignore
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/testing/*
+/storage/framework/views/*
+!/storage/framework/cache/.gitignore
+!/storage/framework/sessions/.gitignore
+!/storage/framework/testing/.gitignore
+!/storage/framework/views/.gitignore
+
+# Node dependencies and build outputs
+/node_modules/
+/public/hot
+/public/storage
+/public/build/
+/public/js/app.js
+/public/js/plantilla.js
+/public/js/guest-public.js
+/public/css/plantilla.css
+/public/mix-manifest.json
+npm-debug.log*
+yarn-error.log*
+
+# Local reports and generated artifacts
+/.phpunit.cache/
+/.phpunit.result.cache
+/test-results/
+/output/
+/build-dev.log
+/database/*.sql
+/database/*.dump
+
+# IDE and local VM files
+/.idea/
+/.vscode/
+/.vagrant/
+Homestead.json
+Homestead.yaml
+
+# Accidental browser-console snippet files observed in phase workspaces
+/(window.CentroDeCobrosVueRoot.menu
+/.nav-link').click()
+/JSON.stringify*
+/document.body.classList.contains('sidebar-minimized')
+/document.body.className
+/el.click()
+/*document.querySelector*
