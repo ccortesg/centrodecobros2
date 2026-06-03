@@ -16,7 +16,7 @@ jobs:
       APP_ENV: testing
       APP_DEBUG: false
       DB_CONNECTION: sqlite
-      DB_DATABASE: ":memory:"
+      DB_DATABASE: "${{ github.workspace }}/storage/github-actions.sqlite"
       PAGADETODO_MOCK: true
       BROADCAST_DRIVER: log
       CACHE_DRIVER: array
@@ -64,6 +64,9 @@ jobs:
 
       - name: Run Unit tests
         run: php vendor/bin/phpunit --testsuite Unit
+
+      - name: Prepare Feature SQLite database
+        run: php scripts/local/prepare_phase33_browser_sqlite.php "$DB_DATABASE"
 
       - name: Run Feature tests with mock Pagadetodo
         run: php vendor/bin/phpunit --testsuite Feature

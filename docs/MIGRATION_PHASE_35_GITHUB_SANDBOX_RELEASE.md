@@ -103,7 +103,8 @@ El workflow:
 - ejecuta `php artisan route:list`;
 - ejecuta `php artisan schedule:list`;
 - ejecuta Unit tests;
-- ejecuta Feature tests con SQLite y `PAGADETODO_MOCK=true`.
+- prepara `storage/github-actions.sqlite` con `scripts/local/prepare_phase33_browser_sqlite.php`;
+- ejecuta Feature tests con SQLite persistente y `PAGADETODO_MOCK=true`.
 
 No usa credenciales productivas, no despliega, no ejecuta migraciones y no activa scheduler.
 

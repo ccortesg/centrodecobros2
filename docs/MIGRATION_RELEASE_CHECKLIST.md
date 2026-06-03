@@ -46,7 +46,8 @@ Dictamen: `GO para sandbox paralelo controlado; NO-GO para reemplazo directo`
   - `php artisan schedule:list`
   - `composer validate --no-check-publish --no-interaction`
   - `php vendor/bin/phpunit --testsuite Unit`
-  - Feature aislados con PHP 8.3 + SQLite si el ambiente lo permite.
+  - `php scripts/local/prepare_phase33_browser_sqlite.php "$DB_DATABASE"` antes de Feature en CI.
+  - Feature aislados con PHP 8.3 + SQLite persistente si el ambiente lo permite.
   - `npm run production`
   - `npm audit --omit=dev --audit-level=low`
 - Confirmar aceptacion formal de riesgos residuales:

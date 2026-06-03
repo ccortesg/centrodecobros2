@@ -193,6 +193,17 @@ php8.3 vendor/bin/phpunit --testsuite Unit
 npm audit --omit=dev --audit-level=low
 ```
 
+Para reproducir el workflow GitHub con Feature tests en SQLite:
+
+```bash
+export APP_ENV=testing
+export DB_CONNECTION=sqlite
+export DB_DATABASE="$PWD/storage/github-actions.sqlite"
+export PAGADETODO_MOCK=true
+php8.3 scripts/local/prepare_phase33_browser_sqlite.php "$DB_DATABASE"
+php8.3 vendor/bin/phpunit --testsuite Feature
+```
+
 Smoke browser:
 
 1. `GET /login`
