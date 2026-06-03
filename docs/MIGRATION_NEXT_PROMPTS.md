@@ -24,9 +24,9 @@ C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia
 
 Objetivo:
 - revisar `git status --short` y confirmar que no se publican secretos, dependencias, logs, SQLite, outputs, test-results, snippets accidentales ni assets compilados;
-- crear el primer commit en la rama `phase34-sandbox-release`;
+- crear o validar el primer commit en la rama `main`;
 - conectar un repositorio GitHub privado;
-- hacer push de la rama y crear el tag `sandbox-phase34-v1.0.0`;
+- hacer push de la rama y del tag `sandbox-phase34-v1.0.2`;
 - verificar que el workflow `.github/workflows/sandbox-release-validation.yml` quede verde;
 - desplegar en `/var/www/centro-v12-sandbox` por vhost/subdominio separado con PHP 8.3;
 - generar assets en deploy con `npm ci && npm run production`;

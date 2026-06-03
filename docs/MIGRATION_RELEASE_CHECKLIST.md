@@ -7,8 +7,8 @@ Dictamen: `GO para sandbox paralelo controlado; NO-GO para reemplazo directo`
 ## Predeploy obligatorio
 
 - Confirmar branch/tag GitHub limpio para Fase 34.
-- Branch definido: `phase34-sandbox-release`.
-- Tag recomendado tras commit validado: `sandbox-phase34-v1.0.0`.
+- Branch definido: `main`.
+- Tag recomendado tras commit validado: `sandbox-phase34-v1.0.2`.
 - Confirmar que el workspace usado para publicar si es checkout Git activo; la carpeta de diagnostico 2026-06-02 no lo es.
 - Confirmar que `.env`, `vendor/`, `node_modules/`, logs, SQLite local y archivos accidentales de raiz no se publican como codigo fuente.
 - Confirmar que dumps SQL locales (`database/*.sql`) no se publican; usar respaldos administrados fuera de Git.

@@ -18,8 +18,8 @@ Montar la version Laravel 12/PHP 8.3 en paralelo a la version PHP 7.4 actual, us
 
 ## Preparacion en GitHub
 
-1. Usar branch de publicacion sandbox: `phase34-sandbox-release`.
-2. Crear tag despues del primer commit validado: `sandbox-phase34-v1.0.0`.
+1. Usar branch de publicacion sandbox: `main`.
+2. Crear tag despues del primer commit validado: `sandbox-phase34-v1.0.2`.
 3. Verificar que no se suben `.env`, `vendor`, `node_modules`, logs, SQLite local, `output/`, `test-results/` ni archivos accidentales de raiz.
 4. Mantener fuera de Git los assets compilados (`public/build/`, `public/js/app.js`, `public/js/plantilla.js`, `public/js/guest-public.js`, `public/css/plantilla.css`, `public/mix-manifest.json`).
 5. Generar assets en CI/deploy con `npm ci && npm run production`.
@@ -83,7 +83,7 @@ sudo systemctl reload apache2
 ```bash
 sudo mkdir -p /var/www/centro-v12-sandbox
 sudo chown ubuntu:www-data /var/www/centro-v12-sandbox
-git clone --branch phase34-sandbox-release <repo-github> /var/www/centro-v12-sandbox
+git clone --branch main <repo-github> /var/www/centro-v12-sandbox
 cd /var/www/centro-v12-sandbox
 ```
 

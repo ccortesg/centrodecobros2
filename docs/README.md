@@ -33,8 +33,8 @@ Leer en este orden:
 - PHP observado en shell: `8.3.27`
 - Vue: `3.5.30` puro
 - `league/commonmark`: `2.8.2`
-- Git: repo local inicializado en rama `phase34-sandbox-release`; primer push debe ir a GitHub privado despues de revisar `git status --short`.
-- Tag recomendado despues del primer commit validado: `sandbox-phase34-v1.0.0`.
+- Git: repo local inicializado y renombrado a rama `main`; primer push debe ir a GitHub privado despues de revisar `git status --short`.
+- Tag recomendado despues del primer commit validado: `sandbox-phase34-v1.0.2`.
 - Deploy paralelo objetivo: subdominio/vhost separado con PHP 8.3-FPM o contenedor; mismo MySQL solo con scheduler deshabilitado y `PAGADETODO_MOCK=true` hasta sandbox oficial.
 - Assets compilados: no se versionan; se generan con `npm ci && npm run production` en CI/deploy.
 - Contrato publico preservado:
@@ -57,7 +57,7 @@ Leer en este orden:
 
 ## Alcance cerrado en preparacion GitHub/release sandbox
 
-- repositorio Git local inicializado en `phase34-sandbox-release`;
+- repositorio Git local inicializado y renombrado a `main`;
 - `.gitignore` ampliado para secretos, dependencias, logs, SQLite, dumps SQL, outputs, test-results, snippets accidentales y assets compilados;
 - workflow GitHub agregado en `.github/workflows/sandbox-release-validation.yml`;
 - decision definida: assets compilados fuera de Git y generados por CI/deploy;

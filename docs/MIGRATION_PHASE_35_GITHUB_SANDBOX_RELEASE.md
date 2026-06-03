@@ -8,20 +8,20 @@ Baseline: Fase 34 validada localmente con webhooks e idempotencia.
 
 `GO tecnico para preparar GitHub y sandbox paralelo; NO-GO para reemplazo productivo`.
 
-La carpeta fue inicializada como repositorio Git local en la rama `phase34-sandbox-release`. La publicacion debe hacerse a un repositorio privado GitHub despues de revisar el primer commit local. La version productiva actual no se toca.
+La carpeta fue inicializada como repositorio Git local y la rama de publicacion fue renombrada a `main`. La publicacion debe hacerse a un repositorio privado GitHub despues de revisar el primer commit local. La version productiva actual no se toca.
 
 ## Rama, tag y commit inicial
 
 Rama local definida:
 
 ```bash
-phase34-sandbox-release
+main
 ```
 
 Tag recomendado despues del primer commit validado:
 
 ```bash
-sandbox-phase34-v1.0.0
+sandbox-phase34-v1.0.2
 ```
 
 Comandos recomendados para el primer commit y push:
@@ -31,9 +31,8 @@ git add .
 git status --short
 git commit -m "Prepare phase 34 sandbox release"
 git remote add origin <repo-github-privado>
-git push -u origin phase34-sandbox-release
-git tag sandbox-phase34-v1.0.0
-git push origin sandbox-phase34-v1.0.0
+git push -u origin main
+git push origin sandbox-phase34-v1.0.2
 ```
 
 Antes de ejecutar `git add .`, revisar que `git status --short` no muestre `.env`, `vendor/`, `node_modules/`, logs, SQLite, dumps SQL, `output/`, `test-results/`, assets compilados ni archivos accidentales de raiz.
@@ -159,7 +158,7 @@ Comandos:
 ```bash
 sudo mkdir -p /var/www/centro-v12-sandbox
 sudo chown ubuntu:www-data /var/www/centro-v12-sandbox
-git clone --branch phase34-sandbox-release <repo-github-privado> /var/www/centro-v12-sandbox
+git clone --branch main <repo-github-privado> /var/www/centro-v12-sandbox
 cd /var/www/centro-v12-sandbox
 
 php8.3 /usr/local/bin/composer install --no-dev --optimize-autoloader

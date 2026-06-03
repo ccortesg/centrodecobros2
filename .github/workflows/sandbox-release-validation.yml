@@ -3,10 +3,10 @@ name: Sandbox release validation
 on:
   push:
     branches:
-      - phase34-sandbox-release
+      - main
   pull_request:
     branches:
-      - phase34-sandbox-release
+      - main
 
 jobs:
   validate:
