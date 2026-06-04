@@ -27,6 +27,11 @@ class CancelaSpeiController extends Controller
         return ['clabe', 'monto', 'transaccion', 'codigo', 'mensaje', 'autorizacion'];
     }
 
+    private function filtroBinarioValido($value)
+    {
+        return in_array((string) $value, ['0', '1', '99'], true);
+    }
+
     private function cancelacionPerteneceUsuario(CancelaSpei $cancelacion)
     {
         if ($this->usuarioEsAdministrador()) {
@@ -42,7 +47,8 @@ class CancelaSpeiController extends Controller
         
         $buscar = $request->buscar;
         $criterio = $request->criterio;
-        $offset = $this->offsetPaginacion($request->offset);        
+        $offset = $this->offsetPaginacion($request->offset);
+        $enviada = $request->enviada ?? 99;
 
         $query = CancelaSpei::leftjoin('transacciones', 'transacciones.id','cancelaspei.idtransaccion')
         ->leftjoin('clientes', 'clientes.id','transacciones.idcliente')
@@ -61,6 +67,17 @@ class CancelaSpeiController extends Controller
             }
 
             $query->where('cancelaspei.'.$criterio, 'like', '%'. $buscar . '%');    
+        }
+
+        if (!$this->filtroBinarioValido($enviada)) {
+            return response()->json([
+                'status' => 'error',
+                'msg' => 'Filtro de enviada no permitido.',
+            ], 422);
+        }
+
+        if ((string) $enviada !== '99') {
+            $query->where('cancelaspei.enviada', '=', (int) $enviada);
         }
 
         $cancelaspei = $query->orderBy('cancelaspei.id', 'desc')->paginate($offset);

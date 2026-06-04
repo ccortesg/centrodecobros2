@@ -36,7 +36,7 @@
                         </button> &nbsp;
                     </div>
                     <div class="card-body">
-                        <div class="form-group row">
+                        <div class="form-group row cdc-list-toolbar">
                             <div class="col-xl-6 col-lg-8 col-md-10 col-sm-12">
                                 <div class="input-group">
                                     <select class="form-control col-lg-3 col-md-3 col-sm-4" v-model="criterio">
@@ -56,7 +56,8 @@
                                 </div>
                             </div>
                         </div>
-                        <table class="table table-bordered table-striped table-sm table-responsive">
+                        <div class="cdc-table-shell">
+                        <table class="table table-bordered table-striped table-sm cdc-responsive-table">
                             <thead>
                                 <tr>
                                     <th class="text-center">Opciones
@@ -103,19 +104,24 @@
                             <tbody>
                                 <tr v-for="transaccion in arrayTransaccion" :key="transaccion.id">
                                     <td class="text-center">
-                                        <button type="button" @click="abrirModal('transaccion','actualizar',transaccion)" class="btn btn-warning btn-sm">
+                                        <button type="button" @click="abrirModal('transaccion','actualizar',transaccion)" class="btn btn-warning btn-sm cdc-action-button" title="Editar transacción" aria-label="Editar transacción">
                                           <i class="icon-pencil"></i>
                                         </button> &nbsp;
-                                        <button type="button" @click="abrirModal('transaccion','ver',transaccion)" class="btn btn-success btn-sm">
+                                        <button type="button" @click="abrirModal('transaccion','ver',transaccion)" class="btn btn-success btn-sm cdc-action-button" title="Ver transacción" aria-label="Ver transacción">
                                           <i class="icon-eye"></i>
                                         </button> &nbsp;                                                                               
-                                        <template v-if="(tipo==2 || tipo==4) && transaccion.condicion==1 && transaccion.responseReference != null"><button type="button" @click="rechazarTransaccion(transaccion.id)" class="btn btn-danger btn-sm">
+                                        <template v-if="(tipo==2 || tipo==4) && transaccion.condicion==1 && transaccion.responseReference != null"><button type="button" @click="rechazarTransaccion(transaccion.id)" class="btn btn-danger btn-sm cdc-action-button" title="Cancelar transacción" aria-label="Cancelar transacción">
                                             <i class="icon-close"></i>
                                         </button></template>
                                
                                     </td>
                                     <td v-text="transaccion.folio" class="text-center"></td>
-                                    <td v-text="transaccion.fecha" class="text-center"></td>
+                                    <td class="text-center">
+                                        <span class="cdc-date-stack">
+                                            <span>{{ $formatDateMx(transaccion.fecha) }}</span>
+                                            <span class="cdc-date-stack__time">{{ $formatTimeMx(transaccion.fecha) }}</span>
+                                        </span>
+                                    </td>
                                     <td v-text="transaccion.razon_social" class="text-center"></td>
                                     <template v-if="tipo==1 || tipo==2">
                                         <td class="text-center">
@@ -139,11 +145,11 @@
                                     <td v-text="transaccion.Description" class="text-center"></td>                                    
                                     <td v-text="transaccion.ClientReference" class="text-center"></td>                                    
                                     <td class="text-center">{{ $formatCurrency(transaccion.Amount / 100) }}</td>
-                                    <td v-text="transaccion.ExpirationDate" class="text-center"></td>
+                                    <td class="text-center">{{ $formatDateMx(transaccion.ExpirationDate) }}</td>
                                     <template v-if="tipo==1 || tipo==2">
                                         <td class="text-center">                                        
                                             <template v-if="transaccion.url!=null">
-                                                <button type="button" @click="openURL(transaccion.url)" class="btn btn-success btn-sm" :title="transaccion.url">
+                                                <button type="button" @click="openURL(transaccion.url)" class="btn btn-success btn-sm cdc-action-button" :title="transaccion.url" aria-label="Abrir URL de pago">
                                                 <i class="icon-globe"></i>
                                                 </button> &nbsp;
                                             </template>                                        
@@ -152,14 +158,14 @@
                                     <template v-if="tipo==4">
                                         <td class="text-center">
                                             <template v-if="transaccion.responseReference != null && transaccion.condicion == 1">
-                                                <button type="button" @click="openLector(transaccion.responseReference)" class="btn btn-success btn-sm" :title="transaccion.responseReference">
+                                                <button type="button" @click="openLector(transaccion.responseReference)" class="btn btn-success btn-sm cdc-action-button" :title="transaccion.responseReference" aria-label="Abrir liga terminal">
                                                         <i class="icon-globe"></i>
                                                 </button> &nbsp;
                                             </template>
                                         </td>
                                     </template>
                                     <td class="text-center">
-                                        <button type="button" @click="abrirModal('transaccion','respuesta',transaccion)" class="btn btn-warning btn-sm">
+                                        <button type="button" @click="abrirModal('transaccion','respuesta',transaccion)" class="btn btn-warning btn-sm cdc-action-button" title="Ver respuesta" aria-label="Ver respuesta">
                                           <i class="icon-folder"></i>
                                         </button> &nbsp; 
                                     </td>                                                                        
@@ -219,8 +225,9 @@
                                 </tr>                                
                             </tbody>
                         </table>
+                        </div>
                         <nav>
-                            <ul class="pagination">
+                            <ul class="pagination cdc-pagination">
                                 <li class="page-item" v-if="pagination.current_page > 1">
                                     <a class="page-link" href="#" @click.prevent="cambiarPagina(pagination.current_page - 1,buscar,criterio)">Ant</a>
                                 </li>
@@ -543,29 +550,8 @@
             isActived: function(){
                 return this.pagination.current_page;
             },
-            //Calcula los elementos de la paginación
             pagesNumber: function() {
-                if(!this.pagination.to) {
-                    return [];
-                }
-                
-                var from = this.pagination.current_page - this.offset; 
-                if(from < 1) {
-                    from = 1;
-                }
-
-                var to = from + (this.offset * 2); 
-                if(to >= this.pagination.last_page){
-                    to = this.pagination.last_page;
-                }  
-
-                var pagesArray = [];
-                while(from <= to) {
-                    pagesArray.push(from);
-                    from++;
-                }
-                return pagesArray;             
-
+                return this.$paginationPages(this.pagination);
             },
             textoBotonImportarSecundario: function(){
                 return this.importando ? 'Cancelar' : 'Cerrar';
@@ -574,7 +560,7 @@
         methods : {
             listarTransaccion (page,buscar,criterio){
                 let me=this;
-                var url= '/transaccion?page=' + page + '&buscar='+ buscar + '&criterio='+ criterio + '&offset='+ me.offset + '&tipo='+ me.tipo + '&status='+ me.status;
+                var url= '/transaccion?page=' + page + '&buscar='+ encodeURIComponent(buscar || '') + '&criterio='+ encodeURIComponent(criterio || 'Reference') + '&offset='+ me.offset + '&tipo='+ me.tipo + '&status='+ me.status;
                 axios.get(url).then(function (response) {
                     var respuesta= response.data;
                     me.arrayTransaccion = respuesta.transacciones.data;

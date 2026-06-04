@@ -90,6 +90,11 @@ class TransaccionDomController extends Controller
         ];
     }
 
+    private function statusTransaccionDomValido($status)
+    {
+        return in_array((string) $status, ['approved', 'denied', 'error', '99'], true);
+    }
+
     private function apiTieneCampos(array $data, array $fields)
     {
         foreach ($fields as $field) {
@@ -131,6 +136,7 @@ class TransaccionDomController extends Controller
         $criterio = $request->criterio;
         $offset =  $this->offsetPaginacion($request->offset);
         $tipo =  $request->tipo;
+        $status = $request->status ?? 99;
 
         $query = TransaccionDom::leftjoin('clientes','clientes.id','transaccionesDom.idcliente')
             ->leftjoin('transacciones','transacciones.id','transaccionesDom.idtransaccion')
@@ -161,6 +167,17 @@ class TransaccionDomController extends Controller
                 $query->where('transaccionesDom.'.$criterio, 'like', '%'. $buscar . '%');
             }        
         }        
+
+        if (!$this->statusTransaccionDomValido($status)) {
+            return response()->json([
+                'status' => 'error',
+                'msg' => 'Status no permitido.',
+            ], 422);
+        }
+
+        if ((string) $status !== '99') {
+            $query->where('transaccionesDom.status', '=', $status);
+        }
         
         $transaccionesDom = $query->orderBy('transaccionesDom.id', 'desc')->paginate($offset);
 

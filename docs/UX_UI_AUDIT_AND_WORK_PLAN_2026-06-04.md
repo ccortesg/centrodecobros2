@@ -20,6 +20,8 @@ Capturas:
 - `C:\Users\carlo\Downloads\cc 5.png`: tabla ancha con scroll dificil y paginacion desbordada.
 - `C:\Users\carlo\Downloads\cc 6.png`: Pagos SPEI con fechas largas, sin filtros por `Status`/`Enviado`.
 - `C:\Users\carlo\Downloads\cc 7.png`: modal con fecha ISO sin formato mexicano.
+- Capturas adicionales 2026-06-04: modulo `Generar Liga Domiciliacion/Recurrente` con modal `AxiosError: Request failed with status code 500` al filtrar `Status`.
+- Texto pegado 2026-06-04: `laravel.log` con `Unknown column 'transacciones.status' in 'where clause'` al llamar `/transaccion?page=1&buscar=&criterio=Reference&offset=10&tipo=2&status=2`.
 
 Codigo/documentacion revisados:
 
@@ -104,6 +106,7 @@ Viewports objetivo para QA visual por cada fase posterior:
 | UX-15 | Badges de estado | Capturas varias | Badges pequenos, inconsistentes (`Si` sin acento, `Activo`, `Exitoso`, `Inválido`) y sin filtros uniformes. | Relevante | Bajo-Medio | Cada componente renderiza badges manualmente. | Crear helper/componente `StatusBadge` con catalogos por modulo. |
 | UX-16 | Dashboard / Escritorio | `cc 1` | Graficas y contenedores se ven rigidos, con mucho espacio gris y version vieja `0.0.1`. | Mejora | Medio | Layout heredado de plantilla CoreUI; dashboard no tiene tarjetas KPI ni estado operacional claro. | Redisenar dashboard despues de estabilizar listados; agregar KPIs, tarjetas y responsive chart sizing. |
 | UX-17 | Scroll global y panel DevTools/responsive | `cc 3`-`cc 5` | En viewports reducidos aparecen scrolls anidados y zonas grises que dificultan navegar. | Importante | Medio | `.app-body`, `.main`, `.card-body`, tabla y DevTools generan scrolls independientes. | Definir politica de overflow: pagina vertical unica, scroll horizontal solo dentro de tabla shell visible. |
+| UX-18 | Domiciliacion / Generar Liga Domiciliacion/Recurrente | Capturas adicionales + `laravel.log` | Al cambiar filtro `Status`, el endpoint `/transaccion?...tipo=2&status=2` responde 500. | Critico | Medio | `TransaccionController@index` filtraba `transacciones.status`, pero el listado y la tabla real usan `transacciones.condicion`. | Cambiar filtro backend a `transacciones.condicion`, validar valores permitidos y cubrir con Feature SQLite. |
 
 ## Modulos afectados por patrones transversales
 
@@ -361,8 +364,10 @@ Cada agente que ejecute una tarea UX/UI debe actualizar esta tabla o agregar un 
 | UX-03 | 3 | Ciudades status/offset | Validado | Codex | `Ciudad.vue` envia `status`; `CiudadController@index` usa `offset` y filtra `ciudades.condicion` | `ProxyAndCatalogUxFeatureTest`; Feature completa; build production | 2026-06-04 |
 | UX-04 | 2 | Paginacion compacta | Implementado | Codex | `$paginationPages()` y piloto en Estados/Ciudades | `npm run production`; Feature completa | 2026-06-04 |
 | UX-05 | 2-4 | Tabla shell responsive | En progreso | Codex | `.cdc-table-shell` aplicado a Estados/Ciudades; falta migrar listados financieros y cards movil | `npm run production`; browser real pendiente por entorno | 2026-06-04 |
-| UX-06 | 4 | Pagos SPEI fechas/filtros | Pendiente | Agente | captura fechas dd-mm-yyyy/hh:mm:ss | Feature si backend cambia | - |
+| UX-06 | 4 | Pagos SPEI fechas/filtros | Validado | Codex | `PagoSpei.vue` usa filtros `condicion`/`enviada`, fechas `cdc-date-stack` y tabla shell | `FinancialFiltersFeatureTest`; Feature completa; `npm run production` | 2026-06-04 |
 | UX-07 | 5 | Modales detalle | Pendiente | Agente | captura modal responsive | browser teclado/movil | - |
+| UX-18 | 4 | Domiciliacion status 500 | Validado | Codex | `TransaccionController@index` filtra `transacciones.condicion`; prueba cubre `tipo=2&status=2` | `FinancialFiltersFeatureTest`; Feature completa; `route:list`; build production | 2026-06-04 |
+| UX-19 | 4 | Listados financieros tabla/fechas/filtros | Implementado | Codex | `Transaccion`, `TransaccionDom`, `Respuesta`, `ConsultaSpei`, `CancelaSpei`, `PagoSpei` migrados a tabla shell/paginacion/fechas donde aplica | Feature completa; Unit; `npm run production`; browser local bloqueado por puerto | 2026-06-04 |
 
 Estados permitidos:
 
@@ -424,21 +429,63 @@ Validacion browser real:
 - El PHP CLI Linux disponible no puede sustituirlo porque no tiene `pdo_sqlite` (`PDO`, `pdo_mysql` solamente).
 - Por lo anterior, login/logout y consola limpia en browser real quedan pendientes de repetir en servidor productivo/sandbox con sesion autorizada o en una terminal Windows donde `artisan serve` con WAMP exponga puerto correctamente.
 
+## Ejecucion 2026-06-04 - Hotfix status y Etapa 4 financiera
+
+Cambios aplicados:
+
+- `app/Http/Controllers/TransaccionController.php`: el filtro recibido como `status` en `/transaccion` ahora valida valores `0/1/2/3/4/99` y aplica `where('transacciones.condicion', ...)`. Esto corrige el 500 productivo por columna inexistente `transacciones.status`.
+- `app/Http/Controllers/PagoSpeiController.php`: se agregaron filtros whitelisteados `condicion` y `enviada`.
+- `app/Http/Controllers/CancelaSpeiController.php`: se agrego filtro whitelisteado `enviada`.
+- `app/Http/Controllers/RespuestaController.php`: se agrego filtro whitelisteado `status` sobre la columna real `respuestas.status`.
+- `app/Http/Controllers/TransaccionDomController.php`: se agrego filtro whitelisteado `status` sobre la columna real `transaccionesDom.status`.
+- `resources/assets/js/components/Transaccion.vue`: se aplico `.cdc-table-shell`, `.cdc-pagination`, `.cdc-date-stack`, `.cdc-action-button`, fechas MX y paginacion compacta.
+- `resources/assets/js/components/PagoSpei.vue`: se aplicaron tabla shell, fechas MX, filtros `Status`/`Enviado`, botones accesibles y paginacion compacta.
+- `resources/assets/js/components/ConsultaSpei.vue`: se aplicaron tabla shell, fechas MX, botones accesibles y paginacion compacta.
+- `resources/assets/js/components/CancelaSpei.vue`: se aplicaron tabla shell, fechas MX, filtro `Enviada`, monto formateado, badges y paginacion compacta.
+- `resources/assets/js/components/Respuesta.vue`: se aplicaron tabla shell, fechas MX, filtro `Status`, botones accesibles y paginacion compacta.
+- `resources/assets/js/components/TransaccionDom.vue`: se aplicaron tabla shell, fechas MX, filtro `Status`, monto formateado, botones accesibles y paginacion compacta.
+- `resources/assets/js/styles/ux-ui.css`: se ajusto la tabla shell para permitir ancho `max-content` dentro del scroll horizontal controlado.
+- `tests/Feature/UX/FinancialFiltersFeatureTest.php`: se agrego cobertura para el bug productivo y filtros financieros.
+- `docs/FRONTEND_ANALYSIS.md`: se documento la convencion `status` vs `condicion` vs `enviada`.
+
+Causa confirmada del 500 en Domiciliacion:
+
+- El UI de `Transaccion.vue` muestra `Status`, pero el estado operativo de transacciones se almacena y renderiza desde `transacciones.condicion`.
+- `TransaccionController@index` usaba `transacciones.status`, columna ausente en produccion.
+- La correccion mantiene el parametro frontend `status` por compatibilidad, pero lo traduce a la columna real `transacciones.condicion`.
+
+Validaciones ejecutadas:
+
+| Validacion | Resultado |
+| --- | --- |
+| `php -l` en controllers modificados y `tests/Feature/UX/FinancialFiltersFeatureTest.php` | OK, sin errores de sintaxis |
+| `C:\wamp64\bin\php\php8.3.0\php.exe vendor\bin\phpunit tests\Feature\UX\FinancialFiltersFeatureTest.php` | OK, 7 tests, 28 assertions |
+| `php artisan route:list` | OK, 97 rutas; sin cambios en rutas publicas |
+| `scripts\local\prepare_phase33_browser_sqlite.php ...\storage\phase34_validation.sqlite` + `vendor\bin\phpunit --testsuite Feature` | OK, 65 tests, 276 assertions |
+| `C:\wamp64\bin\php\php8.3.0\php.exe vendor\bin\phpunit --testsuite Unit` | OK, 13 tests, 72 assertions |
+| `npm run production` | OK, Vite build y bridge `public/js/app.js`; assets compilados no se versionan |
+| Browser local `127.0.0.1:8134` con WAMP/PHP 8.3 y SQLite | Bloqueado por entorno: el proceso no expuso puerto; `curl` devolvio `connection refused` |
+
+Pendientes reales:
+
+- Repetir validacion browser autenticada en productivo/sandbox o en terminal Windows donde WAMP/PHP exponga el puerto local.
+- Etapa 5: migrar modales financieros de solo lectura a patron `detail-modal`.
+- Completar cards moviles reales para listados anchos; esta fase deja scroll horizontal controlado, no conversion completa a cards.
+
 ## Prompt recomendado para ejecutar la siguiente etapa
 
 ```text
 Trabaja sobre:
 C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia
 
-No crees una nueva carpeta. Ejecuta la Etapa 4 del plan UX/UI documentado en `docs/UX_UI_AUDIT_AND_WORK_PLAN_2026-06-04.md`.
+No crees una nueva carpeta. Ejecuta la Etapa 5 del plan UX/UI documentado en `docs/UX_UI_AUDIT_AND_WORK_PLAN_2026-06-04.md`.
 
 Objetivo:
-- migrar primero `PagoSpei.vue`, `ConsultaSpei.vue` y `CancelaSpei.vue` al patron UX/UI compartido;
-- aplicar `.cdc-table-shell`, `.cdc-pagination`, `.cdc-date-stack` y filtros por `Status`/`Enviado` donde existan esas columnas;
-- usar `$formatDateMx`, `$formatTimeMx` y `$formatDateTimeMx` para fechas visibles;
-- agregar parametros backend dedicados y whitelisteados solo si la pantalla ya muestra esas columnas;
-- mantener exportaciones, rutas publicas y reglas de negocio sin cambios;
-- ejecutar Feature SQLite si cambia backend, `npm run production`, y browser real si hay runner disponible;
+- convertir los modales financieros de solo lectura en vistas de detalle profesionales;
+- empezar por `PagoSpei.vue`, `Respuesta.vue`, `CancelaSpei.vue`, `TransaccionDom.vue` y `Transaccion.vue`;
+- separar visualmente secciones, etiquetas/valores, referencias largas, status badges y fechas `dd-mm-yyyy` con hora `hh:mm:ss`;
+- no cambiar reglas de negocio, rutas publicas, exports ni contratos Pagadetodo;
+- ejecutar `npm run production`, Feature si cambia backend, y browser real si hay runner disponible;
 - actualizar el control de avances del documento UX/UI con evidencia y validaciones ejecutadas.
 
 Restricciones:

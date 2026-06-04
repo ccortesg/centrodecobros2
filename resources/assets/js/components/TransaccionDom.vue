@@ -18,7 +18,7 @@
                         </button> &nbsp;
                     </div>
                     <div class="card-body">
-                        <div class="form-group row">
+                        <div class="form-group row cdc-list-toolbar">
                             <div class="col-xl-6 col-lg-8 col-md-10 col-sm-12">
                                 <div class="input-group">
                                     <select class="form-control col-lg-3 col-md-3 col-sm-4" v-model="criterio">
@@ -31,7 +31,8 @@
                                 </div>
                             </div>
                         </div>
-                        <table class="table table-bordered table-striped table-sm table-responsive">
+                        <div class="cdc-table-shell">
+                        <table class="table table-bordered table-striped table-sm cdc-responsive-table">
                             <thead>
                                 <tr>
                                     <th class="text-center">Opciones
@@ -54,14 +55,21 @@
                                     <th class="text-center">NB Company</th>
                                     <th class="text-center">Code</th>
                                     <th class="text-center">Message</th>
-                                    <th class="text-center">Status</th>
+                                    <th class="text-center">Status
+                                        <select v-model="filtroStatus" @change="listarTransaccionDom(1,buscar,criterio)">
+                                            <option value="99" selected>Todos</option>
+                                            <option value="approved">Aprobado</option>
+                                            <option value="denied">Denegado</option>
+                                            <option value="error">Error</option>
+                                        </select>
+                                    </th>
                                     <th class="text-center">Productivo</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr v-for="transaccionDom in arrayTransaccionDom" :key="transaccionDom.id">
                                     <td class="text-center">
-                                        <button type="button" @click="abrirModal('transaccionDom','ver',transaccionDom)" class="btn btn-success btn-sm">
+                                        <button type="button" @click="abrirModal('transaccionDom','ver',transaccionDom)" class="btn btn-success btn-sm cdc-action-button" title="Ver transacción domiciliación" aria-label="Ver transacción domiciliación">
                                           <i class="icon-eye"></i>
                                         </button> &nbsp;
                                         <!--<button type="button" class="btn btn-danger btn-sm" @click="eliminarTransaccionDom(transaccionDom.id)">
@@ -69,14 +77,19 @@
                                         </button>-->
                                     </td>
                                     <td v-text="transaccionDom.id" class="text-center"></td>
-                                    <td v-text="transaccionDom.fecha" class="text-center"></td>
+                                    <td class="text-center">
+                                        <span class="cdc-date-stack">
+                                            <span>{{ $formatDateMx(transaccionDom.fecha) }}</span>
+                                            <span class="cdc-date-stack__time">{{ $formatTimeMx(transaccionDom.fecha) }}</span>
+                                        </span>
+                                    </td>
                                     <td v-text="transaccionDom.response_reference" class="text-center"></td>
                                     <td v-text="transaccionDom.razon_social" class="text-center"></td>
                                     <td v-text="transaccionDom.foliocpagos" class="text-center"></td>
                                     <td v-text="transaccionDom.auth" class="text-center"></td>
-                                    <td v-text="transaccionDom.Amount" class="text-center"></td>                                    
+                                    <td class="text-center">{{ $formatCurrency(transaccionDom.Amount / 100) }}</td>
                                     <td v-text="transaccionDom.time" class="text-center"></td>                       
-                                    <td v-text="transaccionDom.date" class="text-center"></td>
+                                    <td class="text-center">{{ $formatDateMx(transaccionDom.date) }}</td>
                                     <td v-text="transaccionDom.nb_company" class="text-center"></td>
                                     <td v-text="transaccionDom.code" class="text-center"></td>
                                     <td v-text="transaccionDom.message" class="text-center"></td>
@@ -92,8 +105,9 @@
                                 </tr>                                
                             </tbody>
                         </table>
+                        </div>
                         <nav>
-                            <ul class="pagination">
+                            <ul class="pagination cdc-pagination">
                                 <li class="page-item" v-if="pagination.current_page > 1">
                                     <a class="page-link" href="#" @click.prevent="cambiarPagina(pagination.current_page - 1,buscar,criterio)">Ant</a>
                                 </li>
@@ -337,6 +351,7 @@
                     'to' : 0,
                 },
                 offset : 10,
+                filtroStatus : 99,
                 criterio : 'Reference',
                 buscar : '',
                 loading: false
@@ -346,35 +361,14 @@
             isActived: function(){
                 return this.pagination.current_page;
             },
-            //Calcula los elementos de la paginación
             pagesNumber: function() {
-                if(!this.pagination.to) {
-                    return [];
-                }
-                
-                var from = this.pagination.current_page - this.offset; 
-                if(from < 1) {
-                    from = 1;
-                }
-
-                var to = from + (this.offset * 2); 
-                if(to >= this.pagination.last_page){
-                    to = this.pagination.last_page;
-                }  
-
-                var pagesArray = [];
-                while(from <= to) {
-                    pagesArray.push(from);
-                    from++;
-                }
-                return pagesArray;             
-
+                return this.$paginationPages(this.pagination);
             }
         },
         methods : {
             listarTransaccionDom (page,buscar,criterio){
                 let me=this;
-                var url= '/transaccionDom?page=' + page + '&buscar='+ buscar + '&criterio='+ criterio + '&offset='+ me.offset;
+                var url= '/transaccionDom?page=' + page + '&buscar='+ encodeURIComponent(buscar || '') + '&criterio='+ encodeURIComponent(criterio || 'Reference') + '&offset='+ me.offset + '&status='+ me.filtroStatus;
                 axios.get(url).then(function (response) {
                     var transaccionDom= response.data;
                     me.arrayTransaccionDom = transaccionDom.transaccionesDom.data;

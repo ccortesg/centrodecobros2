@@ -95,6 +95,11 @@ class RespuestaController extends Controller
         ];
     }
 
+    private function statusRespuestaValido($status)
+    {
+        return in_array((string) $status, ['approved', 'denied', 'error', '99'], true);
+    }
+
     private function respuestaPerteneceUsuario(Respuesta $respuesta)
     {
         if ($this->usuarioEsAdministrador()) {
@@ -114,6 +119,7 @@ class RespuestaController extends Controller
         $criterio = $request->criterio;
         $offset = $this->offsetPaginacion($request->offset);
         $tipo = $request->tipo;
+        $status = $request->status ?? 99;
 
         $query = Respuesta::leftjoin('transacciones', 'transacciones.id','respuestas.idtransaccion')
         ->leftjoin('clientes', 'clientes.id','transacciones.idcliente')
@@ -145,6 +151,17 @@ class RespuestaController extends Controller
                 $query->where('respuestas.'.$criterio, 'like', '%'. $buscar . '%');
             }
             
+        }
+
+        if (!$this->statusRespuestaValido($status)) {
+            return response()->json([
+                'status' => 'error',
+                'msg' => 'Status no permitido.',
+            ], 422);
+        }
+
+        if ((string) $status !== '99') {
+            $query->where('respuestas.status', '=', $status);
         }
 
         $respuestas = $query->orderBy('respuestas.id', 'desc')->paginate($offset);

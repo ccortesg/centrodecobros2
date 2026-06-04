@@ -18,7 +18,7 @@
                         </button> &nbsp;
                     </div>
                     <div class="card-body">
-                        <div class="form-group row">
+                        <div class="form-group row cdc-list-toolbar">
                             <div class="col-xl-6 col-lg-8 col-md-10 col-sm-12">
                                 <div class="input-group">
                                     <select class="form-control col-lg-3 col-md-3 col-sm-4" v-model="criterio">
@@ -32,7 +32,8 @@
                                 </div>
                             </div>
                         </div>
-                        <table class="table table-bordered table-striped table-sm table-responsive">
+                        <div class="cdc-table-shell">
+                        <table class="table table-bordered table-striped table-sm cdc-responsive-table">
                             <thead>
                                 <tr>
                                     <th class="text-center">Opciones
@@ -52,14 +53,27 @@
                                     <th class="text-center">Código</th>
                                     <th class="text-center">Mensaje</th>
                                     <th class="text-center">Autorización</th>
-                                    <th class="text-center">Status</th>
-                                    <th class="text-center">Enviado</th>
+                                    <th class="text-center">Status
+                                        <select v-model="filtroCondicion" @change="listarPagoSpei(1,buscar,criterio)">
+                                            <option value="99" selected>Todos</option>
+                                            <option value="0">Inválido</option>
+                                            <option value="1">Exitoso</option>
+                                            <option value="2">Cancelado</option>
+                                        </select>
+                                    </th>
+                                    <th class="text-center">Enviado
+                                        <select v-model="filtroEnviada" @change="listarPagoSpei(1,buscar,criterio)">
+                                            <option value="99" selected>Todos</option>
+                                            <option value="0">No</option>
+                                            <option value="1">Sí</option>
+                                        </select>
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr v-for="pagospei in arrayPagoSpei" :key="pagospei.id">
                                     <td class="text-center">
-                                        <button type="button" @click="abrirModal('pagospei','ver',pagospei)" class="btn btn-success btn-sm">
+                                        <button type="button" @click="abrirModal('pagospei','ver',pagospei)" class="btn btn-success btn-sm cdc-action-button" title="Ver pago SPEI" aria-label="Ver pago SPEI">
                                           <i class="icon-eye"></i>
                                         </button> &nbsp;
                                         <!--<button type="button" class="btn btn-danger btn-sm" @click="eliminarPagoSpei(pagospei.id)">
@@ -67,9 +81,19 @@
                                         </button>-->
                                     </td>
                                     <td v-text="pagospei.id" class="text-center"></td>
-                                    <td v-text="pagospei.fecha" class="text-center"></td>
+                                    <td class="text-center">
+                                        <span class="cdc-date-stack">
+                                            <span>{{ $formatDateMx(pagospei.fecha) }}</span>
+                                            <span class="cdc-date-stack__time">{{ $formatTimeMx(pagospei.fecha) }}</span>
+                                        </span>
+                                    </td>
                                     <td v-text="pagospei.clabe" class="text-center"></td>
-                                    <td v-text="pagospei.fecha_peticion" class="text-center"></td>
+                                    <td class="text-center">
+                                        <span class="cdc-date-stack">
+                                            <span>{{ $formatDateMx(pagospei.fecha_peticion) }}</span>
+                                            <span class="cdc-date-stack__time">{{ $formatTimeMx(pagospei.fecha_peticion) }}</span>
+                                        </span>
+                                    </td>
                                     <td class="text-center">
                                         {{ $formatCurrency(pagospei.monto / 100) }}
                                     </td>
@@ -105,8 +129,9 @@
                                 </tr>                                
                             </tbody>
                         </table>
+                        </div>
                         <nav>
-                            <ul class="pagination">
+                            <ul class="pagination cdc-pagination">
                                 <li class="page-item" v-if="pagination.current_page > 1">
                                     <a class="page-link" href="#" @click.prevent="cambiarPagina(pagination.current_page - 1,buscar,criterio)">Ant</a>
                                 </li>
@@ -234,6 +259,8 @@
                     'to' : 0,
                 },
                 offset : 10,
+                filtroCondicion : 99,
+                filtroEnviada : 99,
                 criterio : 'clabe',
                 buscar : '',
                 loading: false
@@ -243,35 +270,14 @@
             isActived: function(){
                 return this.pagination.current_page;
             },
-            //Calcula los elementos de la paginación
             pagesNumber: function() {
-                if(!this.pagination.to) {
-                    return [];
-                }
-                
-                var from = this.pagination.current_page - this.offset; 
-                if(from < 1) {
-                    from = 1;
-                }
-
-                var to = from + (this.offset * 2); 
-                if(to >= this.pagination.last_page){
-                    to = this.pagination.last_page;
-                }  
-
-                var pagesArray = [];
-                while(from <= to) {
-                    pagesArray.push(from);
-                    from++;
-                }
-                return pagesArray;             
-
+                return this.$paginationPages(this.pagination);
             }
         },
         methods : {
             listarPagoSpei (page,buscar,criterio){
                 let me=this;
-                var url= '/pagospei?page=' + page + '&buscar='+ buscar + '&criterio='+ criterio + '&offset='+ me.offset;
+                var url= '/pagospei?page=' + page + '&buscar='+ encodeURIComponent(buscar || '') + '&criterio='+ encodeURIComponent(criterio || 'clabe') + '&offset='+ me.offset + '&condicion='+ me.filtroCondicion + '&enviada='+ me.filtroEnviada;
                 axios.get(url).then(function (response) {
                     var pagospei= response.data;
                     me.arrayPagoSpei = pagospei.pagospei.data;

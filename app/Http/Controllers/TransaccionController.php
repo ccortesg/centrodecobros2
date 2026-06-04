@@ -198,6 +198,11 @@ class TransaccionController extends Controller
         ];
     }
 
+    private function condicionTransaccionValida($status)
+    {
+        return in_array((string) $status, ['0', '1', '2', '3', '4', '99'], true);
+    }
+
     private function normalizarTelefonoCliente($telefono)
     {
         $telefono_limpio = preg_replace('/\D+/', '', trim($telefono));
@@ -323,8 +328,15 @@ class TransaccionController extends Controller
             }            
         }
 
-        if($status <> 99) {
-            $query->where('transacciones.status', '=', $status);
+        if (!$this->condicionTransaccionValida($status)) {
+            return response()->json([
+                'status' => 'error',
+                'msg' => 'Status no permitido.',
+            ], 422);
+        }
+
+        if((string) $status !== '99') {
+            $query->where('transacciones.condicion', '=', (int) $status);
         }
         
         $transacciones = $query->orderBy('transacciones.id', 'desc')->paginate($offset);

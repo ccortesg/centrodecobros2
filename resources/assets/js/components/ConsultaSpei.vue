@@ -18,7 +18,7 @@
                         </button> &nbsp;
                     </div>
                     <div class="card-body">
-                        <div class="form-group row">
+                        <div class="form-group row cdc-list-toolbar">
                             <div class="col-xl-6 col-lg-8 col-md-10 col-sm-12">
                                 <div class="input-group">
                                     <select class="form-control col-md-3" v-model="criterio">
@@ -32,7 +32,8 @@
                                 </div>
                             </div>
                         </div>
-                        <table class="table table-bordered table-striped table-sm table-responsive">
+                        <div class="cdc-table-shell">
+                        <table class="table table-bordered table-striped table-sm cdc-responsive-table">
                             <thead>
                                 <tr>
                                     <th class="text-center">Opciones
@@ -54,7 +55,7 @@
                             <tbody>
                                 <tr v-for="consultaspei in arrayConsultaSpei" :key="consultaspei.id">
                                     <td class="text-center">
-                                        <button type="button" @click="abrirModal('consultaspei','ver',consultaspei)" class="btn btn-success btn-sm">
+                                        <button type="button" @click="abrirModal('consultaspei','ver',consultaspei)" class="btn btn-success btn-sm cdc-action-button" title="Ver consulta SPEI" aria-label="Ver consulta SPEI">
                                           <i class="icon-eye"></i>
                                         </button> &nbsp;
                                         <!--<button type="button" class="btn btn-danger btn-sm" @click="eliminarConsultaSpei(consultaspei.id)">
@@ -62,7 +63,12 @@
                                         </button>-->
                                     </td>
                                     <td v-text="consultaspei.id" class="text-center"></td>
-                                    <td v-text="consultaspei.fecha" class="text-center"></td>
+                                    <td class="text-center">
+                                        <span class="cdc-date-stack">
+                                            <span>{{ $formatDateMx(consultaspei.fecha) }}</span>
+                                            <span class="cdc-date-stack__time">{{ $formatTimeMx(consultaspei.fecha) }}</span>
+                                        </span>
+                                    </td>
                                     <td v-text="consultaspei.reference" class="text-center"></td>
                                     <td v-text="consultaspei.codigo" class="text-center"></td>                       
                                     <td v-text="consultaspei.mensaje" class="text-center"></td>
@@ -70,8 +76,9 @@
                                 </tr>                                
                             </tbody>
                         </table>
+                        </div>
                         <nav>
-                            <ul class="pagination">
+                            <ul class="pagination cdc-pagination">
                                 <li class="page-item" v-if="pagination.current_page > 1">
                                     <a class="page-link" href="#" @click.prevent="cambiarPagina(pagination.current_page - 1,buscar,criterio)">Ant</a>
                                 </li>
@@ -180,35 +187,14 @@
             isActived: function(){
                 return this.pagination.current_page;
             },
-            //Calcula los elementos de la paginación
             pagesNumber: function() {
-                if(!this.pagination.to) {
-                    return [];
-                }
-                
-                var from = this.pagination.current_page - this.offset; 
-                if(from < 1) {
-                    from = 1;
-                }
-
-                var to = from + (this.offset * 2); 
-                if(to >= this.pagination.last_page){
-                    to = this.pagination.last_page;
-                }  
-
-                var pagesArray = [];
-                while(from <= to) {
-                    pagesArray.push(from);
-                    from++;
-                }
-                return pagesArray;             
-
+                return this.$paginationPages(this.pagination);
             }
         },
         methods : {
             listarConsultaSpei (page,buscar,criterio){
                 let me=this;
-                var url= '/consultaspei?page=' + page + '&buscar='+ buscar + '&criterio='+ criterio + '&offset='+ me.offset;
+                var url= '/consultaspei?page=' + page + '&buscar='+ encodeURIComponent(buscar || '') + '&criterio='+ encodeURIComponent(criterio || 'reference') + '&offset='+ me.offset;
                 axios.get(url).then(function (response) {
                     var consultaspei= response.data;
                     me.arrayConsultaSpei = consultaspei.consultaspei.data;

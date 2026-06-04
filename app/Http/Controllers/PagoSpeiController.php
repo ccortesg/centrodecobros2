@@ -31,6 +31,16 @@ class PagoSpeiController extends Controller
         return ['clabe', 'monto', 'transaccion', 'codigo', 'mensaje', 'autorizacion', 'ClientReference'];
     }
 
+    private function filtroBinarioValido($value)
+    {
+        return in_array((string) $value, ['0', '1', '99'], true);
+    }
+
+    private function filtroCondicionValido($value)
+    {
+        return in_array((string) $value, ['0', '1', '2', '99'], true);
+    }
+
     private function pagoPerteneceUsuario(PagoSpei $pago)
     {
         if ($this->usuarioEsAdministrador()) {
@@ -46,7 +56,9 @@ class PagoSpeiController extends Controller
         
         $buscar = $request->buscar;
         $criterio = $request->criterio;
-        $offset = $this->offsetPaginacion($request->offset);        
+        $offset = $this->offsetPaginacion($request->offset);
+        $condicion = $request->condicion ?? 99;
+        $enviada = $request->enviada ?? 99;
 
         $query = PagoSpei::leftjoin('transacciones', 'transacciones.id','pagospei.idtransaccion')
         ->leftjoin('clientes', 'clientes.id','transacciones.idcliente')
@@ -69,6 +81,28 @@ class PagoSpeiController extends Controller
             } else {
                 $query->where('pagospei.'.$criterio, 'like', '%'. $buscar . '%');    
             }            
+        }
+
+        if (!$this->filtroCondicionValido($condicion)) {
+            return response()->json([
+                'status' => 'error',
+                'msg' => 'Status no permitido.',
+            ], 422);
+        }
+
+        if (!$this->filtroBinarioValido($enviada)) {
+            return response()->json([
+                'status' => 'error',
+                'msg' => 'Filtro de enviado no permitido.',
+            ], 422);
+        }
+
+        if ((string) $condicion !== '99') {
+            $query->where('pagospei.condicion', '=', (int) $condicion);
+        }
+
+        if ((string) $enviada !== '99') {
+            $query->where('pagospei.enviada', '=', (int) $enviada);
         }
 
         $pagospei = $query->orderBy('pagospei.id', 'desc')->paginate($offset);

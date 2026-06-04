@@ -69,6 +69,15 @@ Desde la ejecucion UX/UI del 2026-06-04 existe una base compartida no invasiva p
 
 `resources/views/principal.blade.php` debe seguir usando `route('logout')`. Si la aplicacion se publica detras de Docker/reverse proxy, Laravel debe confiar en `X-Forwarded-Proto` y `X-Forwarded-Host` para no generar `http://.../logout` dentro de una pagina HTTPS. El ajuste vigente esta en `app/Http/Middleware/TrustProxies.php`.
 
+## Convencion de filtros financieros
+
+Los filtros de listados financieros deben mapearse a columnas reales, no a nombres genericos de UI:
+
+- `status` solo debe usarse cuando la tabla tenga una columna real `status`, por ejemplo `respuestas.status` o `transaccionesDom.status`.
+- `condicion` representa el estado operativo en tablas como `transacciones` y `pagospei`; si el UI muestra encabezado `Status`, el backend puede recibir `status` por compatibilidad, pero debe traducirlo a `transacciones.condicion` cuando esa sea la columna real.
+- `enviada` debe usarse para columnas reales `enviada`, como `pagospei.enviada` y `cancelaspei.enviada`.
+- Todo filtro nuevo debe validar valores permitidos antes de aplicar `where(...)`; un valor invalido debe responder 422 controlado, no construir SQL dinamico ni producir HTTP 500.
+
 ## Pruebas recomendadas
 
 - `npm run production`

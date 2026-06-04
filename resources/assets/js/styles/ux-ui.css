@@ -48,6 +48,10 @@
     vertical-align: middle;
 }
 
+.cdc-table-shell > .cdc-responsive-table {
+    min-width: max-content;
+}
+
 .cdc-pagination {
     display: flex;
     flex-wrap: wrap;
