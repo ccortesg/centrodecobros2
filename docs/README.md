@@ -14,15 +14,16 @@ Leer en este orden para entender el estado vigente:
 6. `docs/DEVELOPER_ONBOARDING.md`
 7. `docs/SECURITY_AND_RISKS.md`
 8. `docs/INTEGRATIONS.md`
-9. `docs/MODULES/*.md`
-10. `docs/MIGRATION_DEPLOY_AND_ROLLBACK_RUNBOOK.md`
-11. `docs/MIGRATION_RELEASE_CHECKLIST.md`
-12. `docs/MIGRATION_PHASE_34_VALIDACION_PAGADETODO_WEBHOOKS_IDEMPOTENCIA.md`
-13. `docs/MIGRATION_PHASE_35_GITHUB_SANDBOX_RELEASE.md`
-14. `docs/MIGRATION_MASTER_PLAN.md`
-15. `docs/MIGRATION_DECISIONS_LOG.md`
-16. `docs/MIGRATION_RISK_REGISTER.md`
-17. `docs/MIGRATION_CHANGELOG.md`
+9. `docs/UX_UI_AUDIT_AND_WORK_PLAN_2026-06-04.md`
+10. `docs/MODULES/*.md`
+11. `docs/MIGRATION_DEPLOY_AND_ROLLBACK_RUNBOOK.md`
+12. `docs/MIGRATION_RELEASE_CHECKLIST.md`
+13. `docs/MIGRATION_PHASE_34_VALIDACION_PAGADETODO_WEBHOOKS_IDEMPOTENCIA.md`
+14. `docs/MIGRATION_PHASE_35_GITHUB_SANDBOX_RELEASE.md`
+15. `docs/MIGRATION_MASTER_PLAN.md`
+16. `docs/MIGRATION_DECISIONS_LOG.md`
+17. `docs/MIGRATION_RISK_REGISTER.md`
+18. `docs/MIGRATION_CHANGELOG.md`
 
 Los documentos `MIGRATION_PHASE_*` son evidencia historica por fase. Para tareas nuevas, la regla rectora es `PROJECT_OPERATING_MODEL.md`.
 
@@ -75,6 +76,7 @@ Los documentos `MIGRATION_PHASE_*` son evidencia historica por fase. Para tareas
 - `npm audit` completo puede reportar deuda dev/tooling; la frontera runtime es `npm audit --omit=dev`.
 - Docker productivo funciona, pero su compose/orquestacion no esta documentado dentro del repo.
 - Scheduler productivo no debe modificarse ni duplicarse sin solicitud explicita.
+- UX/UI productiva tiene plan de correccion vigente en `docs/UX_UI_AUDIT_AND_WORK_PLAN_2026-06-04.md`.
 
 ## Validacion rapida
 

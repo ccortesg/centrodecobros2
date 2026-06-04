@@ -17,17 +17,31 @@ class EstadoController extends Controller
     {
         if (!$request->ajax()) return redirect('/');
 
-        $buscar = $request->buscar;
-        $criterio = $request->criterio;
-        $offset = $request->offset;
-        
-        if ($buscar==''){
-            $estados = Estado::orderBy('id', 'desc')->paginate($offset);
+        $buscar = $request->buscar ?? '';
+        $criterio = $request->criterio ?? 'nombre';
+        $offset = $this->offsetPaginacion($request->offset);
+        $status = $request->status;
+
+        if (!$this->criterioPermitido($criterio, ['nombre'])) {
+            return response()->json(['message' => 'Criterio de busqueda invalido.'], 422);
         }
-        else{
-            $estados = Estado::where($criterio, 'like', '%'. $buscar . '%')->orderBy('id', 'desc')->paginate($offset);
+
+        $query = Estado::query();
+
+        if ($status !== null && $status !== '' && (string) $status !== '99') {
+            if (!in_array((string) $status, ['0', '1'], true)) {
+                return response()->json(['message' => 'Status invalido.'], 422);
+            }
+
+            $query->where('condicion', '=', (int) $status);
         }
-        
+
+        if ($buscar !== ''){
+            $query->where($criterio, 'like', '%'. $buscar . '%');
+        }
+
+        $estados = $query->orderBy('id', 'desc')->paginate($offset);
+
 
         return [
             'pagination' => [
@@ -63,7 +77,7 @@ class EstadoController extends Controller
         $estado->condicion = '1';
         $estado->save();
     }
-  
+
 
     /**
      * Update the specified resource in storage.
@@ -97,5 +111,5 @@ class EstadoController extends Controller
         $estado->save();
     }
 
-    
+
 }

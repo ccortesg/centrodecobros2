@@ -14,7 +14,7 @@
                         </button>
                     </div>
                     <div class="card-body">
-                        <div class="form-group row">
+                        <div class="form-group row cdc-list-toolbar">
                             <div class="col-xl-6 col-lg-8 col-md-10 col-sm-12">
                                 <div class="input-group">
                                     <select class="form-control col-md-3" v-model="criterio">
@@ -26,61 +26,63 @@
                                 </div>
                             </div>
                         </div>
-                        <table class="table table-bordered table-striped table-sm table-responsive">
-                            <thead>
-                                <tr>
-                                    <th>Opciones
-                                        <select v-model="offset" @change="listarCiudad(1,buscar,criterio)">
-                                            <option value="10" selected>10</option>
-                                            <option value="25">25</option>
-                                            <option value="50">50</option>
-                                            <option value="100">100</option>
-                                        </select>
-                                    </th>
-                                    <th>Nombre</th>
-                                    <th>Estado</th>
-                                    <th>Status
-                                        <select v-model="status" @change="listarCiudad(1,buscar,criterio)">
-                                            <option value="99" selected>Todos</option>
-                                            <option value="0">Desactivados</option>
-                                            <option value="1">Activos</option>
-                                        </select> 
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="ciudad in arrayCiudad" :key="ciudad.id">
-                                    <td>
-                                        <button type="button" @click="abrirModal('ciudad','actualizar',ciudad)" class="btn btn-warning btn-sm">
-                                          <i class="icon-pencil"></i>
-                                        </button> &nbsp;
-                                        <template v-if="ciudad.condicion">
-                                            <button type="button" class="btn btn-danger btn-sm" @click="desactivarCiudad(ciudad.id)">
-                                                <i class="icon-trash"></i>
-                                            </button>
-                                        </template>
-                                        <template v-else>
-                                            <button type="button" class="btn btn-info btn-sm" @click="activarCiudad(ciudad.id)">
-                                                <i class="icon-check"></i>
-                                            </button>
-                                        </template>
-                                    </td>
-                                    <td v-text="ciudad.nombre"></td>
-                                    <td v-text="ciudad.nombre_estado"></td>
-                                    <td>
-                                        <div v-if="ciudad.condicion">
-                                            <span class="badge badge-success">Activo</span>
-                                        </div>
-                                        <div v-else>
-                                            <span class="badge badge-danger">Desactivado</span>
-                                        </div>
-                                        
-                                    </td>
-                                </tr>                                
-                            </tbody>
-                        </table>
+                        <div class="cdc-table-shell">
+                            <table class="table table-bordered table-striped table-sm cdc-responsive-table">
+                                <thead>
+                                    <tr>
+                                        <th>Opciones
+                                            <select v-model="offset" @change="listarCiudad(1,buscar,criterio)">
+                                                <option value="10" selected>10</option>
+                                                <option value="25">25</option>
+                                                <option value="50">50</option>
+                                                <option value="100">100</option>
+                                            </select>
+                                        </th>
+                                        <th>Nombre</th>
+                                        <th>Estado</th>
+                                        <th>Status
+                                            <select v-model="status" @change="listarCiudad(1,buscar,criterio)">
+                                                <option value="99" selected>Todos</option>
+                                                <option value="0">Desactivados</option>
+                                                <option value="1">Activos</option>
+                                            </select>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="ciudad in arrayCiudad" :key="ciudad.id">
+                                        <td>
+                                            <button type="button" @click="abrirModal('ciudad','actualizar',ciudad)" class="btn btn-warning btn-sm cdc-action-button" title="Editar ciudad" aria-label="Editar ciudad">
+                                              <i class="icon-pencil"></i>
+                                            </button> &nbsp;
+                                            <template v-if="ciudad.condicion">
+                                                <button type="button" class="btn btn-danger btn-sm cdc-action-button" @click="desactivarCiudad(ciudad.id)" title="Desactivar ciudad" aria-label="Desactivar ciudad">
+                                                    <i class="icon-trash"></i>
+                                                </button>
+                                            </template>
+                                            <template v-else>
+                                                <button type="button" class="btn btn-info btn-sm cdc-action-button" @click="activarCiudad(ciudad.id)" title="Activar ciudad" aria-label="Activar ciudad">
+                                                    <i class="icon-check"></i>
+                                                </button>
+                                            </template>
+                                        </td>
+                                        <td v-text="ciudad.nombre"></td>
+                                        <td v-text="ciudad.nombre_estado"></td>
+                                        <td>
+                                            <div v-if="ciudad.condicion">
+                                                <span class="badge badge-success">Activo</span>
+                                            </div>
+                                            <div v-else>
+                                                <span class="badge badge-danger">Desactivado</span>
+                                            </div>
+
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                         <nav>
-                            <ul class="pagination">
+                            <ul class="pagination cdc-pagination">
                                 <li class="page-item" v-if="pagination.current_page > 1">
                                     <a class="page-link" href="#" @click.prevent="cambiarPagina(pagination.current_page - 1,buscar,criterio)">Ant</a>
                                 </li>
@@ -181,35 +183,14 @@
             isActived: function(){
                 return this.pagination.current_page;
             },
-            //Calcula los elementos de la paginación
             pagesNumber: function() {
-                if(!this.pagination.to) {
-                    return [];
-                }
-                
-                var from = this.pagination.current_page - this.offset; 
-                if(from < 1) {
-                    from = 1;
-                }
-
-                var to = from + (this.offset * 2); 
-                if(to >= this.pagination.last_page){
-                    to = this.pagination.last_page;
-                }  
-
-                var pagesArray = [];
-                while(from <= to) {
-                    pagesArray.push(from);
-                    from++;
-                }
-                return pagesArray;             
-
+                return this.$paginationPages(this.pagination);
             }
         },
         methods : {
             listarCiudad (page,buscar,criterio){
                 let me=this;
-                var url= '/ciudad?page=' + page + '&buscar='+ buscar + '&criterio='+ criterio + '&offset='+ me.offset;
+                var url= '/ciudad?page=' + page + '&buscar='+ encodeURIComponent(buscar || '') + '&criterio='+ encodeURIComponent(criterio || 'nombre') + '&offset='+ me.offset + '&status='+ me.status;
                 axios.get(url).then(function (response) {
                     var respuesta= response.data;
                     me.arrayCiudad = respuesta.ciudades.data;
@@ -250,7 +231,7 @@
                     'idestado': this.idestado
                 }).then(function (response) {
                     me.cerrarModal();
-                    me.listarCiudad(1,'','nombre');
+                    me.listarCiudad(1,me.buscar,me.criterio);
                 }).catch(function (error) {
                     console.log(error);
                         swal(
@@ -273,7 +254,7 @@
                     'id': this.ciudad_id
                 }).then(function (response) {
                     me.cerrarModal();
-                    me.listarCiudad(1,'','nombre');
+                    me.listarCiudad(me.pagination.current_page || 1,me.buscar,me.criterio);
                 }).catch(function (error) {
                     console.log(error);
                         swal(
@@ -303,7 +284,7 @@
                     axios.put('/ciudad/desactivar',{
                         'id': id
                     }).then(function (response) {
-                        me.listarCiudad(1,'','nombre');
+                        me.listarCiudad(me.pagination.current_page || 1,me.buscar,me.criterio);
                         swal(
                         'Desactivado!',
                         'El registro ha sido desactivado con éxito.',
@@ -347,7 +328,7 @@
                     axios.put('/ciudad/activar',{
                         'id': id
                     }).then(function (response) {
-                        me.listarCiudad(1,'','nombre');
+                        me.listarCiudad(me.pagination.current_page || 1,me.buscar,me.criterio);
                         swal(
                         'Activado!',
                         'El registro ha sido activado con éxito.',

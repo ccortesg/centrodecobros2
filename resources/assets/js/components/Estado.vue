@@ -14,7 +14,7 @@
                         </button>
                     </div>
                     <div class="card-body">
-                        <div class="form-group row">
+                        <div class="form-group row cdc-list-toolbar">
                             <div class="col-xl-6 col-lg-8 col-md-10 col-sm-12">
                                 <div class="input-group">
                                     <select class="form-control col-md-3" v-model="criterio">
@@ -25,59 +25,61 @@
                                 </div>
                             </div>
                         </div>
-                        <table class="table table-bordered table-striped table-sm table-responsive">
-                            <thead>
-                                <tr>
-                                    <th>Opciones
-                                        <select v-model="offset" @change="listarEstado(1,buscar,criterio)">
-                                            <option value="10" selected>10</option>
-                                            <option value="25">25</option>
-                                            <option value="50">50</option>
-                                            <option value="100">100</option>
-                                        </select>
-                                    </th>
-                                    <th>Nombre</th>
-                                    <th>Status
-                                        <select v-model="status" @change="listarEstado(1,buscar,criterio)">
-                                            <option value="99" selected>Todos</option>
-                                            <option value="0">Desactivados</option>
-                                            <option value="1">Activos</option>
-                                        </select> 
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="estado in arrayEstado" :key="estado.id">
-                                    <td>
-                                        <button type="button" @click="abrirModal('estado','actualizar',estado)" class="btn btn-warning btn-sm">
-                                          <i class="icon-pencil"></i>
-                                        </button> &nbsp;
-                                        <template v-if="estado.condicion">
-                                            <button type="button" class="btn btn-danger btn-sm" @click="desactivarEstado(estado.id)">
-                                                <i class="icon-trash"></i>
-                                            </button>
-                                        </template>
-                                        <template v-else>
-                                            <button type="button" class="btn btn-info btn-sm" @click="activarEstado(estado.id)">
-                                                <i class="icon-check"></i>
-                                            </button>
-                                        </template>
-                                    </td>
-                                    <td v-text="estado.nombre"></td>
-                                    <td>
-                                        <div v-if="estado.condicion">
-                                            <span class="badge badge-success">Activo</span>
-                                        </div>
-                                        <div v-else>
-                                            <span class="badge badge-danger">Desactivado</span>
-                                        </div>
-                                        
-                                    </td>
-                                </tr>                                
-                            </tbody>
-                        </table>
+                        <div class="cdc-table-shell">
+                            <table class="table table-bordered table-striped table-sm cdc-responsive-table">
+                                <thead>
+                                    <tr>
+                                        <th>Opciones
+                                            <select v-model="offset" @change="listarEstado(1,buscar,criterio)">
+                                                <option value="10" selected>10</option>
+                                                <option value="25">25</option>
+                                                <option value="50">50</option>
+                                                <option value="100">100</option>
+                                            </select>
+                                        </th>
+                                        <th>Nombre</th>
+                                        <th>Status
+                                            <select v-model="status" @change="listarEstado(1,buscar,criterio)">
+                                                <option value="99" selected>Todos</option>
+                                                <option value="0">Desactivados</option>
+                                                <option value="1">Activos</option>
+                                            </select>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="estado in arrayEstado" :key="estado.id">
+                                        <td>
+                                            <button type="button" @click="abrirModal('estado','actualizar',estado)" class="btn btn-warning btn-sm cdc-action-button" title="Editar estado" aria-label="Editar estado">
+                                              <i class="icon-pencil"></i>
+                                            </button> &nbsp;
+                                            <template v-if="estado.condicion">
+                                                <button type="button" class="btn btn-danger btn-sm cdc-action-button" @click="desactivarEstado(estado.id)" title="Desactivar estado" aria-label="Desactivar estado">
+                                                    <i class="icon-trash"></i>
+                                                </button>
+                                            </template>
+                                            <template v-else>
+                                                <button type="button" class="btn btn-info btn-sm cdc-action-button" @click="activarEstado(estado.id)" title="Activar estado" aria-label="Activar estado">
+                                                    <i class="icon-check"></i>
+                                                </button>
+                                            </template>
+                                        </td>
+                                        <td v-text="estado.nombre"></td>
+                                        <td>
+                                            <div v-if="estado.condicion">
+                                                <span class="badge badge-success">Activo</span>
+                                            </div>
+                                            <div v-else>
+                                                <span class="badge badge-danger">Desactivado</span>
+                                            </div>
+
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                         <nav>
-                            <ul class="pagination">
+                            <ul class="pagination cdc-pagination">
                                 <li class="page-item" v-if="pagination.current_page > 1">
                                     <a class="page-link" href="#" @click.prevent="cambiarPagina(pagination.current_page - 1,buscar,criterio)">Ant</a>
                                 </li>
@@ -166,35 +168,14 @@
             isActived: function(){
                 return this.pagination.current_page;
             },
-            //Calcula los elementos de la paginación
             pagesNumber: function() {
-                if(!this.pagination.to) {
-                    return [];
-                }
-                
-                var from = this.pagination.current_page - this.offset; 
-                if(from < 1) {
-                    from = 1;
-                }
-
-                var to = from + (this.offset * 2); 
-                if(to >= this.pagination.last_page){
-                    to = this.pagination.last_page;
-                }  
-
-                var pagesArray = [];
-                while(from <= to) {
-                    pagesArray.push(from);
-                    from++;
-                }
-                return pagesArray;             
-
+                return this.$paginationPages(this.pagination);
             }
         },
         methods : {
             listarEstado (page,buscar,criterio){
                 let me=this;
-                var url= '/estado?page=' + page + '&buscar='+ buscar + '&criterio='+ criterio + '&offset='+ me.offset;
+                var url= '/estado?page=' + page + '&buscar='+ encodeURIComponent(buscar || '') + '&criterio='+ encodeURIComponent(criterio || 'nombre') + '&offset='+ me.offset + '&status='+ me.status;
                 axios.get(url).then(function (response) {
                     var respuesta= response.data;
                     me.arrayEstado = respuesta.estados.data;
@@ -222,7 +203,7 @@
                     'nombre': this.nombre
                 }).then(function (response) {
                     me.cerrarModal();
-                    me.listarEstado(1,'','nombre');
+                    me.listarEstado(1,me.buscar,me.criterio);
                 }).catch(function (error) {
                     console.log(error);
                 });
@@ -239,7 +220,7 @@
                     'id': this.estado_id
                 }).then(function (response) {
                     me.cerrarModal();
-                    me.listarEstado(1,'','nombre');
+                    me.listarEstado(me.pagination.current_page || 1,me.buscar,me.criterio);
                 }).catch(function (error) {
                     console.log(error);
                 }); 
@@ -264,7 +245,7 @@
                     axios.put('/estado/desactivar',{
                         'id': id
                     }).then(function (response) {
-                        me.listarEstado(1,'','nombre');
+                        me.listarEstado(me.pagination.current_page || 1,me.buscar,me.criterio);
                         swal(
                         'Desactivado!',
                         'El registro ha sido desactivado con éxito.',
@@ -303,7 +284,7 @@
                     axios.put('/estado/activar',{
                         'id': id
                     }).then(function (response) {
-                        me.listarEstado(1,'','nombre');
+                        me.listarEstado(me.pagination.current_page || 1,me.buscar,me.criterio);
                         swal(
                         'Activado!',
                         'El registro ha sido activado con éxito.',

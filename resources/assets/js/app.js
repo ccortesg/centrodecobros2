@@ -4,6 +4,7 @@ import importedJQuery from 'jquery';
 
 import './bootstrap';
 import { initAuthenticatedShellHeader, initAuthenticatedShellNavigation, initAuthenticatedShellSidebar } from './shell';
+import './styles/ux-ui.css';
 
 import Rol from './components/Rol.vue';
 import Role from './components/Role.vue';
@@ -74,6 +75,97 @@ function formatCurrency(value) {
     }).format(normalizedAmount);
 }
 
+function padDatePart(value) {
+    return String(value).padStart(2, '0');
+}
+
+function parseDateValue(value) {
+    if (!value) {
+        return null;
+    }
+
+    if (value instanceof Date) {
+        return Number.isNaN(value.getTime()) ? null : value;
+    }
+
+    const rawValue = String(value).trim();
+
+    if (!rawValue) {
+        return null;
+    }
+
+    const dateParts = rawValue.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}):(\d{2}))?/);
+
+    if (dateParts) {
+        return new Date(
+            Number(dateParts[1]),
+            Number(dateParts[2]) - 1,
+            Number(dateParts[3]),
+            Number(dateParts[4] || 0),
+            Number(dateParts[5] || 0),
+            Number(dateParts[6] || 0)
+        );
+    }
+
+    const parsed = new Date(rawValue);
+
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatDateMx(value) {
+    const date = parseDateValue(value);
+
+    if (!date) {
+        return '';
+    }
+
+    return [
+        padDatePart(date.getDate()),
+        padDatePart(date.getMonth() + 1),
+        date.getFullYear()
+    ].join('-');
+}
+
+function formatTimeMx(value) {
+    const date = parseDateValue(value);
+
+    if (!date) {
+        return '';
+    }
+
+    return [
+        padDatePart(date.getHours()),
+        padDatePart(date.getMinutes()),
+        padDatePart(date.getSeconds())
+    ].join(':');
+}
+
+function formatDateTimeMx(value) {
+    return {
+        date: formatDateMx(value),
+        time: formatTimeMx(value)
+    };
+}
+
+function compactPagination(pagination, radius = 2) {
+    if (!pagination || !pagination.to || !pagination.current_page || !pagination.last_page) {
+        return [];
+    }
+
+    const currentPage = Number(pagination.current_page);
+    const lastPage = Number(pagination.last_page);
+    const windowRadius = Math.max(1, Number(radius) || 2);
+    const from = Math.max(1, currentPage - windowRadius);
+    const to = Math.min(lastPage, currentPage + windowRadius);
+    const pages = [];
+
+    for (let page = from; page <= to; page += 1) {
+        pages.push(page);
+    }
+
+    return pages;
+}
+
 /**
  * Next, we will create a fresh Vue application instance and attach it to
  * the page. Then, you may begin adding components to this application
@@ -115,6 +207,10 @@ const app = createApp({
 });
 
 app.config.globalProperties.$formatCurrency = formatCurrency;
+app.config.globalProperties.$formatDateMx = formatDateMx;
+app.config.globalProperties.$formatTimeMx = formatTimeMx;
+app.config.globalProperties.$formatDateTimeMx = formatDateTimeMx;
+app.config.globalProperties.$paginationPages = compactPagination;
 
 Object.entries(components).forEach(([name, component]) => {
     app.component(name, component);

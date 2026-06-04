@@ -11,28 +11,36 @@ class CiudadController extends Controller
     {
         if (!$request->ajax()) return redirect('/');
 
-        $buscar = $request->buscar;
-        $criterio = $request->criterio;
-        $offset = $request->offset;
+        $buscar = $request->buscar ?? '';
+        $criterio = $request->criterio ?? 'nombre';
+        $offset = $this->offsetPaginacion($request->offset);
+        $status = $request->status;
 
-        if ($buscar==''){
-            $ciudades = Ciudad::join('estados','ciudades.idestado','=','estados.id')
-            ->select('ciudades.id','ciudades.idestado','ciudades.nombre','estados.nombre as nombre_estado','ciudades.condicion')
-            ->orderBy('ciudades.id', 'desc')->paginate(10);
+        if (!$this->criterioPermitido($criterio, ['nombre', 'nombre_estado'])) {
+            return response()->json(['message' => 'Criterio de busqueda invalido.'], 422);
         }
-        else{
+
+        $query = Ciudad::join('estados','ciudades.idestado','=','estados.id')
+            ->select('ciudades.id','ciudades.idestado','ciudades.nombre','estados.nombre as nombre_estado','ciudades.condicion')
+            ->orderBy('ciudades.id', 'desc');
+
+        if ($status !== null && $status !== '' && (string) $status !== '99') {
+            if (!in_array((string) $status, ['0', '1'], true)) {
+                return response()->json(['message' => 'Status invalido.'], 422);
+            }
+
+            $query->where('ciudades.condicion', '=', (int) $status);
+        }
+
+        if ($buscar !== ''){
             if($criterio=='nombre_estado'){
-                $ciudades = Ciudad::join('estados','ciudades.idestado','=','estados.id')
-                ->select('ciudades.id','ciudades.idestado','ciudades.nombre','estados.nombre as nombre_estado','ciudades.condicion')
-                ->where('estados.nombre', 'like', '%'. $buscar . '%')
-                ->orderBy('ciudades.id', 'desc')->paginate($offset);
+                $query->where('estados.nombre', 'like', '%'. $buscar . '%');
             } else {
-                $ciudades = Ciudad::join('estados','ciudades.idestado','=','estados.id')
-                ->select('ciudades.id','ciudades.idestado','ciudades.nombre','estados.nombre as nombre_estado','ciudades.condicion')
-                ->where('ciudades.'.$criterio, 'like', '%'. $buscar . '%')
-                ->orderBy('ciudades.id', 'desc')->paginate($offset);
+                $query->where('ciudades.'.$criterio, 'like', '%'. $buscar . '%');
             }
         }
+
+        $ciudades = $query->paginate($offset);
         
         return [
             'pagination' => [

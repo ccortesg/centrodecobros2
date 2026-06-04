@@ -1,6 +1,6 @@
 # Analisis frontend
 
-Ultima actualizacion: 2026-06-03
+Ultima actualizacion: 2026-06-04
 
 ## Estructura actual
 
@@ -45,6 +45,29 @@ Ultima actualizacion: 2026-06-03
 - Convivencia de Vue 3 + assets legacy aumenta costo de mantenimiento.
 - Sin tipado/contratos frontend formalizados.
 - Cambios en menu o assets pueden romper el shell autenticado.
+
+## Convenciones UX/UI vigentes
+
+Desde la ejecucion UX/UI del 2026-06-04 existe una base compartida no invasiva para migrar listados por etapas:
+
+- `resources/assets/js/app.js` importa `resources/assets/js/styles/ux-ui.css` para que Vite empaquete estilos nuevos sin tocar `principal.blade.php`.
+- Helpers globales Vue disponibles:
+  - `$formatDateMx(value)` para `dd-mm-yyyy`;
+  - `$formatTimeMx(value)` para `hh:mm:ss`;
+  - `$formatDateTimeMx(value)` para `{ date, time }`;
+  - `$paginationPages(pagination, radius = 2)` para paginacion compacta.
+- Clases CSS opt-in:
+  - `.cdc-list-toolbar` para filtros responsivos;
+  - `.cdc-table-shell` para wrapper de tabla con scroll horizontal visible;
+  - `.cdc-responsive-table` para normalizar celdas;
+  - `.cdc-pagination` para paginacion compacta con wrap;
+  - `.cdc-date-stack` y `.cdc-date-stack__time` para fecha y hora en dos lineas;
+  - `.cdc-action-button` para botones icon-only con area tactil minima.
+- Primer piloto aplicado en `Estado.vue` y `Ciudad.vue`; los demas modulos deben migrarse por prioridad, manteniendo los contratos backend y rutas existentes.
+
+## Proxy HTTPS y logout
+
+`resources/views/principal.blade.php` debe seguir usando `route('logout')`. Si la aplicacion se publica detras de Docker/reverse proxy, Laravel debe confiar en `X-Forwarded-Proto` y `X-Forwarded-Host` para no generar `http://.../logout` dentro de una pagina HTTPS. El ajuste vigente esta en `app/Http/Middleware/TrustProxies.php`.
 
 ## Pruebas recomendadas
 

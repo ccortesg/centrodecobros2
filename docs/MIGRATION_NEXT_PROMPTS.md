@@ -61,7 +61,31 @@ Entrega:
 - pendientes recomendados.
 ```
 
-## 3. Prompt recomendado exacto - sandbox oficial Pagadetodo
+## 3. Prompt recomendado exacto - UX/UI etapa 1
+
+```text
+Trabaja sobre:
+C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia
+
+No crees una nueva carpeta. Ejecuta la Etapa 1 del plan UX/UI documentado en `docs/UX_UI_AUDIT_AND_WORK_PLAN_2026-06-04.md`.
+
+Objetivo:
+- corregir los warnings Mixed Content observados en produccion al entrar a `/main`;
+- confirmar si la causa esta en `APP_URL`, proxy Docker, headers `X-Forwarded-*`, `TrustProxies` o generacion de `route('logout')`;
+- aplicar el cambio minimo seguro;
+- validar login/logout y consola limpia en browser real;
+- no cambiar funcionalidad de negocio, rutas publicas ni componentes no relacionados;
+- actualizar el control de avances del documento UX/UI con evidencia y validaciones ejecutadas.
+
+Restricciones:
+1. No ejecutar migraciones.
+2. No tocar credenciales productivas.
+3. No modificar scheduler.
+4. No tocar `principal.blade.php` salvo necesidad tecnica justificada y verificada.
+5. No versionar assets compilados.
+```
+
+## 4. Prompt recomendado exacto - sandbox oficial Pagadetodo
 
 Usar solo cuando ya existan credenciales y URL sandbox no productivas.
 
@@ -87,7 +111,7 @@ Restricciones:
 4. No ejecutar migraciones.
 ```
 
-## 4. Prompt recomendado exacto - hardening npm
+## 5. Prompt recomendado exacto - hardening npm
 
 ```text
 Trabaja sobre:
