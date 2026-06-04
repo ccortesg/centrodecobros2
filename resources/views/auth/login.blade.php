@@ -5,7 +5,7 @@
       <div class="col-md-8">
         <div class="card-group mb-0">
           <div class="card p-4" style="background:#79b0df;">
-          <form class="form-horizontal was-validated" method="POST" action="{{ route('login')}}">
+          <form class="form-horizontal was-validated" method="POST" action="{{ route('login', [], false) }}">
           {{ csrf_field() }}
               <div class="card-body text-center">
               <h1>Ingresar</h1>
