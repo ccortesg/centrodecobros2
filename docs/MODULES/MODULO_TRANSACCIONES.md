@@ -1,92 +1,159 @@
-# Módulo: Transacciones (ligas/caja/terminal/SPEI)
+# Modulo: Transacciones, ligas, caja, terminal y SPEI
 
-## Propósito
-Generar referencias/ligas y registrar estado operativo de cobros de distintos tipos (`tipo`).
+Ultima actualizacion: 2026-06-03
+
+## Proposito
+
+Generar referencias/ligas y registrar estado operativo de cobros por distintos tipos de transaccion.
 
 ## Archivos clave
+
 - `app/Http/Controllers/TransaccionController.php`
 - `app/Transaccion.php`
 - `resources/assets/js/components/Transaccion.vue`
 - `resources/assets/js/components/ReporteLigas.vue`
+- `resources/assets/js/components/ReporteTransacciones.vue`
+- `config/services.php`
 
-## Etiquetas funcionales en encabezados y reportes
-- El componente `Transaccion.vue` define encabezados dinámicos por `tipo` para mantener consistencia operativa:
-  - `tipo=1`: **Liga de Pago Única**.
-  - `tipo=2`: **Liga de Pago Domiciliación/Recurrente**.
-  - `tipo=3`: **Referencia SPEI**.
-  - `tipo=4`: **Liga de Pago Terminal**.
-- El componente `ReporteLigas.vue` soporta `tipo=4` con el título **Reporte Ingresos Pago con Terminal**.
+## Tipos funcionales
 
-## Flujo resumido
-1. Front captura datos y llama endpoint (`/transaccion/registrar`, API equivalents).
-2. Backend valida y calcula folio/referencia.
-3. Invoca servicio externo vía Guzzle.
-4. Persiste `transacciones` y, según flujo, posteriores registros en `respuestas`/SPEI.
+- `tipo=1`: Liga de Pago Unica.
+- `tipo=2`: Liga de Pago Domiciliacion/Recurrente.
+- `tipo=3`: Referencia SPEI.
+- `tipo=4`: Liga de Pago Terminal.
+
+`ReporteLigas.vue` soporta `tipo=4` con el titulo Reporte Ingresos Pago con Terminal.
+
+## Rutas web
+
+- `GET transaccion`
+- `POST transaccion/registrar`
+- `POST transaccion/registrarDom`
+- `POST transaccion/registrarSpei`
+- `POST transaccion/registrarLector`
+- `PUT transaccion/actualizar`
+- `PUT transaccion/eliminar`
+- `PUT transaccion/activar`
+- `PUT transaccion/desactivar`
+- `PUT transaccion/rechazar`
+- `GET transaccion/exportar`
+- `GET transaccion/reporteTransacciones`
+- `GET transaccion/exportarTransacciones`
+- `GET transaccion/selectDomiciliacion`
+
+## Importacion masiva
+
+- `POST transaccion/importar/iniciar`
+- `POST transaccion/importar/procesar`
+- `POST transaccion/importar/cancelar`
+- `GET transaccion/importar/estatus`
+- `GET transaccion/importar/log`
+
+## Rutas API legacy sin prefijo `/api`
+
+- `POST GenerarLigaPago`
+- `POST GenerarLigaDomiciliacion`
+- `POST GenerarSpei`
+- `POST GenerarLigaLector`
 
 ## Tablas involucradas
-- `transacciones` (principal)
-- `respuestas` (resultado)
-- `consultaspei`, `pagospei`, `cancelaspei` (SPEI)
-- `clientes`, `users` (contexto)
+
+- `transacciones`
+- `respuestas`
+- `consultaspei`
+- `pagospei`
+- `cancelaspei`
+- `clientes`
+- `personas`
+- `users`
+
+## Flujo resumido
+
+1. Front captura datos y llama ruta web o API legacy.
+2. Backend valida entrada, usuario/rol y datos minimos.
+3. Si aplica, identifica o crea cliente por datos normalizados.
+4. Calcula folio/referencia.
+5. Invoca Pagadetodo via Guzzle o mock.
+6. Persiste `transacciones`.
+7. Reportes/webhooks actualizan estado y respuestas posteriores.
+
+## Integracion Pagadetodo
+
+- Credenciales, IDs y endpoints estan externalizados en `config/services.php`.
+- Valores reales deben vivir en `.env` de servidor.
+- En validacion local/sandbox sin credenciales oficiales usar `PAGADETODO_MOCK=true`.
+- No cambiar payloads `User`, `Password`, `BusinessID`, `IntegrationID` o nombres legacy sin evidencia de sandbox.
+
+## Acceso por rol
+
+- Admin: operacion completa.
+- Cliente: acceso a registros propios por allowlist y ownership.
+- API externa: autenticacion legacy por payload.
+
+## Exportacion actual
+
+- `GET transaccion/exportar` descarga CSV (`transacciones.csv`) por streaming para evitar agotamiento de memoria.
+- `GET transaccion/exportarTransacciones` se mantiene para exportacion filtrada de reportes.
+- Bitacoras de importacion masiva siguen en `xlsx` por volumen y uso diferente.
+
+## Deteccion de cliente duplicado en APIs
+
+Aplica en `storeAPI`, `storeDomAPI` y `storeSpeiAPI`:
+
+- Comparacion por `idusuario`, `Nombre`, `Email`, `Telefono`.
+- `Nombre`: `trim` + minusculas.
+- `Email`: `trim` + minusculas.
+- `Telefono`: solo digitos y ultimos 10.
+- Si coinciden los tres valores normalizados, reutiliza cliente.
+- Si cambia algun valor, registra cliente nuevo.
+- Si faltan los tres datos, la transaccion puede continuar sin `idcliente`.
+- Si falla guardar `Persona/Cliente`, la transaccion principal puede continuar sin `idcliente`.
+- En `storeSpeiAPI`, correo (`Email` o `email`) es obligatorio.
+
+## Importacion masiva de Excel
+
+Disponible para:
+
+- `tipo=1`: Ligas.
+- `tipo=2`: Domiciliacion.
+
+No disponible para `tipo=3` SPEI.
+
+Columnas requeridas:
+
+- Siempre: `Cliente`, `Forma de pago`, `Descripcion`, `Monto`, `Fecha Expiracion`, `Referencia`.
+- Domiciliacion: `Frecuencia`.
+
+Reglas por renglon:
+
+- `Cliente`: coincidencia exacta en `clientes.razon_social` o `personas.nombre`.
+- `Forma de pago`: `41` Visa/Mastercard o `102` Amex.
+- `Monto`: numerico, minimo `50.00`.
+- `Fecha Expiracion`: valida y no menor al dia actual.
+- `Frecuencia`: `1..5` o texto del catalogo.
 
 ## Riesgos
-- Controlador monolítico, alto acoplamiento.
-- Credenciales y endpoints hardcoded.
-- Validación/auth API heterogénea.
 
-## Exportacion actual del modulo
+- `TransaccionController` es monolitico y de alto impacto.
+- Folios por consultas `max()+1` pueden sufrir carreras.
+- Contratos externos y callbacks son sensibles a nombres legacy.
+- Cambios pueden afectar reportes, importaciones y webhooks aunque parezcan locales.
 
-- `GET /transaccion/exportar` descarga el listado general como `CSV` (`transacciones.csv`) por streaming.
-- Este cambio evita el agotamiento de memoria observado cuando el listado general intentaba materializar grandes volumenes de registros en un archivo Excel en memoria.
-- `GET /transaccion/exportarTransacciones` se mantiene como exportacion filtrada de reportes.
-- La bitacora de importacion masiva sigue descargandose en `xlsx`, porque su uso y volumen son distintos del listado general.
+## Pruebas recomendadas
 
-## Detección de cliente duplicado en APIs (`storeAPI`, `storeDomAPI`, `storeSpeiAPI`)
-- En `TransaccionController`, la comparación de cliente duplicado en los métodos API de ligas, domiciliación y SPEI se realiza por `idusuario`, `Nombre`, `Email` y `Telefono`.
-- Para comparar, los valores se normalizan en tiempo de ejecución:
-  - `Nombre`: `trim` + minúsculas.
-  - `Email`: `trim` + minúsculas.
-  - `Telefono`: solo dígitos y últimos 10.
-- Si coincide la comparación normalizada, se reutiliza el cliente existente.
-- Si alguno de los tres campos no coincide, se registra un cliente nuevo.
-- Si no vienen los tres campos (`Nombre`, `Email`, `Telefono`), no se intenta identificar/crear cliente y la transacción continúa sin `idcliente`.
-- Si vienen los datos pero ocurre un error al guardar `Persona/Cliente`, la transacción principal continúa sin `idcliente` (no se bloquea la operación).
-- En `storeSpeiAPI`, el correo sí es obligatorio (`Email` o `email`) para continuar con la transacción SPEI.
-- Los datos almacenados en `clientes` (`razon_social`, `email_contacto`, `telefono_contacto`) se guardan con su formato de origen (con saneo mínimo de `trim` en email/teléfono); la normalización se usa únicamente para la búsqueda y no se persiste.
+- Unit si se tocan helpers/guards.
+- Feature SQLite con `PAGADETODO_MOCK=true` si cambia API, ownership, importacion o webhooks.
+- `npm run production` si cambia componente Vue.
+- Smoke admin/cliente:
+  - listar transacciones;
+  - generar liga;
+  - importar archivo pequeno;
+  - exportar CSV/reporte;
+  - validar que cliente no vea registros ajenos.
 
-## Importación masiva de Excel (Ligas y Domiciliación)
+## Pendientes y mejoras
 
-### Alcance
-- Disponible en **Generación de Ligas** para `tipo=1` (Ligas) y `tipo=2` (Domiciliación).
-- No disponible para `tipo=3` (SPEI).
-
-### Columnas requeridas
-- Siempre: `Cliente`, `Forma de pago`, `Descripción`, `Monto`, `Fecha Expiración`, `Referencia`.
-- Solo Domiciliación (`tipo=2`): `Frecuencia`.
-
-### Reglas de validación por renglón
-- `Cliente`: coincidencia exacta en `clientes.razon_social`; si no existe, coincidencia exacta en `personas.nombre`.
-- `Forma de pago`: solo `41` (Visa/Mastercard) o `102` (Amex).
-- `Monto`: numérico con o sin símbolo `$`, mínimo **50.00**.
-- `Fecha Expiración`: válida y no menor al día actual.
-- `Frecuencia` (`tipo=2`): acepta número (`1..5`) y texto (`Semanal`, `Mensual`, `Bimestral`, `Semestral`, `Anual`).
-
-### Proceso operativo
-1. Se carga archivo Excel y se valida encabezado obligatorio.
-2. Se procesa secuencialmente una fila a la vez.
-3. Cada fila válida invoca el flujo existente:
-   - `tipo=1` -> `/transaccion/registrar`
-   - `tipo=2` -> `/transaccion/registrarDom`
-4. Se actualiza progreso y bitácora por fila.
-5. Si se cancela, los pendientes quedan en bitácora como `Omitida por cancelación`.
-
-### Resumen y bitácora
-- Se muestra resumen de: total, generadas, errores por categoría y omitidas por cancelación.
-- Se puede descargar un `xlsx` basado en el archivo original con una columna adicional `Resultado` (URL generada o motivo del error/omisión).
-
-### Endpoints de importación
-- `POST /transaccion/importar/iniciar`
-- `POST /transaccion/importar/procesar`
-- `POST /transaccion/importar/cancelar`
-- `GET /transaccion/importar/estatus`
-- `GET /transaccion/importar/log`
+- Adapter Pagadetodo separado.
+- Tests de concurrencia para folios.
+- Matriz de estados/tipos documentada con ejemplos reales.
+- Sandbox oficial Pagadetodo con fixtures sanitizados.

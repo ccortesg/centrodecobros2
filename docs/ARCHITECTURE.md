@@ -1,62 +1,75 @@
 # Arquitectura real del sistema
 
-## 1) Vista general
-- **Patrón predominante**: Laravel MVC clásico con frontend Vue 2 montado en `#app` (single-page parcial por menú dinámico).
-- **Backend**: Controladores con lógica de negocio + integraciones HTTP externas + persistencia Eloquent/Query Builder.
-- **Frontend**: componentes `.vue` que consumen endpoints web (AJAX) y API (`routes/api.php`) según módulo.
-- **Base de datos**: MySQL (dump real en `database/centrodecobros.sql`).
+Ultima actualizacion: 2026-06-03
 
-## 2) Capas (reales, no ideales)
-1. **Presentación**
-   - Blade layout + sidebars + vistas públicas (`register/url`) y shell autenticado.
-   - Vue Components por módulo (Transacción, Respuesta, SPEI, Clientes, etc.).
-2. **Aplicación**
-   - Controladores HTTP gestionan validación, reglas de negocio, integración y persistencia.
-   - Casi no hay capa de servicios separada.
-3. **Persistencia**
-   - Eloquent models por tabla principal.
-   - Uso mixto de Query Builder para reportes/joins complejos.
-4. **Integración externa**
-   - Guzzle para pasarela de pagos/servicios externos.
-   - Pusher/Echo para notificaciones.
-   - TeleSign queda solo como residuo historico; el flujo publico verify/SMS fue retirado en Fase 21.
+## 1. Vista general
 
-## 3) Módulos funcionales detectados
-- Catálogos: estados, ciudades, clientes.
-- Seguridad/Acceso: login por `usuario`, roles, usuarios.
-- Cobros:
-  - Ligas de pago.
-  - Domiciliación (generación + cargos recurrentes + cancelaciones).
-  - SPEI (generación/consulta/pago/cancelación).
-  - Pago en caja / pago con terminal (tipos adicionales de transacción).
-- Respuestas de pasarela y notificación a sistemas cliente.
-- Archivos adjuntos por persona/cliente.
-- Reportería y exportaciones Excel.
+- Patron predominante: Laravel MVC clasico con shell autenticado Blade y componentes Vue 3 montados en el DOM legacy.
+- Backend: controladores con validacion, reglas de negocio, integraciones HTTP externas y persistencia Eloquent/Query Builder.
+- Frontend: Vue 3 + Vite para la aplicacion autenticada; lane `plantilla.*` y guest assets conservadas como contrato publico.
+- Base de datos: MySQL operativo en produccion; migrations historicas no representan todo el esquema real.
+- Produccion: Docker en servidor, sin archivos Docker versionados en este repositorio.
 
-## 4) Dependencias y acoplamientos críticos
-- **Controladores gordos**:
-  - `TransaccionController` (~3k líneas).
-  - `TransaccionDomController` (~885 líneas).
-- Fuerte acoplamiento entre:
-  - tablas de negocio (`transacciones`, `respuestas`, `transaccionesDom`) y
-  - parseo de payload externo.
-- Acoplamiento frontend-backend por nombres exactos de campos legacy (`User`, `Password`, `BusinessID`, etc.).
-- Acoplamiento con servicios externos por URLs hardcodeadas.
+## 2. Capas reales
 
-## 5) Patrones implícitos / inconsistentes
-- **Repository/Service pattern**: no implementado de forma consistente.
-- **Domain model rico**: no; reglas están en controladores.
-- **Eventos/colas**: broadcasting sí, pero proceso crítico se ejecuta en scheduler llamando métodos de controlador (acoplamiento no ideal).
+### Presentacion
 
-## 6) Flujo principal backend/frontend
-1. Usuario autenticado entra a `main`.
-2. Menú Vue cambia `menu` y renderiza componente.
-3. Componente llama endpoints CRUD/reportes.
-4. Controlador valida, arma payload, invoca pasarela, persiste transacción/respuesta.
-5. Notificaciones se consultan vía endpoint y broadcasting privado por Pusher.
+- `resources/views/principal.blade.php`: shell autenticado y frontera estable.
+- `resources/views/contenido/contenido.blade.php`: switchboard que decide que componente Vue renderizar segun el menu.
+- `resources/assets/js/app.js`: registro de componentes Vue 3.
+- `resources/assets/js/bootstrap.js`: axios, Echo/Pusher y globals requeridos por componentes legacy.
+- `public/js/plantilla.js`, `public/css/plantilla.css`, `public/js/guest-public.js`: contrato publico generado por build.
 
-## 7) Diagnóstico arquitectónico
-- Arquitectura **funcional pero frágil** por deuda técnica alta.
-- Alto riesgo de regresión por lógica centralizada en pocos archivos grandes.
-- Incongruencia fuerte entre migraciones históricas y esquema real actual.
-- Integraciones externas directas sin una capa anti-corrupción/adapter formal.
+### Aplicacion
+
+- Los controladores HTTP contienen la mayor parte de la logica de negocio.
+- No existe una capa de servicios o dominio consistente.
+- El scheduler llama metodos de controlador, lo que mantiene acoplamiento entre infraestructura y dominio.
+
+### Persistencia
+
+- Modelos Eloquent por tabla principal.
+- Query Builder para reportes, joins y filtros complejos.
+- Relaciones con FK incompletas o historicas; varias relaciones deben inferirse desde codigo.
+
+### Integraciones
+
+- Pagadetodo via Guzzle y endpoints configurados en `config/services.php`.
+- Pusher/Echo para notificaciones si existen variables `VITE_PUSHER_*` y broadcasting configurado.
+- SMTP/Postmark para correo.
+- TeleSign queda como dependencia historica residual; el flujo publico OTP/SMS fue retirado.
+
+## 3. Modulos funcionales
+
+- Identidad y catalogos: clientes, personas, usuarios, roles, estados, ciudades, archivos.
+- Consolidacion/depuracion de clientes.
+- Transacciones: ligas, caja, terminal y SPEI.
+- Domiciliacion y cargos recurrentes.
+- Respuestas/webhooks de proveedor.
+- SPEI: consulta, pago y cancelacion.
+- Dashboard y notificaciones.
+- Reportes y exportaciones.
+
+## 4. Acoplamientos criticos
+
+- `app/Http/Controllers/TransaccionController.php` concentra generacion de ligas, SPEI, lector, callbacks, webhooks SPEI y exportaciones.
+- `app/Http/Controllers/TransaccionDomController.php` concentra cargos recurrentes y scheduler diario.
+- `app/Http/Controllers/RespuestaController.php` recibe respuestas de ligas y lector.
+- Los payloads externos usan nombres legacy como `User`, `Password`, `BusinessID`, `IntegrationID`, `reference`, `transaccion` y `autorizacion`.
+- El frontend y backend dependen de nombres exactos de campos historicos.
+
+## 5. Flujo principal
+
+1. Usuario autenticado entra a `/main`.
+2. El menu Vue cambia el valor de `menu` y `contenido.blade.php` renderiza el componente.
+3. El componente consume rutas web protegidas o API legacy sin prefijo `/api`.
+4. El controlador valida, aplica rol/ownership, arma payload, invoca proveedor si aplica y persiste.
+5. Reportes/exportaciones consultan datos acotados por rol.
+6. Webhooks `Service/*` actualizan respuestas, transacciones SPEI o callbacks segun contrato.
+
+## 6. Diagnostico arquitectonico
+
+- El sistema es funcional y ya opera en produccion Docker.
+- La deuda principal esta en controladores monoliticos, schema historico, scheduler acoplado y contratos externos directos.
+- La estrategia mas segura es evolucion incremental con pruebas por modulo, no refactors amplios.
+- Cualquier cambio de integracion debe conservar rutas/payloads publicos hasta tener sandbox oficial y evidencia.

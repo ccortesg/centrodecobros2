@@ -1,7 +1,9 @@
 ﻿# Registro de Riesgos de Modernizacion
 
-Fecha de corte: 2026-06-02
+Fecha de corte: 2026-06-03
 Baseline: `C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`
+
+Nota vigente: desde 2026-06-03 esta carpeta es el repositorio de trabajo en rama `main`; no crear copias nuevas para cambios futuros salvo instruccion explicita del propietario.
 
 ## Escala
 
@@ -12,12 +14,12 @@ Baseline: `C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempot
 
 | ID | Riesgo | Severidad | Probabilidad | Impacto | Mitigacion propuesta | Estado |
 | --- | --- | --- | --- | --- | --- | --- |
-| R-01 | Credenciales, usuarios y endpoints hardcoded en integraciones financieras | Critica | Alta | Exposicion operativa, drift entre ambientes y riesgo de cambio no controlado | No tocar payloads ni endpoints en release candidate; exigir aceptacion explicita, vaulting posterior y fase separada de seguridad/integraciones | Abierto |
-| R-02 | `database/migrations` no representa el schema operativo real | Critica | Alta | Un cambio estructural basado en migrations puede corromper el baseline | Mantener `database/centrodecobros.sql` mas uso real en codigo como referencia primaria | Abierto |
+| R-01 | Secretos reales Pagadetodo/Pusher/SMTP deben permanecer fuera de Git | Critica | Media | Exposicion operativa si `.env` o credenciales del servidor se publican | Mantener `.env` excluido, provisionar secretos en Docker/servidor y rotar credenciales si hubo exposicion previa | Mitigado parcial |
+| R-02 | `database/migrations` no representa el schema operativo real | Critica | Alta | Un cambio estructural basado en migrations puede corromper datos | Usar MySQL productivo/dump autorizado fuera de Git mas uso real en codigo; no ejecutar migrations productivas sin orden explicita | Abierto |
 | R-03 | La automatizacion de autenticacion y flujos reales sigue siendo parcial fuera del dataset controlado | Alta | Media | Posibles regresiones silenciosas en datos reales o contratos externos | Fase 33 recupero Feature completos y browser admin/cliente/guest con SQLite controlado; falta UAT/sandbox real | Mitigado parcial |
 | R-04 | `principal.blade.php` y el contrato fijo de assets siguen siendo frontera sensible | Alta | Alta | Cualquier cambio de orden, nombre o ownership puede romper shell y guest | Mantener el contrato actual y no tocar `principal.blade.php` en cambios posteriores sin evidencia fuerte | Mitigado controlado |
 | R-05 | La lane `plantilla.*` sigue fuera de Vite y fuera de una racionalizacion completa | Alta | Alta | Riesgo de drift entre toolchain moderno y runtime legacy restante | Mantenerla como deuda residual aceptada; cualquier migracion adicional debe abrirse como programa separado | Mitigado controlado |
-| R-10 | Realtime sigue con configuracion Pusher hardcoded | Alta | Media | Validacion websocket end-to-end incompleta y riesgo operativo por ambiente | Tratar realtime como carril separado con configuracion externalizada y sandbox propio | Abierto |
+| R-10 | Realtime Pusher/Echo no esta validado end-to-end | Alta | Media | Notificaciones websocket pueden fallar aunque polling funcione | Configuracion ya usa `VITE_PUSHER_*`; validar con sandbox Pusher aislado antes de considerarlo cerrado | Abierto |
 | R-11 | `npm audit` reporta `29` vulnerabilidades (`5 low`, `16 moderate`, `8 high`) | Alta | Alta | Deuda de seguridad residual en tooling/dependencias y posible exposicion en dev/build | Abrir fase separada de dependencias; no mezclar con estabilizacion funcional ni contratos externos | Abierto |
 | R-17 | Guest publico depende aun de `plantilla.css` y layouts Blade legacy | Media | Media | Un cambio visual o de layout podria romper `/login` y `/url` | Mantener ownership actual y tratar CSS/layout guest como corte separado | Mitigado controlado |
 | R-18 | El shell autenticado sigue dependiendo del build de Vue con compilador por template raiz en Blade | Media | Alta | Quitar el alias al build con compilador romperia el mount del root Vue | Mantener la configuracion actual hasta una fase dedicada de desacople Blade/Vue | Abierto controlado |
@@ -30,9 +32,10 @@ Baseline: `C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempot
 | R-28 | PHP Linux CLI no tiene `pdo_sqlite` y MySQL local rechaza credenciales | Media | Alta | El runner local depende de PHP WAMP para ejecutar Feature completos | Documentar PHP WAMP/SQLite como runner local o instalar `pdo_sqlite` en PHP Linux | Mitigado parcial |
 | R-29 | Mocks Pagadetodo pueden desviarse del contrato externo real | Alta | Media | Los tests pasan contra un contrato controlado pero no prueban drift de sandbox/proveedor | Comparar payloads mock contra sandbox oficial cuando existan credenciales no productivas | Abierto |
 | R-30 | Webhooks financieros sin firma/origen fuerte | Alta | Media | Spoofing o payloads no autenticos pueden generar estados incorrectos | Fase 34 agrego validacion minima e idempotencia; falta firma/origen con especificacion del proveedor | Mitigado parcial |
-| R-31 | Workspace actual no es checkout Git activo y contiene artefactos accidentales en raiz | Alta | Media | Publicar la carpeta tal cual puede subir archivos locales, SQLite, node_modules/vendor o snippets de navegador | Crear repo limpio, `.gitignore`, branch/tag controlado y limpieza antes de GitHub/deploy | Abierto |
-| R-32 | Scheduler duplicado en sandbox paralelo contra la misma DB | Critica | Media | Puede generar cargos o revisar estados dos veces si convive con produccion | No instalar cron del sandbox; agregar locks/comandos dedicados antes de activarlo | Abierto |
+| R-31 | Publicacion accidental de archivos locales desde repo actual | Alta | Media | Puede subir SQLite, logs, snippets, dependencias o assets compilados si `.gitignore` se relaja | Repo ya esta en `main` y `.gitignore` cubre artefactos; revisar `git status --short` antes de cada push | Mitigado parcial |
+| R-32 | Scheduler duplicado en Docker/ambientes paralelos contra la misma DB | Critica | Media | Puede generar cargos o revisar estados dos veces | Confirmar compose/cron real y asegurar una sola instancia activa; no cambiar scheduler sin orden explicita | Abierto |
 | R-33 | Sandbox oficial Pagadetodo no disponible | Alta | Alta | No se puede demostrar equivalencia entre mock y contrato real del proveedor | Obtener URL/credenciales sandbox no productivas y ejecutar matriz mock vs sandbox | Abierto |
+| R-34 | Orquestacion Docker productiva no versionada en este repo | Alta | Media | Agentes pueden asumir nombres de servicios o comandos incorrectos | Inspeccionar `docker compose ps/config` en servidor antes de documentar o ejecutar deploy/rollback | Abierto |
 
 ## Riesgos cerrados en Fase 30
 

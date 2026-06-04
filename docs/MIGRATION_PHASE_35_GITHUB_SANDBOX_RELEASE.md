@@ -4,6 +4,19 @@ Fecha: 2026-06-02
 Workspace: `C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`  
 Baseline: Fase 34 validada localmente con webhooks e idempotencia.
 
+## Nota vigente 2026-06-03
+
+Este documento queda como evidencia historica de la preparacion GitHub/sandbox. Despues de este corte:
+
+- la rama vigente es `main`;
+- el repositorio actual ya es la carpeta de trabajo permanente;
+- no se deben crear nuevas carpetas de fase;
+- la plataforma ya funciona en produccion por Docker, confirmado por el propietario;
+- el runbook vigente es `docs/MIGRATION_DEPLOY_AND_ROLLBACK_RUNBOOK.md`;
+- el modelo operativo vigente es `docs/PROJECT_OPERATING_MODEL.md`.
+
+No ejecutar el plan de sandbox paralelo/vhost de este documento salvo que el propietario lo pida explicitamente como un ambiente nuevo.
+
 ## Dictamen
 
 `GO tecnico para preparar GitHub y sandbox paralelo; NO-GO para reemplazo productivo`.
@@ -263,4 +276,4 @@ La version productiva actual en `/var/www/centro` no debe tocarse.
 
 ## Siguiente paso recomendado
 
-Ejecutar primer commit/push a GitHub privado, validar workflow verde y desplegar sandbox paralelo por vhost/subdominio. Despues abrir un carril separado para sandbox oficial Pagadetodo si ya existen credenciales no productivas.
+Siguiente paso historico del 2026-06-02: primer commit/push, workflow verde y sandbox paralelo. Estado vigente 2026-06-03: produccion ya funciona por Docker y el trabajo futuro debe seguir `docs/PROJECT_OPERATING_MODEL.md`, `docs/MIGRATION_DEPLOY_AND_ROLLBACK_RUNBOOK.md` y `docs/MIGRATION_NEXT_PROMPTS.md`.

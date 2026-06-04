@@ -4,6 +4,22 @@ Fecha de revalidacion: 2026-06-02
 Workspace analizado: `/mnt/c/temp/centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`  
 Baseline funcional: `C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`
 
+## Nota vigente 2026-06-03
+
+Este diagnostico queda como snapshot historico del 2026-06-02. Fue superado parcialmente por la preparacion GitHub/Fase 35 y por la confirmacion del propietario de que produccion ya funciona por Docker.
+
+Estado vigente:
+
+- trabajar siempre sobre `C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`;
+- no crear copias nuevas de fase;
+- rama vigente `main`;
+- `.gitignore` y workflow GitHub ya existen;
+- credenciales Pagadetodo/Pusher fueron externalizadas;
+- produccion Docker funciona, pero el compose no esta versionado en este repo;
+- documentos vigentes: `docs/PROJECT_OPERATING_MODEL.md`, `docs/README.md`, `docs/MIGRATION_DEPLOY_AND_ROLLBACK_RUNBOOK.md` y `docs/MIGRATION_RELEASE_CHECKLIST.md`.
+
+Las secciones siguientes se conservan como evidencia del corte anterior y no deben usarse como prompt operativo actual.
+
 ## Dictamen ejecutivo
 
 `GO tecnico parcial fuerte para sandbox controlado; NO-GO para liberacion directa, reemplazo productivo o cobro real`.
@@ -28,13 +44,13 @@ La brecha principal ya no es la migracion framework ni el shell autenticado. La 
 | npm audit completo | `npm audit --audit-level=low` -> 29 vulnerabilidades: 5 low, 16 moderate, 8 high. |
 | Unit tests | `php vendor/bin/phpunit --testsuite Unit` -> OK, 13 tests, 72 assertions. |
 | Feature completo WAMP/SQLite | OK, 54 tests, 234 assertions. |
-| Git | `git status --short` falla: la carpeta actual no es repositorio Git. |
+| Git | En el corte 2026-06-02 todavia no era repo; esto fue superado despues con rama `main` y remoto GitHub. |
 
 ## Estado global por capa
 
 | Capa | Avance | Diagnostico |
 | --- | ---: | --- |
-| Backend Laravel 12 | 88% | Rutas, controladores, middleware, scheduler y tests cargan. Persisten controladores monoliticos y configuracion financiera hardcoded. |
+| Backend Laravel 12 | 88% | Rutas, controladores, middleware, scheduler y tests cargan. Persisten controladores monoliticos; la configuracion financiera fue externalizada despues en Fase 35. |
 | Frontend Vue 3 + Vite | 86% | Build productivo verde y contrato publico preservado. `plantilla.*` sigue como lane legacy intencional. |
 | Base de datos | 67% | Feature aislado valida comportamiento, pero schema real sigue siendo MySQL historico/dump y UAT MySQL local no esta desbloqueado. |
 | Seguridad/accesos | 78% | Middleware por rol, ownership critico y whitelists existen. Faltan politicas formales por accion, secretos externos y firma/origen de webhooks. |
@@ -43,7 +59,7 @@ La brecha principal ya no es la migracion framework ni el shell autenticado. La 
 | Pruebas automatizadas | 88% aislado / 55% MySQL real | Unit y Feature aislados pasan; MySQL real sigue pendiente por entorno/credenciales. |
 | Documentacion viva | 85% | Documentos rectores y modulos principales actualizados con Fase 34; quedan docs historicas por naturaleza de migracion. |
 | Readiness sandbox paralelo | 78% | Viable si se usa vhost/subdominio separado, sesiones/cache/logs aislados, scheduler apagado y `PAGADETODO_MOCK=true`. |
-| Readiness reemplazo productivo | 56% | No listo: faltan sandbox Pagadetodo, UAT MySQL real, secretos, firma de webhooks, Git limpio y operacion productiva. |
+| Readiness reemplazo productivo | 56% | Snapshot 2026-06-02: faltaban sandbox Pagadetodo, UAT MySQL real, secretos, firma de webhooks, Git limpio y operacion productiva. Git/secretos fueron mitigados parcialmente despues; produccion Docker ya funciona. |
 
 ## Diagnostico por modulo, pantalla y funcionalidad
 
@@ -106,11 +122,11 @@ Los porcentajes estiman avance para operar en sandbox controlado. No equivalen a
 2. Verificar si Pagadetodo soporta firma/origen de webhooks y agregar validacion antes de cobro real.
 3. Mantener `PAGADETODO_MOCK=true` hasta comparar contrato real contra mocks controlados.
 4. No activar scheduler de esta version si comparte DB con produccion.
-5. Preparar repositorio Git limpio; esta carpeta no es repo y contiene artefactos accidentales en raiz.
+5. Punto superado despues del corte: el repositorio fue preparado en `main`; mantener `git status --short` limpio antes de publicar.
 
 ### Altos
 
-1. Externalizar credenciales/endpoints Pagadetodo, Pusher y otros secretos desde controladores/.env.
+1. Punto mitigado despues del corte: credenciales/endpoints Pagadetodo y Pusher fueron externalizados; falta provision/rotacion segura por ambiente.
 2. Resolver `npm audit` completo en carril separado.
 3. Actualizar Composer o entorno para poder ejecutar `composer audit`.
 4. Agregar locks transaccionales para folios generados con `max()+1`.

@@ -1,7 +1,9 @@
-# Comparativa: migrations vs dump real
+# Comparativa: migrations vs esquema operativo
+
+Ultima actualizacion: 2026-06-03
 
 ## Hallazgo central
-El set de migrations del repositorio **no representa el esquema real operativo** mostrado en `database/centrodecobros.sql`.
+El set de migrations del repositorio **no representa el esquema real operativo**. La evidencia historica se tomo de `database/centrodecobros.sql`, pero ese dump no debe publicarse ni asumirse como artefacto versionado. Para decisiones actuales usar MySQL productivo o dump autorizado fuera de Git, mas uso real en codigo.
 
 ## Tablas en dump sin migration correspondiente
 - `archivos`
@@ -42,7 +44,7 @@ El set de migrations del repositorio **no representa el esquema real operativo**
 - Cambios de schema futuros sin baseline confiable.
 
 ## Fuente de verdad probable
-Para estado actual productivo, la fuente de verdad más fuerte es el dump `database/centrodecobros.sql` + uso real en controladores/modelos.
+Para estado actual productivo, la fuente de verdad mas fuerte es MySQL real o dump autorizado fuera de Git + uso real en controladores/modelos.
 
 ## Recomendación documental (sin implementar cambios)
 - Tratar migrations actuales como legado histórico.

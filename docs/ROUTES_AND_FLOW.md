@@ -1,6 +1,13 @@
 # Rutas y flujo de navegacion
 
-Ultima actualizacion: 2026-06-02
+Ultima actualizacion: 2026-06-03
+
+## Contexto operativo vigente
+
+- Repositorio activo: `C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`.
+- Rama vigente: `main`.
+- Produccion actual: Docker en servidor, confirmado por el propietario el 2026-06-03.
+- No crear copias nuevas para cambios futuros; trabajar sobre el repo actual.
 
 ## 1) Mapa de rutas web
 
@@ -96,5 +103,6 @@ Fase 34 no cambia nombres de rutas ni payloads externos de exito. Endurece inter
 
 - No hay ruta actual hacia `ArticuloController`; la observacion historica de ruta rota ya no aplica al `route:list` vigente.
 - `RoleController` legacy si permanece en codigo, pero las rutas `/rol` y `/role` apuntan a `RolController`.
-- Publicar bajo subcarpeta en Apache puede romper o mezclar assets porque el HTML usa rutas como `js/app.js` y `css/plantilla.css`; se recomienda subdominio/vhost separado.
-- En despliegue paralelo con la misma DB, no habilitar scheduler de la version nueva.
+- Publicar bajo subcarpeta en Apache puede romper o mezclar assets porque el HTML usa rutas como `js/app.js` y `css/plantilla.css`; para un sandbox futuro usar subdominio/vhost separado o configuracion Docker equivalente.
+- En ambientes paralelos con la misma DB, no habilitar scheduler duplicado.
+- En produccion Docker, validar el compose real antes de documentar comandos de servicios o reinicios.

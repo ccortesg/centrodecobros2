@@ -1,6 +1,6 @@
 # Stack tecnico y dependencias
 
-Ultima actualizacion: 2026-06-02
+Ultima actualizacion: 2026-06-03
 
 ## Backend actual
 
@@ -10,7 +10,8 @@ Ultima actualizacion: 2026-06-02
   - Linux CLI: `8.3.27`, sin `pdo_sqlite`
   - WAMP CLI: `8.3.0`, con `pdo_mysql` y `pdo_sqlite`
 - Composer local observado: `2.2.6`; valida el proyecto, pero no incluye `composer audit`.
-- Base de datos canonica: MySQL real/dump `database/centrodecobros.sql`; las migrations son historicas y no reconstruyen por si solas todo el sistema.
+- Base de datos operativa: MySQL productivo o dump autorizado fuera de Git; las migrations son historicas y no reconstruyen por si solas todo el sistema.
+- Produccion: Docker en servidor, confirmado por el propietario el 2026-06-03. El compose productivo no esta versionado en este repo.
 
 ### Dependencias backend bloqueadas relevantes
 
@@ -80,9 +81,9 @@ Artefactos revalidados:
 
 ## Implicaciones operativas
 
-1. El servidor de produccion no necesita Node/npm si GitHub/CI entrega assets compilados.
-2. Si el build se ejecuta en servidor, instalar Node 20/npm y usar `npm ci && npm run production`.
-3. La app nueva requiere PHP 8.2+; para despliegue se recomienda PHP 8.3-FPM.
-4. La coexistencia PHP 7.4/8.3 debe hacerse por vhost/socket FPM o contenedor; no por dos `mod_php` globales.
-5. En Ubuntu 20.04 actual no debe asumirse disponibilidad nativa de PHP 8.3 via PPA; validar repos o usar contenedor/migracion de host.
-6. `plantilla.*` sigue fuera de Vite por decision de alcance y debe preservarse como contrato publico.
+1. El runtime productivo vigente esta aislado por Docker; no cambiar PHP `7.4.3` global del host sin necesidad.
+2. El servidor de produccion no necesita Node/npm en el host si CI o un contenedor genera assets.
+3. Si el build se ejecuta en servidor, usar Node 20/npm compatible y `npm ci && npm run production`.
+4. La app requiere PHP 8.2+ dentro del contenedor/runtime que ejecute Laravel 12.
+5. `plantilla.*` sigue fuera de Vite por decision de alcance y debe preservarse como contrato publico.
+6. Para comandos exactos de deploy, inspeccionar el compose productivo real; no asumir nombre de servicio desde este repo.

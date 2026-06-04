@@ -1,5 +1,7 @@
 # Modelo de dominio
 
+Ultima actualizacion: 2026-06-03
+
 ## Entidades raíz y núcleo
 - **Persona**: identidad base compartida.
 - **User**: cuenta de acceso (1:1 con persona, relación implícita por `users.id = personas.id`).
@@ -28,7 +30,7 @@
 - `productivo` separa entorno productivo/sandbox en ejecución y folios.
 - Folio y referencias se generan incrementalmente por contexto de negocio.
 - En respuestas aprobadas, puede enviarse notificación callback al cliente (`ligaPago`/`ligaRecurrente`).
-- OTP para verificación pública en flujo `verify`.
+- El flujo publico OTP/SMS `verify` fue retirado en Fase 21; no tratarlo como funcionalidad viva.
 
 ## Banderas/estados relevantes
 - `condicion` (activo/inactivo) en varios catálogos y usuarios.
@@ -36,6 +38,12 @@
 - `enviada` en tablas de trazabilidad de callback.
 
 ## Procesos transaccionales/recurrentes
-- Scheduler ejecuta:
+- Scheduler ejecuta procesos financieros sensibles:
   - cargos recurrentes domiciliados (`ejecutarCron`) diariamente.
   - revisión de status SPEI/liga cada 5 minutos.
+
+## Notas vigentes
+
+- El dominio opera hoy en Laravel 12/Vue 3 y produccion Docker.
+- El schema operativo debe verificarse contra MySQL real o dump autorizado fuera de Git.
+- No ejecutar migraciones productivas ni activar scheduler duplicado sin instruccion explicita.

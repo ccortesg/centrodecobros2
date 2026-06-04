@@ -1,257 +1,205 @@
-# Runbook de deploy paralelo y rollback
+# Runbook de deploy y rollback
 
-Ultima actualizacion: 2026-06-02  
-Baseline: `C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`
+Ultima actualizacion: 2026-06-03
+Repositorio: `C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`
+Rama vigente: `main`
 
-## Objetivo
+## Estado actual
 
-Montar la version Laravel 12/PHP 8.3 en paralelo a la version PHP 7.4 actual, usando la misma base de datos solo para validacion controlada, sin interrumpir `/var/www/centro`.
+La plataforma ya funciona en el servidor productivo por Docker, segun confirmacion del propietario el 2026-06-03.
+
+Este repositorio no contiene `Dockerfile` ni `docker-compose.yml`. Por lo tanto, los comandos exactos de despliegue productivo dependen del compose real del servidor y no deben inventarse desde el repo local.
 
 ## Principios
 
-1. La version actual no se modifica.
-2. La nueva version vive en otro directorio y otro vhost/subdominio.
-3. PHP 8.3 se aisla por PHP-FPM o contenedor.
-4. La DB no se migra.
-5. El scheduler nuevo no se activa mientras comparta DB.
-6. Pagadetodo queda en `PAGADETODO_MOCK=true` hasta tener sandbox oficial.
+1. Trabajar sobre la carpeta/repositorio actual; no crear nuevas carpetas de fase.
+2. No publicar secretos ni `.env`.
+3. No ejecutar migraciones sobre DB productiva.
+4. No cambiar PHP 7.4.3 global del host si Docker ya aisla el runtime nuevo.
+5. No activar ni duplicar scheduler sin solicitud explicita.
+6. No usar credenciales productivas de Pagadetodo en pruebas.
+7. Generar assets compilados en CI/deploy; no versionarlos.
 
-## Preparacion en GitHub
+## Preparacion antes de deploy
 
-1. Usar branch de publicacion sandbox: `main`.
-2. Crear tag despues del primer commit validado: `sandbox-phase34-v1.0.2`.
-3. Verificar que no se suben `.env`, `vendor`, `node_modules`, logs, SQLite local, `output/`, `test-results/` ni archivos accidentales de raiz.
-4. Mantener fuera de Git los assets compilados (`public/build/`, `public/js/app.js`, `public/js/plantilla.js`, `public/js/guest-public.js`, `public/css/plantilla.css`, `public/mix-manifest.json`).
-5. Generar assets en CI/deploy con `npm ci && npm run production`.
-6. Ejecutar el workflow `.github/workflows/sandbox-release-validation.yml` antes de deploy.
-7. Registrar hash/tag que se desplegara.
-
-## Preparacion del servidor
-
-Ejecutar inventario antes de tocar nada:
+En local:
 
 ```bash
-lsb_release -a
-php -v
-apache2 -v
-apachectl -M
-mysql --version
-find /etc/apache2/sites-enabled -maxdepth 1 -type l -ls
-systemctl status apache2 --no-pager
+git status --short
+git branch --show-current
+php artisan --version
+php artisan route:list
+php artisan schedule:list
+php vendor/bin/phpunit --testsuite Unit
+git diff --check
 ```
 
-Respaldar:
+Si el cambio toca frontend:
+
+```powershell
+cmd /c "npm ci"
+cmd /c "npm run production"
+cmd /c "npm audit --omit=dev --audit-level=low"
+```
+
+Si el cambio toca webhooks, Pagadetodo, ownership o rutas criticas:
+
+```powershell
+cd /D C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia
+set APP_ENV=testing&& set DB_CONNECTION=sqlite&& set DB_DATABASE=C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia\storage\phase34_validation.sqlite&& set PAGADETODO_MOCK=true&& C:\wamp64\bin\php\php8.3.0\php.exe scripts\local\prepare_phase33_browser_sqlite.php C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia\storage\phase34_validation.sqlite&& C:\wamp64\bin\php\php8.3.0\php.exe vendor\bin\phpunit --testsuite Feature
+```
+
+## Inventario obligatorio en servidor
+
+Antes de ejecutar deploy, identificar la topologia real:
 
 ```bash
-sudo tar -czf /var/backups/centro-app-$(date +%F-%H%M).tgz /var/www/centro
+pwd
+git status --short
+git branch --show-current
+docker ps
+docker compose ps
+docker compose config
+docker compose logs --tail=100
+```
+
+Si `docker compose` no aplica en ese servidor, registrar la herramienta real usada para levantar contenedores.
+
+## Respaldo previo
+
+Respaldar codigo, `.env` y DB antes de cambiar produccion:
+
+```bash
+date
+tar -czf /var/backups/centro-app-$(date +%F-%H%M).tgz /ruta/del/checkout/productivo
+cp /ruta/del/checkout/productivo/.env /var/backups/centro-env-$(date +%F-%H%M).env
 mysqldump --single-transaction --routines --triggers centrodecobros > /var/backups/centrodecobros-$(date +%F-%H%M).sql
 ```
 
-## Estrategia PHP 8.3
+Ajustar rutas y credenciales de respaldo al servidor real.
 
-### Camino A: contenedor en Ubuntu 20.04
+## Deploy Docker actual
 
-Usar si no se quiere alterar PHP 7.4 ni repos del host. Apache publica un vhost que proxy/reverse-proxy hacia el contenedor. Este camino evita depender de paquetes PHP 8.3 para Focal.
-
-Pendientes de esta ruta:
-- instalar Docker/Compose;
-- definir volumen de codigo y logs;
-- conectar a MySQL del host;
-- documentar arranque automatico.
-
-### Camino B: PHP-FPM por vhost en host soportado
-
-Usar si el host se actualiza/migra a Ubuntu 22.04/24.04 o se confirma repositorio compatible.
-
-Paquetes esperados:
+Los nombres de servicios son placeholders hasta confirmar el compose real. Sustituir `app` por el servicio PHP/Laravel correcto.
 
 ```bash
-sudo apt install php8.3-cli php8.3-fpm php8.3-mysql php8.3-mbstring php8.3-xml php8.3-curl php8.3-zip php8.3-gd php8.3-intl php8.3-bcmath php8.3-sqlite3 unzip git curl
+cd /ruta/del/checkout/productivo
+git fetch origin
+git checkout main
+git pull --ff-only origin main
+docker compose exec app php -v
+docker compose exec app composer install --no-dev --optimize-autoloader --no-interaction
+docker compose exec app php artisan optimize:clear
+docker compose exec app php artisan config:cache
+docker compose exec app php artisan route:cache
+docker compose exec app php artisan view:cache
+docker compose exec app php artisan route:list
+docker compose exec app php artisan schedule:list
 ```
 
-No instalar `libapache2-mod-php8.3` para esta coexistencia. Apache debe enrutar por `SetHandler` a `/run/php/php8.3-fpm.sock`.
-
-Habilitar modulos Apache:
+Assets:
 
 ```bash
-sudo a2enmod proxy proxy_fcgi setenvif rewrite headers
-sudo systemctl reload apache2
+docker compose exec app npm ci
+docker compose exec app npm run production
+docker compose exec app test -f public/js/app.js
+docker compose exec app test -f public/js/plantilla.js
+docker compose exec app test -f public/js/guest-public.js
+docker compose exec app test -f public/css/plantilla.css
+docker compose exec app test -f public/build/manifest.json
 ```
 
-## Deploy de codigo
+Si Node vive en otro contenedor o en CI, ejecutar los comandos de assets en ese runtime y copiar/publicar los artefactos segun el pipeline real.
+
+## Validacion postdeploy
 
 ```bash
-sudo mkdir -p /var/www/centro-v12-sandbox
-sudo chown ubuntu:www-data /var/www/centro-v12-sandbox
-git clone --branch main <repo-github> /var/www/centro-v12-sandbox
-cd /var/www/centro-v12-sandbox
+docker compose ps
+docker compose exec app php artisan --version
+docker compose exec app php artisan route:list
+docker compose logs --tail=200
 ```
 
-Instalar dependencias:
+Validar en navegador:
 
-```bash
-php8.3 /usr/local/bin/composer install --no-dev --optimize-autoloader
-```
-
-Los assets compilados no se versionan. Generarlos en servidor o CI antes de servir la aplicacion:
-
-```bash
-npm ci
-npm run production
-test -f public/js/app.js
-test -f public/js/plantilla.js
-test -f public/css/plantilla.css
-test -f public/js/guest-public.js
-test -f public/build/manifest.json
-```
-
-Configurar `.env` sandbox:
-
-```bash
-cp .env.example .env
-php8.3 artisan key:generate --force
-```
-
-Valores minimos:
-
-```env
-APP_ENV=staging
-APP_DEBUG=false
-APP_URL=https://centro-v12.example.com
-SESSION_COOKIE=centro_v12_session
-CACHE_PREFIX=centro_v12_
-PAGADETODO_MOCK=true
-PAGADETODO_USER=
-PAGADETODO_PASSWORD=
-PAGADETODO_DOM_USER=
-PAGADETODO_DOM_PASSWORD=
-PAGADETODO_DOM_BA_USER=
-PAGADETODO_DOM_BA_PASSWORD=
-PAGADETODO_SANDBOX_USER=
-PAGADETODO_SANDBOX_PASSWORD=
-BROADCAST_DRIVER=log
-VITE_PUSHER_APP_KEY=
-VITE_PUSHER_APP_CLUSTER=mt1
-QUEUE_DRIVER=sync
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_DATABASE=centrodecobros
-DB_USERNAME=...
-DB_PASSWORD=...
-```
-
-No ejecutar migraciones.
-
-Caches y permisos:
-
-```bash
-php8.3 artisan config:clear
-php8.3 artisan cache:clear
-php8.3 artisan route:clear
-php8.3 artisan view:clear
-php8.3 artisan storage:link
-sudo chown -R www-data:www-data storage bootstrap/cache
-sudo find storage bootstrap/cache -type d -exec chmod 775 {} \;
-```
-
-## Vhost Apache PHP 8.3-FPM
-
-```apache
-<VirtualHost *:80>
-    ServerName centro-v12.example.com
-    DocumentRoot /var/www/centro-v12-sandbox/public
-
-    <Directory /var/www/centro-v12-sandbox/public>
-        AllowOverride All
-        Require all granted
-    </Directory>
-
-    <FilesMatch \.php$>
-        SetHandler "proxy:unix:/run/php/php8.3-fpm.sock|fcgi://localhost/"
-    </FilesMatch>
-
-    ErrorLog ${APACHE_LOG_DIR}/centro-v12-error.log
-    CustomLog ${APACHE_LOG_DIR}/centro-v12-access.log combined
-</VirtualHost>
-```
-
-Activar:
-
-```bash
-sudo a2ensite centro-v12.conf
-sudo apachectl configtest
-sudo systemctl reload apache2
-```
-
-## Validacion
-
-```bash
-php8.3 artisan --version
-php8.3 artisan route:list
-php8.3 artisan schedule:list
-php8.3 vendor/bin/phpunit --testsuite Unit
-npm audit --omit=dev --audit-level=low
-```
-
-Para reproducir el workflow GitHub con Feature tests en SQLite:
-
-```bash
-export APP_ENV=testing
-export DB_CONNECTION=sqlite
-export DB_DATABASE="$PWD/storage/github-actions.sqlite"
-export PAGADETODO_MOCK=true
-php8.3 scripts/local/prepare_phase33_browser_sqlite.php "$DB_DATABASE"
-php8.3 vendor/bin/phpunit --testsuite Feature
-```
-
-Smoke browser:
-
-1. `GET /login`
-2. `GET /url`
+1. `/login`
+2. `/url`
 3. login admin
 4. login cliente
 5. `/main`
 6. `/dashboard`
-7. `Clientes`
-8. `Generar Liga de pago`
-9. `Cargos Recurrentes`
-10. `Reportes`
+7. Clientes
+8. Generacion de ligas
+9. Domiciliacion/cargos recurrentes en modo seguro
+10. Reportes/exportaciones
 
-Validar que:
+Validar adicionalmente:
 
-- cookies de la version nueva no sustituyen la sesion de la version actual;
-- `storage/logs/laravel.log` nuevo no tiene errores;
-- Apache error log nuevo no tiene errores;
-- no se instalo cron del nuevo directorio;
-- `PAGADETODO_MOCK=true` o sandbox oficial esta confirmado.
+- `.env` productivo no fue reemplazado por `.env.example`.
+- `APP_URL`, cookies, cache prefix y storage son los esperados.
+- No se publicaron secretos en logs.
+- Scheduler activo es exactamente el esperado por produccion.
+- `PAGADETODO_MOCK` y credenciales Pagadetodo corresponden al ambiente autorizado.
 
-## Rollback
+## Rollback de codigo
 
-Rollback de la version paralela:
+Si el deploy fue por Git y existe commit anterior conocido:
 
 ```bash
-sudo a2dissite centro-v12.conf
-sudo systemctl reload apache2
+cd /ruta/del/checkout/productivo
+git log --oneline -5
+git checkout <commit_anterior>
+docker compose exec app composer install --no-dev --optimize-autoloader --no-interaction
+docker compose exec app php artisan optimize:clear
+docker compose exec app php artisan config:cache
+docker compose exec app php artisan route:cache
+docker compose exec app php artisan view:cache
+docker compose exec app npm ci
+docker compose exec app npm run production
+docker compose restart app
+docker compose logs --tail=200
 ```
 
-Si el problema fue codigo del sandbox, borrar o renombrar `/var/www/centro-v12-sandbox`. La version actual en `/var/www/centro` no debe tocarse.
+Si el pipeline exige permanecer en `main`, hacer rollback por revert commit y redeploy:
 
-Rollback si se altero infraestructura PHP/Apache:
+```bash
+git revert <commit_problematico>
+git push origin main
+```
 
-1. Revertir el cambio aplicado en vhost/modulos.
-2. Confirmar que el vhost actual sigue usando PHP 7.4.
-3. Reiniciar/reload Apache.
-4. Validar `/login`, `/main`, scheduler y logs de la version actual.
+## Rollback de infraestructura Docker
 
-Rollback de DB solo aplica si alguna prueba escribio datos reales no deseados. Por eso el respaldo previo es obligatorio.
+Solo si el cambio toco compose, imagen, volumenes o variables de entorno:
 
-## Condiciones para promocionar despues
+1. Restaurar compose/imagen/env anterior desde respaldo.
+2. Reiniciar servicios.
+3. Validar `/login`, `/main`, logs y scheduler.
+4. Confirmar que DB no fue alterada.
 
-No promover a reemplazo de produccion hasta cerrar:
+Comandos orientativos, sujetos al compose real:
 
-- sandbox oficial Pagadetodo;
-- webhooks con idempotencia/firma/origen;
-- secretos fuera del codigo;
-- UAT por rol sobre MySQL real;
-- decision formal sobre `npm audit`;
-- plan de scheduler sin duplicidad.
+```bash
+docker compose down
+docker compose up -d
+docker compose ps
+docker compose logs --tail=200
+```
+
+## Rollback de DB
+
+Evitar llegar a este punto: no ejecutar migraciones productivas sin solicitud explicita.
+
+Si por excepcion hubo escritura no deseada, el rollback de DB debe decidirse manualmente con respaldo, ventana de mantenimiento y analisis de datos escritos desde el deploy.
+
+## Ruta historica paralela
+
+La documentacion antigua de vhost/subdominio PHP 8.3-FPM fue util cuando el objetivo era montar sandbox paralelo sin tocar produccion. Ese camino queda como referencia historica, no como modelo actual, porque el propietario confirmo que produccion ya opera por Docker.
+
+Si se abre un sandbox paralelo futuro, debe conservar:
+
+- subdominio/vhost separado;
+- sesiones/cache/logs aislados;
+- scheduler deshabilitado si comparte DB;
+- `PAGADETODO_MOCK=true` hasta sandbox oficial;
+- assets generados en deploy;
+- sin migraciones sobre DB productiva.

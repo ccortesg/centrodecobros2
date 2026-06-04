@@ -1,6 +1,10 @@
-# Modelo de base de datos (dump real)
+# Modelo de base de datos
 
-Fuente principal analizada: `database/centrodecobros.sql`.
+Ultima actualizacion: 2026-06-03
+
+Fuente principal historica analizada: `database/centrodecobros.sql`.
+
+Nota vigente: el dump puede existir localmente para diagnostico, pero no debe asumirse versionado ni publicable. `.gitignore` excluye `database/*.sql`. Para decisiones productivas usar MySQL real o un dump autorizado entregado fuera de Git, mas el uso real en controladores/modelos.
 
 ## Catálogo completo de tablas y propósito
 

@@ -1,27 +1,29 @@
 ﻿# Plan Maestro de Modernizacion
 
-Ultima actualizacion: 2026-06-02
-Estado general: `Fase 4 validada; FE-2, FE-2B, FE-3 y Fases 8-34 cerradas; Laravel 12 estable; Vue 3 puro estable; Vite incremental estable para app.js; plantilla.* sigue fuera de Vite como deuda residual aceptada; Fase 34 endurece webhooks Service/* con validacion e idempotencia; NO-GO para liberacion directa hasta sandbox Pagadetodo oficial, firma/origen de webhooks, npm audit, secretos y preparacion GitHub limpia`
+Ultima actualizacion: 2026-06-03
+Estado general: `Fases de modernizacion 8-35 cerradas; Laravel 12 estable; Vue 3 puro estable; Vite incremental estable para app.js; plantilla.* sigue fuera de Vite como deuda residual aceptada; repo vigente en main; produccion Docker funcionando segun propietario; pendientes vivos: sandbox Pagadetodo oficial, firma/origen de webhooks, realtime E2E, npm audit completo y documentacion del compose productivo`
 
 ## Objetivo rector
 
-Modernizar `centrodecobros` por fases, sin tocar produccion, sin alterar contratos de negocio externos y sin usar `database/migrations` como fuente de verdad del sistema.
+Modernizar y mantener `centrodecobros` sin alterar contratos de negocio externos, sin usar `database/migrations` como fuente unica de verdad y sin romper la produccion Docker actual.
 
 ## Reglas vigentes
 
-1. La referencia primaria de schema sigue siendo `database/centrodecobros.sql` mas el uso real en codigo.
-2. Cada fase debe ejecutarse en una copia fisica aislada dentro de `C:\temp`.
+1. La referencia primaria de schema es MySQL productivo o dump autorizado fuera de Git, mas el uso real en codigo.
+2. Desde 2026-06-03 todo cambio se trabaja en `C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`; no crear copias nuevas de fase salvo instruccion explicita posterior.
 3. No se deben mezclar upgrades mayores de backend, runtime Vue y bundler en una sola fase.
 4. `principal.blade.php` y el contrato `app.js` / `plantilla.js` / `plantilla.css` / `guest-public.js` siguen siendo restriccion estructural hasta una decision posterior explicita.
 5. `Role.vue`, `ReporteSpei.vue`, `ReporteCargosRecurrentes.vue` y `/url` siguen tratandose como funcionalidad viva.
 6. Las integraciones financieras y realtime solo se tocan con evidencia y validacion controlada.
+7. No ejecutar migraciones, activar scheduler ni usar credenciales productivas para pruebas sin instruccion explicita.
 
 ## Baseline real consolidada despues de Fase 34
 
 | Area | Estado real |
 | --- | --- |
 | Workspace actual | `C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia` |
-| Copia origen | `C:\temp\centrodecobros_phase33_entorno_sandbox_e2e` |
+| Estado Git | Repo activo en `main` con remoto GitHub configurado |
+| Produccion | Docker funcionando en servidor; compose no versionado en repo |
 | PHP observado en shell | `8.3.27` |
 | Composer observado en shell | `2.2.6` |
 | Laravel | `12.54.1` |
@@ -35,9 +37,9 @@ Modernizar `centrodecobros` por fases, sin tocar produccion, sin alterar contrat
 | Principal Blade | intacto respecto de Fase 29 |
 | Smoke suite | `tests/Feature/Smoke` |
 | Scripts locales vivos | `scripts/local/run_phase15_build.js`, `scripts/local/build_legacy_lane.js`, `scripts/local/build_guest_public_lane.js`, `scripts/local/build_vite_bridge.js`, `scripts/local/run_mix_build.js` |
-| Resultado rector | `GO tecnico parcial para continuar estabilizacion; NO-GO para liberacion directa` |
+| Resultado rector | `GO operativo para mantenimiento controlado en repo actual; pendientes externos no bloquean documentacion/cambios seguros` |
 
-Nota del corte 2026-06-02: `node v20.20.0` y `npm 10.8.2` estan confirmados por `cmd.exe`; en bash directo `node -v` no esta disponible. La carpeta actual no es un checkout Git activo.
+Nota del corte 2026-06-03: `node v20.20.0` y `npm 10.8.2` estan confirmados por `cmd.exe`; en bash directo `node -v` puede no estar disponible. La carpeta actual ya es checkout Git activo en rama `main`.
 
 ## Estado real por fase confirmada
 
@@ -55,6 +57,7 @@ Nota del corte 2026-06-02: `node v20.20.0` y `npm 10.8.2` estan confirmados por 
 | Fase 32 | Pruebas funcionales, ownership y contratos API controlados; guards por recurso y mock Pagadetodo agregados; DB local sigue bloqueando Feature completos | `docs/MIGRATION_PHASE_32_PRUEBAS_OWNERSHIP_CONTRATOS_API.md` |
 | Fase 33 | Entorno de pruebas y E2E controlado; Feature completos pasan con PHP WAMP/SQLite y browser guest/admin/cliente queda validado | `docs/MIGRATION_PHASE_33_ENTORNO_SANDBOX_E2E.md` |
 | Fase 34 | Validacion Pagadetodo, webhooks e idempotencia; Service/* endurecido y Feature completo queda en verde | `docs/MIGRATION_PHASE_34_VALIDACION_PAGADETODO_WEBHOOKS_IDEMPOTENCIA.md` |
+| Fase 35 | Preparacion GitHub/release sandbox; repo `main`, `.gitignore`, workflow CI y externalizacion de secretos | `docs/MIGRATION_PHASE_35_GITHUB_SANDBOX_RELEASE.md` |
 
 ## Confirmaciones operativas vigentes
 
@@ -94,7 +97,7 @@ Estado: `cerrado en GO con condiciones adicionales`
 6. Browser real confirmo `/login`, `/url`, `/main`, topbar, sidebar y los modulos vivos auditados con `0` errores y `0` warnings.
 7. La conclusion final ya no es `GO` incondicional:
    - el advisory de Composer quedo cerrado;
-   - siguen abiertas condiciones operativas y de seguridad sobre integraciones hardcoded, realtime hardcoded y deuda residual npm.
+   - en ese corte seguian abiertas condiciones operativas sobre integraciones/realtime hardcoded y deuda residual npm; despues Fase 35 externalizo configuracion, pero realtime E2E y sandbox oficial siguen pendientes.
 
 ## Fase 31 - estabilizacion funcional, accesos y seguridad
 
@@ -120,7 +123,7 @@ Estado: `cerrado en GO tecnico parcial`
 5. Se agregaron Feature tests de matriz admin/cliente y contratos API, pero el host no puede ejecutarlos por falta de `pdo_sqlite`.
 6. Se agregaron Unit tests sin DB para cubrir regresiones de guards, whitelists, exports y mock.
 7. Browser guest fue validado en `/login`, `/` y `/main`; browser admin/cliente sigue bloqueado por MySQL local.
-8. El dictamen no habilita liberacion directa: quedan abiertos DB local, sandbox externo Pagadetodo, npm audit completo, secretos hardcoded y webhooks sin firma/idempotencia.
+8. El dictamen no habilitaba liberacion directa: quedaban abiertos DB local, sandbox externo Pagadetodo, npm audit completo, secretos en codigo y webhooks sin firma/idempotencia.
 
 ## Fase 33 - entorno de pruebas, sandbox Pagadetodo y validacion E2E controlada
 
@@ -133,17 +136,18 @@ Estado: `cerrado en GO tecnico parcial fuerte`
 5. Browser real valida guest, administrador y cliente con 0 errores de consola.
 6. Se corrigieron compatibilidades de SQLite detectadas por tests/browser sin cambiar contratos externos.
 7. El sandbox Pagadetodo oficial no se conecto por falta de credenciales/URL no productivas; se mantiene simulacion controlada.
-8. El dictamen no habilita liberacion directa: quedan abiertos sandbox oficial, webhooks/idempotencia, npm audit completo y secretos hardcoded.
+8. El dictamen no habilitaba liberacion directa: quedaban abiertos sandbox oficial, webhooks/idempotencia, npm audit completo y secretos en codigo.
 
 ## Recomendacion posterior al cierre
 
 | Paso | Objetivo | Estado recomendado |
 | --- | --- | --- |
 | Liberacion controlada | Ejecutar go-live solo cuando se cierren las condiciones adicionales de Fase 31 | Bloqueada temporalmente |
-| Backlog residual | Tratar como backlog separado la deuda legacy aceptada (`plantilla.css`, layouts guest, residual ajax/hash opt-in, realtime, vulnerabilidades npm heredadas, integraciones hardcoded y una futura modernizacion integral de `plantilla.*` si alguna vez se decide) | Recomendacion complementaria |
+| Backlog residual | Tratar como backlog separado la deuda legacy aceptada (`plantilla.css`, layouts guest, residual ajax/hash opt-in, realtime E2E, vulnerabilidades npm heredadas y una futura modernizacion integral de `plantilla.*` si alguna vez se decide) | Recomendacion complementaria |
 | Sandbox oficial Pagadetodo | Obtener credenciales/URL no productivas y comparar contra mocks | Bloqueado por falta de credenciales |
-| GitHub/release sandbox | Preparar repositorio limpio, excluir artefactos locales y documentar vhost/scheduler/mock antes de publicar | Recomendacion principal posterior a Fase 34 |
-| Secretos/integraciones | Externalizar credenciales/endpoints Pagadetodo/Pusher sin cambiar payloads externos | Carril separado recomendado antes de cobro real |
+| GitHub/release | Repo limpio ya preparado en `main`; continuar con commits/pushes controlados desde la carpeta actual | Operativo |
+| Produccion Docker | Documentar compose/servicios reales cuando se tenga acceso al servidor | Pendiente operativo |
+| Secretos/integraciones | Credenciales externalizadas; falta provision/rotacion segura en servidor y sandbox oficial | Mitigado parcial |
 
 ## Corte de revalidacion 2026-06-02
 
@@ -156,7 +160,7 @@ Estado: `revalidado sin cambios funcionales`
 5. Feature contra `.env` MySQL local falla por acceso denegado a `centro_user`, no por una regresion demostrada del codigo.
 6. `npm run production` queda en verde.
 7. `npm audit --omit=dev` queda limpio; `npm audit` completo mantiene 29 hallazgos dev/tooling.
-8. La carpeta no es checkout Git activo y requiere preparacion limpia antes de GitHub/deploy.
+8. Este punto fue superado en Fase 35: la carpeta actual ya es repo Git en `main`, con `.gitignore` y workflow CI.
 
 ## Fase 34 - validacion Pagadetodo, webhooks e idempotencia
 
@@ -172,15 +176,12 @@ Estado: `cerrado en GO tecnico parcial fuerte`
 8. `npm run production` queda en verde y el contrato de assets se preserva.
 9. El dictamen no habilita cobro real ni liberacion directa: faltan sandbox oficial, firma/origen de webhooks, secretos y GitHub limpio.
 
-## Rollback general
+## Rollback general vigente
 
-El rollback de cada fase sigue siendo por descarte de copia aislada:
+El rollback futuro ya no es por descarte de copia aislada. Desde 2026-06-03 el trabajo vive en el repo actual y el rollback debe hacerse con Git y con el runbook Docker:
 
-1. conservar `C:\temp\centrodecobros_phase28_migration_closure` como baseline estabilizada de cierre de migracion en el alcance actual;
-2. conservar `C:\temp\centrodecobros_phase29_release_readiness` como baseline estabilizada de release readiness;
-3. conservar `C:\temp\centrodecobros_phase30_release_candidate` como baseline estabilizada de release candidate final y de deploy/rollback vigente;
-4. conservar `C:\temp\centrodecobros_phase31_estabilizacion_funcional_accesos_seguridad` como baseline estabilizada de Fase 31;
-5. conservar `C:\temp\centrodecobros_phase32_pruebas_ownership_contratos_api` como baseline estabilizada de ownership/mocks;
-6. conservar `C:\temp\centrodecobros_phase33_entorno_sandbox_e2e` como baseline estabilizada de entorno E2E local;
-7. conservar `C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia` como baseline estabilizada de webhooks/idempotencia;
-8. si algun backlog posterior requiere trabajo adicional, abrir una copia nueva desde `C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia` y no mutar esta baseline.
+1. usar commits pequenos y trazables en `main`;
+2. antes de deploy, registrar hash desplegado;
+3. para revertir codigo, usar `git revert <commit>` o checkout del commit anterior en servidor segun pipeline;
+4. para produccion Docker, seguir `docs/MIGRATION_DEPLOY_AND_ROLLBACK_RUNBOOK.md`;
+5. no restaurar DB salvo analisis manual y respaldo, porque no deben ejecutarse migraciones productivas por defecto.
