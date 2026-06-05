@@ -3,6 +3,7 @@
 namespace Tests\Feature\UX;
 
 use App\Http\Controllers\TransaccionController;
+use App\User;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\UsesIsolatedCentroCobrosDatabase;
 use Tests\TestCase;
@@ -81,6 +82,80 @@ class DomiciliacionAndPaymentsFeatureTest extends TestCase
             'source_id' => $pago['source_id'],
             'status' => 'cancelado',
         ]);
+    }
+
+    public function test_client_can_access_active_domiciliations_scoped_to_own_records()
+    {
+        $response = $this->actingAs($this->clientAUser())
+            ->get('/domiciliacion-activa?offset=10&buscar=&criterio=ClientReference&status=99', $this->ajaxHeaders())
+            ->assertOk();
+
+        $response->assertJsonFragment(['ClientReference' => 'DOM-A']);
+        $response->assertJsonMissing(['ClientReference' => 'DOM-B']);
+    }
+
+    public function test_client_can_access_received_payments_scoped_to_own_records()
+    {
+        $response = $this->actingAs($this->clientAUser())
+            ->get('/pagos-recibidos?offset=10&buscar=&criterio=cliente&status=99', $this->ajaxHeaders())
+            ->assertOk();
+
+        $response->assertJsonFragment(['cliente' => 'Cliente A SA']);
+        $response->assertJsonMissing(['cliente' => 'Cliente B SA']);
+    }
+
+    public function test_client_can_update_own_received_payment_status()
+    {
+        $this->actingAs($this->clientAUser())
+            ->put('/pagos-recibidos/status', [
+                'source_type' => 'respuesta',
+                'source_id' => 1,
+                'status' => 'cancelado',
+            ], $this->ajaxHeaders())
+            ->assertOk();
+
+        $this->assertDatabaseHas('pagos_recibidos', [
+            'source_type' => 'respuesta',
+            'source_id' => 1,
+            'status' => 'cancelado',
+        ]);
+    }
+
+    public function test_client_cannot_update_another_users_received_payment_status()
+    {
+        $this->actingAs($this->clientAUser())
+            ->put('/pagos-recibidos/status', [
+                'source_type' => 'respuesta',
+                'source_id' => 2,
+                'status' => 'cancelado',
+            ], $this->ajaxHeaders())
+            ->assertStatus(403);
+    }
+
+    public function test_non_admin_non_client_role_cannot_access_new_client_modules()
+    {
+        DB::table('roles')->insert(['id' => 3, 'nombre' => 'Operador', 'condicion' => 1]);
+        DB::table('users')->insert([
+            'id' => 4,
+            'usuario' => 'operator',
+            'password' => bcrypt('secret'),
+            'idrol' => 3,
+            'condicion' => 1,
+            'token' => 'operator-token',
+            'IntegrationID' => '117',
+            'BusinessID' => '000033',
+            'productivo' => 1,
+        ]);
+
+        $operator = User::findOrFail(4);
+
+        $this->actingAs($operator)
+            ->get('/domiciliacion-activa?offset=10&buscar=&criterio=ClientReference&status=99', $this->ajaxHeaders())
+            ->assertStatus(403);
+
+        $this->actingAs($operator)
+            ->get('/pagos-recibidos?offset=10&buscar=&criterio=cliente&status=99', $this->ajaxHeaders())
+            ->assertStatus(403);
     }
 
     public function test_revisar_status_marks_pending_domiciliacion_as_expired_after_expiration()

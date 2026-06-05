@@ -47,6 +47,7 @@ class Administrador
                 'transaccion',
                 'transaccion/reporteTransacciones',
                 'transaccion/selectDomiciliacion',
+                'domiciliacion-activa',
                 'transaccion/exportar',
                 'transaccion/exportarTransacciones',
                 'transaccion/importar/estatus',
@@ -57,6 +58,7 @@ class Administrador
                 'transaccionDom/reporteTransaccionesDom',
                 'transaccionDom/exportar',
                 'transaccionDom/exportarTransacciones',
+                'pagos-recibidos',
             ],
             'POST' => [
                 'cliente/registrar',
@@ -73,6 +75,7 @@ class Administrador
                 'archivo/eliminar',
                 'transaccion/actualizar',
                 'transaccion/rechazar',
+                'pagos-recibidos/status',
             ],
         ];
 
