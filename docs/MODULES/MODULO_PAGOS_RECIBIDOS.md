@@ -1,10 +1,10 @@
 # Modulo: Pagos Recibidos
 
-Ultima actualizacion: 2026-06-04
+Ultima actualizacion: 2026-06-05
 
 ## Proposito
 
-Concentrar en una sola bitacora los pagos recibidos por los canales principales de la plataforma, con una etiqueta de canal y un status operativo ajustable sin modificar los registros fuente.
+Concentrar en una sola bitacora los pagos recibidos por los canales principales de la plataforma, con etiqueta de canal, monto normalizado y filtro por fecha de pago.
 
 ## Archivos clave
 
@@ -18,7 +18,7 @@ Concentrar en una sola bitacora los pagos recibidos por los canales principales 
 ## Rutas web
 
 - `GET pagos-recibidos`
-- `PUT pagos-recibidos/status`
+- `PUT pagos-recibidos/status` existe por compatibilidad, pero la pantalla principal ya no muestra ni opera status.
 
 ## Menu
 
@@ -32,15 +32,18 @@ El listado no duplica pagos. Construye una vista unificada desde:
 
 - `respuestas` con `status='approved'`.
 - `pagospei` exitosos con `condicion=1` y mensaje/codigo de operacion exitosa.
+- `transaccionesDom` con `status='approved'`, etiquetados como `Cargo Recurrente`.
 
-La tabla `pagos_recibidos` guarda solo overrides:
+La vista puede retornar `source_type` como `respuesta`, `pagospei` o `transaccionDom`.
+
+La tabla `pagos_recibidos` guarda solo overrides heredados:
 
 - `source_type`: `respuesta` o `pagospei`.
 - `source_id`: id del registro fuente.
 - `status`: `activo` o `cancelado`.
 - `idusuario`: usuario que aplico el ajuste.
 
-Si no existe override, el status visible por defecto es `activo`.
+Si no existe override, el status por defecto es `activo`; actualmente no se muestra en el listado principal.
 
 ## Campos visibles
 
@@ -50,7 +53,17 @@ Si no existe override, el status visible por defecto es `activo`.
 - Referencia.
 - Monto.
 - Canal.
-- Status.
+
+## Reglas de monto
+
+El backend entrega el campo `monto` ya normalizado para presentacion:
+
+- `respuestas.amount`: se usa directo, porque ya se guarda en formato con decimales.
+- `pagospei.monto`: se divide entre 100.
+- `transacciones.Amount`: se divide entre 100 cuando se usa como fallback.
+- `transaccionesDom.Amount`: se divide entre 100.
+
+La UI no debe volver a dividir `monto` entre 100.
 
 ## Etiquetas de canal
 
@@ -59,12 +72,13 @@ Si no existe override, el status visible por defecto es `activo`.
 - `tipo=3` desde respuestas: `Caja`.
 - `tipo=4` desde respuestas: `Terminal`.
 - `pagospei`: `SPEI`.
+- `transaccionesDom.status='approved'`: `Cargo Recurrente`.
 
 Nota: la plataforma comparte `tipo=3` para pantallas de referencia SPEI/Pago en Caja. La separacion exacta `Caja` vs `SPEI` debe revisarse con negocio si se requiere mas precision historica.
 
 ## Acceso por rol
 
-- Admin: puede listar y ajustar status de registros visibles.
+- Admin: puede listar registros visibles.
 - Cliente: solo registros propios, usando ownership del registro fuente.
 - Otros roles: `403` por middleware existente.
 
@@ -72,16 +86,16 @@ Nota: la plataforma comparte `tipo=3` para pantallas de referencia SPEI/Pago en 
 
 - La vista unificada combina fuentes con contratos distintos.
 - El canal `Caja` no tiene campo tecnico independiente si comparte `tipo=3`.
-- Requiere migracion `pagos_recibidos` antes de permitir cambio de status en servidor.
+- `pagos_recibidos/status` permanece disponible por compatibilidad aunque la UI ya no expone actualizacion de status.
 
 ## Pruebas recomendadas
 
-- Feature SQLite para listado y cambio de status.
-- Smoke browser autenticado de filtros, paginacion y guardado de status.
-- Validar que el ajuste de status no altere `respuestas` ni `pagospei`.
+- Feature SQLite para listado, cargos recurrentes, montos por fuente y rango de fechas.
+- Smoke browser autenticado de filtros, paginacion y rango de fechas.
+- Validar que el listado no altere `respuestas`, `pagospei` ni `transaccionesDom`.
 
 ## Pendientes y mejoras
 
 - Confirmar regla final para diferenciar `Caja` y `SPEI` cuando ambos nacen desde referencias tipo `3`.
 - Agregar exportacion si negocio la requiere.
-- Agregar filtros por canal y rango de fechas en una fase posterior.
+- Agregar filtros por canal si negocio lo requiere.

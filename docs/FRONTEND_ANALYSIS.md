@@ -128,8 +128,11 @@ Los filtros de listados financieros deben mapearse a columnas reales, no a nombr
   - `PUT /pagos-recibidos/status`.
 - Fuente unificada:
   - `respuestas.status='approved'`;
-  - `pagospei` exitosos (`condicion=1` y mensaje/codigo de operacion exitosa).
-- Persistencia: `pagos_recibidos` solo guarda overrides de status por `source_type/source_id`; no duplica el pago fuente.
+  - `pagospei` exitosos (`condicion=1` y mensaje/codigo de operacion exitosa);
+  - `transaccionesDom.status='approved'` como canal `Cargo Recurrente`.
+- El listado usa `monto` normalizado desde backend: `respuestas.amount` no se divide, mientras `pagospei.monto`, `transacciones.Amount` y `transaccionesDom.Amount` se dividen entre 100 antes de responder.
+- La pantalla no muestra columna `Status` ni boton de actualizacion; el endpoint de status queda solo por compatibilidad.
+- Filtros visibles: texto por criterio y rango de fechas por fecha del pago.
 
 ## Estados de domiciliacion
 

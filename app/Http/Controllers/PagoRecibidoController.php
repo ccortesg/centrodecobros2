@@ -6,6 +6,7 @@ use App\PagoRecibido;
 use App\PagoSpei;
 use App\Respuesta;
 use App\Transaccion;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -18,7 +19,7 @@ class PagoRecibidoController extends Controller
             'fecha',
             'cliente',
             'referencia',
-            'monto_centavos',
+            'monto',
             'canal',
         ];
     }
@@ -26,6 +27,21 @@ class PagoRecibidoController extends Controller
     private function statusPermitido($status)
     {
         return in_array((string) $status, ['activo', 'cancelado', '99'], true);
+    }
+
+    private function fechaFiltroValida($fecha)
+    {
+        if ($fecha === null || $fecha === '') {
+            return true;
+        }
+
+        try {
+            $parsed = Carbon::createFromFormat('Y-m-d', $fecha);
+        } catch (\Exception $e) {
+            return false;
+        }
+
+        return $parsed && $parsed->format('Y-m-d') === $fecha;
     }
 
     private function buildRespuestasAprobadasQuery()
@@ -40,7 +56,7 @@ class PagoRecibidoController extends Controller
                 'respuestas.fecha as fecha',
                 DB::raw("COALESCE(clientes.razon_social, transacciones.ClientReference, '') as cliente"),
                 DB::raw("COALESCE(transacciones.ClientReference, transacciones.Reference, '') as referencia"),
-                DB::raw('COALESCE(respuestas.amount, transacciones.Amount, 0) as monto_centavos'),
+                DB::raw('COALESCE(respuestas.amount, transacciones.Amount / 100.0, 0) as monto'),
                 DB::raw("CASE transacciones.tipo WHEN 1 THEN 'Liga de pago' WHEN 2 THEN 'Domiciliacion' WHEN 3 THEN 'Caja' WHEN 4 THEN 'Terminal' ELSE 'Otro' END as canal"),
                 'transacciones.idusuario as idusuario',
                 'transacciones.productivo as productivo',
@@ -64,7 +80,7 @@ class PagoRecibidoController extends Controller
                 'pagospei.fecha as fecha',
                 DB::raw("COALESCE(clientes.razon_social, transacciones.ClientReference, '') as cliente"),
                 DB::raw("COALESCE(pagospei.clabe, transacciones.Clabe, transacciones.ClientReference, '') as referencia"),
-                DB::raw('COALESCE(pagospei.monto, transacciones.Amount, 0) as monto_centavos'),
+                DB::raw('COALESCE(pagospei.monto, transacciones.Amount, 0) / 100.0 as monto'),
                 DB::raw("'SPEI' as canal"),
                 'transacciones.idusuario as idusuario',
                 'transacciones.productivo as productivo',
@@ -80,10 +96,35 @@ class PagoRecibidoController extends Controller
         return $query;
     }
 
+    private function buildCargosRecurrentesAprobadosQuery()
+    {
+        $query = DB::table('transaccionesDom')
+            ->join('transacciones', 'transacciones.id', '=', 'transaccionesDom.idtransaccion')
+            ->leftJoin('clientes', 'clientes.id', '=', 'transaccionesDom.idcliente')
+            ->select([
+                DB::raw("'transaccionDom' as source_type"),
+                'transaccionesDom.id as source_id',
+                'transaccionesDom.folio as folio',
+                'transaccionesDom.fecha as fecha',
+                DB::raw("COALESCE(clientes.razon_social, transacciones.ClientReference, '') as cliente"),
+                DB::raw("COALESCE(transaccionesDom.response_reference, transaccionesDom.Reference, transacciones.Reference, '') as referencia"),
+                DB::raw('COALESCE(transaccionesDom.Amount, transacciones.Amount, 0) / 100.0 as monto'),
+                DB::raw("'Cargo Recurrente' as canal"),
+                'transaccionesDom.idusuario as idusuario',
+                'transaccionesDom.productivo as productivo',
+            ])
+            ->where('transaccionesDom.status', '=', 'approved');
+
+        $this->aplicarScopePropietario($query, 'transaccionesDom');
+
+        return $query;
+    }
+
     private function buildPagosRecibidosQuery()
     {
         $fuentes = $this->buildRespuestasAprobadasQuery()
-            ->unionAll($this->buildSpeiExitososQuery());
+            ->unionAll($this->buildSpeiExitososQuery())
+            ->unionAll($this->buildCargosRecurrentesAprobadosQuery());
 
         return DB::query()
             ->fromSub($fuentes, 'fuente')
@@ -98,7 +139,7 @@ class PagoRecibidoController extends Controller
                 'fuente.fecha',
                 'fuente.cliente',
                 'fuente.referencia',
-                'fuente.monto_centavos',
+                'fuente.monto',
                 'fuente.canal',
                 'fuente.idusuario',
                 'fuente.productivo',
@@ -114,11 +155,20 @@ class PagoRecibidoController extends Controller
         $criterio = $request->criterio ?? 'cliente';
         $offset = $this->offsetPaginacion($request->offset ?? 10);
         $status = $request->status ?? '99';
+        $fechaInicio = $request->fechaInicio ?? '';
+        $fechaFin = $request->fechaFin ?? '';
 
         if (!$this->statusPermitido($status)) {
             return response()->json([
                 'status' => 'error',
                 'msg' => 'Status no permitido.',
+            ], 422);
+        }
+
+        if (!$this->fechaFiltroValida($fechaInicio) || !$this->fechaFiltroValida($fechaFin)) {
+            return response()->json([
+                'status' => 'error',
+                'msg' => 'Rango de fechas no permitido.',
             ], 422);
         }
 
@@ -137,6 +187,24 @@ class PagoRecibidoController extends Controller
 
         if ((string) $status !== '99') {
             $query->whereRaw("COALESCE(ajuste.status, 'activo') = ?", [$status]);
+        }
+
+        if ($fechaInicio !== '' && $fechaFin !== '') {
+            $inicio = Carbon::createFromFormat('Y-m-d', $fechaInicio)->startOfDay();
+            $fin = Carbon::createFromFormat('Y-m-d', $fechaFin)->endOfDay();
+
+            if ($inicio->gt($fin)) {
+                return response()->json([
+                    'status' => 'error',
+                    'msg' => 'Rango de fechas no permitido.',
+                ], 422);
+            }
+
+            $query->whereBetween('fuente.fecha', [$inicio, $fin]);
+        } elseif ($fechaInicio !== '') {
+            $query->where('fuente.fecha', '>=', Carbon::createFromFormat('Y-m-d', $fechaInicio)->startOfDay());
+        } elseif ($fechaFin !== '') {
+            $query->where('fuente.fecha', '<=', Carbon::createFromFormat('Y-m-d', $fechaFin)->endOfDay());
         }
 
         $pagos = $query

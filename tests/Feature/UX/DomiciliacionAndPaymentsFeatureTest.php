@@ -84,6 +84,55 @@ class DomiciliacionAndPaymentsFeatureTest extends TestCase
         ]);
     }
 
+    public function test_pagos_recibidos_includes_recurring_charges_and_normalizes_amounts_by_source()
+    {
+        DB::table('respuestas')->where('id', 1)->update(['amount' => 1500.25]);
+        DB::table('pagospei')->where('id', 1)->update(['monto' => 250075]);
+        DB::table('transaccionesDom')->where('id', 1)->update(['Amount' => 38000, 'status' => 'approved']);
+
+        $response = $this->actingAs($this->adminUser())
+            ->get('/pagos-recibidos?offset=20&buscar=&criterio=cliente', $this->ajaxHeaders())
+            ->assertOk();
+
+        $pagos = collect($response->json('pagos.data'));
+        $respuesta = $pagos->first(function ($pago) {
+            return $pago['source_type'] === 'respuesta' && (int) $pago['source_id'] === 1;
+        });
+        $spei = $pagos->first(function ($pago) {
+            return $pago['source_type'] === 'pagospei' && (int) $pago['source_id'] === 1;
+        });
+        $recurrente = $pagos->first(function ($pago) {
+            return $pago['source_type'] === 'transaccionDom' && (int) $pago['source_id'] === 1;
+        });
+
+        $this->assertNotNull($respuesta);
+        $this->assertNotNull($spei);
+        $this->assertNotNull($recurrente);
+        $this->assertEqualsWithDelta(1500.25, (float) $respuesta['monto'], 0.001);
+        $this->assertEqualsWithDelta(2500.75, (float) $spei['monto'], 0.001);
+        $this->assertEqualsWithDelta(380.00, (float) $recurrente['monto'], 0.001);
+        $this->assertSame('Cargo Recurrente', $recurrente['canal']);
+    }
+
+    public function test_pagos_recibidos_filters_by_payment_date_range()
+    {
+        DB::table('respuestas')->update(['fecha' => '2026-05-01 10:00:00']);
+        DB::table('pagospei')->update(['fecha' => '2026-05-01 10:00:00']);
+        DB::table('transaccionesDom')->update(['fecha' => '2026-05-01 10:00:00']);
+        DB::table('pagospei')->where('id', 1)->update(['fecha' => '2026-06-03 12:30:00']);
+
+        $response = $this->actingAs($this->adminUser())
+            ->get('/pagos-recibidos?offset=10&buscar=&criterio=cliente&fechaInicio=2026-06-03&fechaFin=2026-06-03', $this->ajaxHeaders())
+            ->assertOk();
+
+        $this->assertSame(1, (int) $response->json('pagination.total'));
+        $this->assertSame('pagospei', $response->json('pagos.data.0.source_type'));
+
+        $this->actingAs($this->adminUser())
+            ->get('/pagos-recibidos?offset=10&buscar=&criterio=cliente&fechaInicio=2026-06-04&fechaFin=2026-06-03', $this->ajaxHeaders())
+            ->assertStatus(422);
+    }
+
     public function test_client_can_access_active_domiciliations_scoped_to_own_records()
     {
         $response = $this->actingAs($this->clientAUser())

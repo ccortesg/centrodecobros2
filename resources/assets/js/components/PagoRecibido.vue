@@ -12,7 +12,15 @@
                 </div>
                 <div class="card-body">
                     <div class="form-group row cdc-list-toolbar">
-                        <div class="col-xl-8 col-lg-10 col-md-12 col-sm-12">
+                        <div class="col-xl-2 col-lg-2 col-md-3 col-sm-12">
+                            <select class="form-control" v-model="offset" @change="listarPagos(1,buscar,criterio)">
+                                <option value="10">10 registros</option>
+                                <option value="25">25 registros</option>
+                                <option value="50">50 registros</option>
+                                <option value="100">100 registros</option>
+                            </select>
+                        </div>
+                        <div class="col-xl-5 col-lg-6 col-md-9 col-sm-12">
                             <div class="input-group">
                                 <select class="form-control col-lg-3 col-md-4 col-sm-12" v-model="criterio">
                                     <option value="folio">Folio</option>
@@ -21,6 +29,14 @@
                                     <option value="canal">Canal</option>
                                 </select>
                                 <input type="text" v-model="buscar" @keyup.enter="listarPagos(1,buscar,criterio)" class="form-control" placeholder="Texto a buscar">
+                            </div>
+                        </div>
+                        <div class="col-xl-5 col-lg-12 col-md-12 col-sm-12">
+                            <div class="input-group">
+                                <span class="input-group-addon">Desde</span>
+                                <input type="date" v-model="fechaInicio" class="form-control" @change="listarPagos(1,buscar,criterio)">
+                                <span class="input-group-addon">Hasta</span>
+                                <input type="date" v-model="fechaFin" class="form-control" @change="listarPagos(1,buscar,criterio)">
                                 <button type="button" @click="listarPagos(1,buscar,criterio)" class="btn btn-primary">
                                     <i class="fa fa-search"></i> Buscar
                                 </button>
@@ -32,37 +48,16 @@
                         <table class="table table-bordered table-striped table-sm cdc-responsive-table">
                             <thead>
                                 <tr>
-                                    <th class="text-center">Opciones
-                                        <select v-model="offset" @change="listarPagos(1,buscar,criterio)">
-                                            <option value="10">10</option>
-                                            <option value="25">25</option>
-                                            <option value="50">50</option>
-                                            <option value="100">100</option>
-                                        </select>
-                                    </th>
                                     <th class="text-center">Folio</th>
                                     <th class="text-center">Fecha</th>
                                     <th class="text-center">Cliente</th>
                                     <th class="text-center">Referencia</th>
                                     <th class="text-center">Monto</th>
                                     <th class="text-center">Canal</th>
-                                    <th class="text-center cdc-status-filter-heading">
-                                        <span>Status</span>
-                                        <select v-model="status" @change="listarPagos(1,buscar,criterio)">
-                                            <option value="99">Todos</option>
-                                            <option value="activo">Activo</option>
-                                            <option value="cancelado">Cancelado</option>
-                                        </select>
-                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr v-for="pago in arrayPagos" :key="pago.source_type + '-' + pago.source_id">
-                                    <td class="text-center">
-                                        <button type="button" class="btn btn-primary btn-sm cdc-action-button" title="Actualizar status" aria-label="Actualizar status" @click="actualizarStatus(pago)">
-                                            <i class="fa fa-save"></i>
-                                        </button>
-                                    </td>
                                     <td v-text="pago.folio" class="text-center"></td>
                                     <td class="text-center">
                                         <span class="cdc-date-stack">
@@ -72,14 +67,8 @@
                                     </td>
                                     <td v-text="pago.cliente" class="text-center"></td>
                                     <td v-text="pago.referencia" class="text-center"></td>
-                                    <td class="text-center">{{ $formatCurrency(pago.monto_centavos / 100) }}</td>
+                                    <td class="text-center">{{ $formatCurrency(pago.monto) }}</td>
                                     <td class="text-center">{{ canalLabel(pago.canal) }}</td>
-                                    <td class="text-center">
-                                        <select class="form-control cdc-inline-status-select" v-model="pago.status">
-                                            <option value="activo">Activo</option>
-                                            <option value="cancelado">Cancelado</option>
-                                        </select>
-                                    </td>
                                 </tr>
                             </tbody>
                         </table>
@@ -131,9 +120,10 @@ export default {
                 to: 0,
             },
             offset: 10,
-            status: '99',
             criterio: 'cliente',
             buscar: '',
+            fechaInicio: '',
+            fechaFin: '',
             loading: false,
         };
     },
@@ -152,7 +142,8 @@ export default {
                 + '&buscar=' + encodeURIComponent(buscar || '')
                 + '&criterio=' + encodeURIComponent(criterio || 'cliente')
                 + '&offset=' + me.offset
-                + '&status=' + encodeURIComponent(me.status);
+                + '&fechaInicio=' + encodeURIComponent(me.fechaInicio || '')
+                + '&fechaFin=' + encodeURIComponent(me.fechaFin || '');
 
             axios.get(url).then(function(response) {
                 const respuesta = response.data;
@@ -160,18 +151,6 @@ export default {
                 me.pagination = respuesta.pagination;
             }).catch(function(error) {
                 swal('Error!', 'Error al listar pagos recibidos. Error: ' + error, 'error');
-                console.log(error);
-            });
-        },
-        actualizarStatus(pago) {
-            axios.put('/pagos-recibidos/status', {
-                source_type: pago.source_type,
-                source_id: pago.source_id,
-                status: pago.status,
-            }).then(function() {
-                swal('Actualización exitosa!', 'El status del pago fue actualizado.', 'success');
-            }).catch(function(error) {
-                swal('Error!', 'Error al actualizar el status. Error: ' + error, 'error');
                 console.log(error);
             });
         },
