@@ -63,7 +63,36 @@ Desde la ejecucion UX/UI del 2026-06-04 existe una base compartida no invasiva p
   - `.cdc-pagination` para paginacion compacta con wrap;
   - `.cdc-date-stack` y `.cdc-date-stack__time` para fecha y hora en dos lineas;
   - `.cdc-action-button` para botones icon-only con area tactil minima.
+  - `.cdc-table-footer` y `.cdc-table-total` para paginacion + total de registros;
+  - `.cdc-status-filter-heading` para poner el select debajo del texto `Status`;
+  - `.cdc-column-description` para descripciones largas con ancho controlado;
+  - `.cdc-sticky-col` para mantener acciones visibles dentro de tablas con scroll horizontal.
 - Primer piloto aplicado en `Estado.vue` y `Ciudad.vue`; los demas modulos deben migrarse por prioridad, manteniendo los contratos backend y rutas existentes.
+
+## Sesion expirada
+
+`resources/assets/js/app.js` tiene un interceptor global de Axios para la sesion expirada:
+
+- Detecta respuestas 401/419.
+- Detecta respuestas HTML redirigidas a `/login` en peticiones AJAX.
+- Muestra modal `Tu sesión caducó por inactividad` con SweetAlert2.
+- Usa backdrop negro al 80% mediante `backdrop: 'rgba(0,0,0,0.8)'` y `.cdc-session-expired-active`.
+- Al confirmar `OK`, limpia contenedores SweetAlert y redirige a `/login`.
+
+Los componentes no deben duplicar este manejo; los `catch` locales deben continuar enfocados en errores funcionales del modulo.
+
+## Iconografia
+
+La iconografia visible en sidebars y componentes tocados se migro a FontAwesome (`fa fa-*`) porque ya se compila en `public/css/plantilla.css` y reduce el riesgo de glifos privados de `Simple Line Icons` si el servidor no entrega la fuente correcta.
+
+Convenciones:
+
+- Usar `fa fa-plus-circle` para crear.
+- Usar `fa fa-search` para buscar.
+- Usar `fa fa-cloud-upload` y `fa fa-cloud-download` para importar/exportar.
+- Usar `fa fa-pencil`, `fa fa-eye`, `fa fa-trash`, `fa fa-times`, `fa fa-save` para acciones CRUD.
+- Usar `title` y `aria-label` en botones icon-only.
+- Mantener `public/fonts/fontawesome-*` publicado junto con `public/css/plantilla.css`; si vuelven glifos raros, revisar MIME/paths de `/fonts/*.woff2` en el vhost antes de cambiar componentes.
 
 ## Proxy HTTPS y logout
 
@@ -77,6 +106,51 @@ Los filtros de listados financieros deben mapearse a columnas reales, no a nombr
 - `condicion` representa el estado operativo en tablas como `transacciones` y `pagospei`; si el UI muestra encabezado `Status`, el backend puede recibir `status` por compatibilidad, pero debe traducirlo a `transacciones.condicion` cuando esa sea la columna real.
 - `enviada` debe usarse para columnas reales `enviada`, como `pagospei.enviada` y `cancelaspei.enviada`.
 - Todo filtro nuevo debe validar valores permitidos antes de aplicar `where(...)`; un valor invalido debe responder 422 controlado, no construir SQL dinamico ni producir HTTP 500.
+
+## Nuevos modulos financieros
+
+### Domiciliacion Activa
+
+- Componente: `resources/assets/js/components/DomiciliacionActiva.vue`.
+- Menu: `menu==29`.
+- Endpoint: `GET /domiciliacion-activa`.
+- Fuente: `transacciones.tipo=2`, `productivo=1`, `condicion in (1,2)` y existencia de `respuestas.status='approved'`.
+- Acciones:
+  - cancelar reutiliza `PUT /transaccion/rechazar`;
+  - cargo manual reutiliza `POST /transaccionDom/registrar`.
+
+### Pagos Recibidos
+
+- Componente: `resources/assets/js/components/PagoRecibido.vue`.
+- Menu: `menu==30`.
+- Endpoints:
+  - `GET /pagos-recibidos`;
+  - `PUT /pagos-recibidos/status`.
+- Fuente unificada:
+  - `respuestas.status='approved'`;
+  - `pagospei` exitosos (`condicion=1` y mensaje/codigo de operacion exitosa).
+- Persistencia: `pagos_recibidos` solo guarda overrides de status por `source_type/source_id`; no duplica el pago fuente.
+
+## Estados de domiciliacion
+
+La pantalla compartida `Transaccion.vue` conserva el parametro frontend `status`, pero para transacciones lo traduce en backend a `transacciones.condicion`.
+
+Catalogo operativo vigente para `transacciones.condicion`:
+
+- `0`: Pendiente.
+- `1`: Activo.
+- `2`: Cancelado.
+- `3`: Pagado.
+- `4`: Vencido.
+- `5`: Error, usado cuando existe respuesta aprobada de domiciliacion sin token.
+
+Para domiciliacion:
+
+- Una liga nueva tipo `2` nace como `Pendiente=0`.
+- Una respuesta aprobada con token la marca como `Activo=1`.
+- Una respuesta aprobada sin token la marca como `Error=5`.
+- Si vence sin respuesta aprobada, `revisarStatus()` la marca como `Vencido=4`.
+- `transacciones.intentos` cuenta cargos recurrentes fallidos (`transaccionesDom.code != 00`) y se reinicia con cargo aprobado.
 
 ## Pruebas recomendadas
 

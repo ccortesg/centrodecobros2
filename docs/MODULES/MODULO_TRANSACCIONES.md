@@ -1,6 +1,6 @@
 # Modulo: Transacciones, ligas, caja, terminal y SPEI
 
-Ultima actualizacion: 2026-06-03
+Ultima actualizacion: 2026-06-04
 
 ## Proposito
 
@@ -40,6 +40,7 @@ Generar referencias/ligas y registrar estado operativo de cobros por distintos t
 - `GET transaccion/reporteTransacciones`
 - `GET transaccion/exportarTransacciones`
 - `GET transaccion/selectDomiciliacion`
+- `GET domiciliacion-activa`
 
 ## Importacion masiva
 
@@ -60,6 +61,8 @@ Generar referencias/ligas y registrar estado operativo de cobros por distintos t
 
 - `transacciones`
 - `respuestas`
+- `transaccionesDom`
+- `pagos_recibidos`
 - `consultaspei`
 - `pagospei`
 - `cancelaspei`
@@ -76,6 +79,28 @@ Generar referencias/ligas y registrar estado operativo de cobros por distintos t
 5. Invoca Pagadetodo via Guzzle o mock.
 6. Persiste `transacciones`.
 7. Reportes/webhooks actualizan estado y respuestas posteriores.
+
+## Estados operativos
+
+La columna real de estado operativo en `transacciones` es `condicion`. El UI puede mostrarla como `Status`, pero el backend no debe consultar `transacciones.status` para este flujo.
+
+Valores usados:
+
+- `0`: Pendiente.
+- `1`: Activo.
+- `2`: Cancelado.
+- `3`: Pagado.
+- `4`: Vencido.
+- `5`: Error.
+
+Reglas especificas para `tipo=2` domiciliacion:
+
+- Al generar la liga, inicia `Pendiente=0`.
+- Al recibir respuesta aprobada con token, cambia a `Activo=1`.
+- Al recibir respuesta aprobada sin token, cambia a `Error=5`.
+- Si vence sin respuesta aprobada, `revisarStatus()` cambia a `Vencido=4`.
+- `intentos` cuenta cargos recurrentes fallidos y se reinicia a `0` con cargo aprobado.
+- `ProximoCargoBase` conserva la primera fecha de proximo cargo como ancla/auditoria.
 
 ## Integracion Pagadetodo
 
@@ -157,3 +182,4 @@ Reglas por renglon:
 - Tests de concurrencia para folios.
 - Matriz de estados/tipos documentada con ejemplos reales.
 - Sandbox oficial Pagadetodo con fixtures sanitizados.
+- Ejecutar migraciones de `ProximoCargoBase`, `intentos` y `pagos_recibidos` en ambiente controlado antes de desplegar funcionalidades dependientes.

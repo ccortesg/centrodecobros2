@@ -26,13 +26,13 @@
                             Generación de Ligas
                         </template>
                         <button type="button" @click="abrirModal('transaccion','registrar')" class="btn btn-secondary">
-                            <i class="icon-plus"></i>&nbsp;Nuevo
+                            <i class="fa fa-plus-circle"></i>&nbsp;Nuevo
                         </button> &nbsp;
                         <button type="button" v-if="tipo==1 || tipo==2" @click="abrirModalImportar()" class="btn btn-danger btn-sm">
-                            <i class="icon-cloud-upload"></i>&nbsp;Importar
+                            <i class="fa fa-cloud-upload"></i>&nbsp;Importar
                         </button> &nbsp;
                         <button type="button" @click="descargarExportar()" class="btn btn-success btn-sm">
-                            <i class="icon-cloud-download"></i>&nbsp;Exportar
+                            <i class="fa fa-cloud-download"></i>&nbsp;Exportar
                         </button> &nbsp;
                     </div>
                     <div class="card-body">
@@ -60,7 +60,7 @@
                         <table class="table table-bordered table-striped table-sm cdc-responsive-table">
                             <thead>
                                 <tr>
-                                    <th class="text-center">Opciones
+                                    <th class="text-center cdc-sticky-col">Opciones
                                         <select v-model="offset" @change="listarTransaccion(1,buscar,criterio)">
                                             <option value="10" selected>10</option>
                                             <option value="25">25</option>
@@ -74,7 +74,7 @@
                                     <template v-if="tipo==1 || tipo==2">
                                         <th class="text-center">Forma de Pago</th>
                                     </template>
-                                    <th class="text-center">Descripción</th>
+                                    <th class="text-center cdc-column-description">Descripción</th>
                                     <th class="text-center">Referencia</th>                                                                        
                                     <th class="text-center">Monto</th>
                                     <th class="text-center">Fecha de Expiración</th>
@@ -87,7 +87,8 @@
                                         <template v-if="tipo==2">
                                             <th class="text-center">Frecuencia</th>
                                         </template>
-                                        <th class="text-center">Status
+                                        <th class="text-center cdc-status-filter-heading">
+                                            <span>Status</span>
                                             <select v-model="status" @change="listarTransaccion(1,buscar,criterio)">
                                                 <option value="99" selected>Todos</option>
                                                 <option value="0">Pendiente</option>
@@ -95,6 +96,7 @@
                                                 <option value="2">Cancelado</option>
                                                 <option value="3">Pagado</option>
                                                 <option value="4">Vencido</option>
+                                                <option value="5">Error</option>
                                             </select>
                                         </th>
                                     </template>
@@ -103,15 +105,15 @@
                             </thead>
                             <tbody>
                                 <tr v-for="transaccion in arrayTransaccion" :key="transaccion.id">
-                                    <td class="text-center">
+                                    <td class="text-center cdc-sticky-col">
                                         <button type="button" @click="abrirModal('transaccion','actualizar',transaccion)" class="btn btn-warning btn-sm cdc-action-button" title="Editar transacción" aria-label="Editar transacción">
-                                          <i class="icon-pencil"></i>
+                                          <i class="fa fa-pencil"></i>
                                         </button> &nbsp;
                                         <button type="button" @click="abrirModal('transaccion','ver',transaccion)" class="btn btn-success btn-sm cdc-action-button" title="Ver transacción" aria-label="Ver transacción">
-                                          <i class="icon-eye"></i>
+                                          <i class="fa fa-eye"></i>
                                         </button> &nbsp;                                                                               
                                         <template v-if="(tipo==2 || tipo==4) && transaccion.condicion==1 && transaccion.responseReference != null"><button type="button" @click="rechazarTransaccion(transaccion.id)" class="btn btn-danger btn-sm cdc-action-button" title="Cancelar transacción" aria-label="Cancelar transacción">
-                                            <i class="icon-close"></i>
+                                            <i class="fa fa-times"></i>
                                         </button></template>
                                
                                     </td>
@@ -142,7 +144,7 @@
                                             </template>
                                         </td>
                                     </template>
-                                    <td v-text="transaccion.Description" class="text-center"></td>                                    
+                                    <td v-text="transaccion.Description" class="text-center cdc-column-description"></td>                                    
                                     <td v-text="transaccion.ClientReference" class="text-center"></td>                                    
                                     <td class="text-center">{{ $formatCurrency(transaccion.Amount / 100) }}</td>
                                     <td class="text-center">{{ $formatDateMx(transaccion.ExpirationDate) }}</td>
@@ -150,7 +152,7 @@
                                         <td class="text-center">                                        
                                             <template v-if="transaccion.url!=null">
                                                 <button type="button" @click="openURL(transaccion.url)" class="btn btn-success btn-sm cdc-action-button" :title="transaccion.url" aria-label="Abrir URL de pago">
-                                                <i class="icon-globe"></i>
+                                                <i class="fa fa-globe"></i>
                                                 </button> &nbsp;
                                             </template>                                        
                                         </td>
@@ -159,14 +161,14 @@
                                         <td class="text-center">
                                             <template v-if="transaccion.responseReference != null && transaccion.condicion == 1">
                                                 <button type="button" @click="openLector(transaccion.responseReference)" class="btn btn-success btn-sm cdc-action-button" :title="transaccion.responseReference" aria-label="Abrir liga terminal">
-                                                        <i class="icon-globe"></i>
+                                                        <i class="fa fa-globe"></i>
                                                 </button> &nbsp;
                                             </template>
                                         </td>
                                     </template>
                                     <td class="text-center">
                                         <button type="button" @click="abrirModal('transaccion','respuesta',transaccion)" class="btn btn-warning btn-sm cdc-action-button" title="Ver respuesta" aria-label="Ver respuesta">
-                                          <i class="icon-folder"></i>
+                                          <i class="fa fa-folder-open"></i>
                                         </button> &nbsp; 
                                     </td>                                                                        
                                     <td v-text="transaccion.usuario" class="text-center"></td>
@@ -206,6 +208,9 @@
                                             <div v-else-if="(transaccion.condicion==4)">
                                                 <span class="badge badge-warning">Vencido</span>
                                             </div>
+                                            <div v-else-if="(transaccion.condicion==5)">
+                                                <span class="badge badge-danger">Error</span>
+                                            </div>
                                             <div v-else-if="(transaccion.condicion==0)">
                                                 <span class="badge badge-warning">Pendiente</span>
                                             </div>                                            
@@ -226,19 +231,32 @@
                             </tbody>
                         </table>
                         </div>
-                        <nav>
-                            <ul class="pagination cdc-pagination">
-                                <li class="page-item" v-if="pagination.current_page > 1">
-                                    <a class="page-link" href="#" @click.prevent="cambiarPagina(pagination.current_page - 1,buscar,criterio)">Ant</a>
-                                </li>
-                                <li class="page-item" v-for="page in pagesNumber" :key="page" :class="[page == isActived ? 'active' : '']">
-                                    <a class="page-link" href="#" @click.prevent="cambiarPagina(page,buscar,criterio)" v-text="page"></a>
-                                </li>
-                                <li class="page-item" v-if="pagination.current_page < pagination.last_page">
-                                    <a class="page-link" href="#" @click.prevent="cambiarPagina(pagination.current_page + 1,buscar,criterio)">Sig</a>
-                                </li>
-                            </ul>
-                        </nav>
+                        <div class="cdc-table-footer">
+                            <nav>
+                                <ul class="pagination cdc-pagination">
+                                    <li class="page-item" :class="{disabled: pagination.current_page <= 1}">
+                                        <a class="page-link" href="#" title="Primera página" aria-label="Primera página" @click.prevent="cambiarPagina(1,buscar,criterio)">
+                                            <i class="fa fa-angle-double-left"></i>
+                                        </a>
+                                    </li>
+                                    <li class="page-item" v-if="pagination.current_page > 1">
+                                        <a class="page-link" href="#" @click.prevent="cambiarPagina(pagination.current_page - 1,buscar,criterio)">Ant</a>
+                                    </li>
+                                    <li class="page-item" v-for="page in pagesNumber" :key="page" :class="[page == isActived ? 'active' : '']">
+                                        <a class="page-link" href="#" @click.prevent="cambiarPagina(page,buscar,criterio)" v-text="page"></a>
+                                    </li>
+                                    <li class="page-item" v-if="pagination.current_page < pagination.last_page">
+                                        <a class="page-link" href="#" @click.prevent="cambiarPagina(pagination.current_page + 1,buscar,criterio)">Sig</a>
+                                    </li>
+                                    <li class="page-item" :class="{disabled: pagination.current_page >= pagination.last_page}">
+                                        <a class="page-link" href="#" title="Última página" aria-label="Última página" @click.prevent="cambiarPagina(pagination.last_page,buscar,criterio)">
+                                            <i class="fa fa-angle-double-right"></i>
+                                        </a>
+                                    </li>
+                                </ul>
+                            </nav>
+                            <div class="cdc-table-total">Total: {{ pagination.total || 0 }} registros</div>
+                        </div>
                     </div>
                 </div>
                 <!-- Fin ejemplo de tabla Listado -->
@@ -810,6 +828,9 @@
             },
             cambiarPagina(page,buscar,criterio){
                 let me = this;
+                if(!page || page < 1 || page > me.pagination.last_page){
+                    return;
+                }
                 //Actualiza la página actual
                 me.pagination.current_page = page;
                 //Envia la petición para visualizar la data de esa página
@@ -938,6 +959,10 @@
                 buttonsStyling: false,
                 reverseButtons: true
                 }).then((result) => {
+                    if(!result.value){
+                        return;
+                    }
+
                     axios.put('/transaccion/rechazar',{
                         'id': id
                     }).then(function (response) {     

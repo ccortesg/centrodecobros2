@@ -75,6 +75,7 @@ Route::group(['middleware'=>['auth']],function(){
         Route::put('/transaccion/rechazar', 'TransaccionController@rechazar'); 
         Route::put('/transaccion/eliminar', 'TransaccionController@delete');
         Route::get('/transaccion/selectDomiciliacion', 'TransaccionController@selectDomiciliacion');
+        Route::get('/domiciliacion-activa', 'TransaccionController@domiciliacionActiva');
         Route::get('/transaccion/exportar', 'TransaccionController@exportar');
         Route::get('/transaccion/exportarTransacciones', 'TransaccionController@exportarReporte');
         Route::post('/transaccion/importar/iniciar', 'TransaccionController@iniciarImportacion');
@@ -106,6 +107,8 @@ Route::group(['middleware'=>['auth']],function(){
         Route::get('/pagospei/reportePagoSpei', 'PagoSpeiController@reportePagoSpei');
         Route::get('/cancelaspei', 'CancelaSpeiController@index');
         Route::get('/cancelaspei/exportar', 'CancelaSpeiController@exportar');
+        Route::get('/pagos-recibidos', 'PagoRecibidoController@index');
+        Route::put('/pagos-recibidos/status', 'PagoRecibidoController@actualizarStatus');
 
         Route::get('/rol', 'RolController@index');
         Route::get('/role', 'RolController@index');

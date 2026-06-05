@@ -8,7 +8,7 @@
             aria-haspopup="true"
             aria-expanded="false"
         >
-            <i class="icon-bell"></i>
+            <i class="fa fa-bell"></i>
             <span class="badge badge-pill badge-danger">{{notifications.length}}</span>
         </a>
         <div class="dropdown-menu dropdown-menu-right" data-shell-dropdown-menu>

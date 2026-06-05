@@ -17,6 +17,7 @@ import ClienteDepurar from './components/ClienteDepurar.vue';
 import Dashboard from './components/Dashboard.vue';
 import Notification from './components/Notification.vue';
 import Transaccion from './components/Transaccion.vue';
+import DomiciliacionActiva from './components/DomiciliacionActiva.vue';
 import Respuesta from './components/Respuesta.vue';
 import TransaccionDom from './components/TransaccionDom.vue';
 import ReporteLigas from './components/ReporteLigas.vue';
@@ -26,6 +27,7 @@ import ConsultaSpei from './components/ConsultaSpei.vue';
 import PagoSpei from './components/PagoSpei.vue';
 import CancelaSpei from './components/CancelaSpei.vue';
 import ReporteSpei from './components/ReporteSpei.vue';
+import PagoRecibido from './components/PagoRecibido.vue';
 
 const jQuery = window.jQuery || window.$ || importedJQuery;
 const $ = jQuery;
@@ -50,6 +52,7 @@ const components = {
     dashboard: Dashboard,
     notification: Notification,
     transaccion: Transaccion,
+    domiciliacionactiva: DomiciliacionActiva,
     respuesta: Respuesta,
     transacciondom: TransaccionDom,
     reporteligas: ReporteLigas,
@@ -58,8 +61,71 @@ const components = {
     consultaspei: ConsultaSpei,
     pagospei: PagoSpei,
     cancelaspei: CancelaSpei,
-    reportespei: ReporteSpei
+    reportespei: ReporteSpei,
+    pagorecibido: PagoRecibido
 };
+
+let sessionExpiredModalVisible = false;
+
+function cleanupSessionExpiredOverlay() {
+    document.body.classList.remove('cdc-session-expired-active');
+
+    document.querySelectorAll('.swal2-container').forEach((container) => {
+        container.parentNode.removeChild(container);
+    });
+}
+
+function showSessionExpiredModal() {
+    if (sessionExpiredModalVisible) {
+        return new Promise(() => {});
+    }
+
+    sessionExpiredModalVisible = true;
+    document.body.classList.add('cdc-session-expired-active');
+
+    window.swal({
+        title: 'Tu sesión caducó por inactividad',
+        type: 'warning',
+        confirmButtonText: 'OK',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        backdrop: 'rgba(0,0,0,0.8)'
+    }).then(() => {
+        cleanupSessionExpiredOverlay();
+        window.location.assign('/login');
+    });
+
+    return new Promise(() => {});
+}
+
+function isLoginRedirect(response) {
+    if (!response || !response.request) {
+        return false;
+    }
+
+    const responseUrl = response.request.responseURL || '';
+    const contentType = response.headers ? String(response.headers['content-type'] || '') : '';
+
+    return responseUrl.indexOf('/login') !== -1 && contentType.indexOf('text/html') !== -1;
+}
+
+if (window.axios && window.swal) {
+    window.axios.interceptors.response.use((response) => {
+        if (isLoginRedirect(response)) {
+            return showSessionExpiredModal();
+        }
+
+        return response;
+    }, (error) => {
+        const status = error && error.response ? error.response.status : null;
+
+        if (status === 401 || status === 419 || isLoginRedirect(error.response)) {
+            return showSessionExpiredModal();
+        }
+
+        return Promise.reject(error);
+    });
+}
 
 const shellHeader = initAuthenticatedShellHeader();
 const shellNavigation = initAuthenticatedShellNavigation();

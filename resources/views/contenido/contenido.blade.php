@@ -56,6 +56,10 @@
                 <transaccion :tipo="2" :productivo="{{Auth::user()->productivo}}"></transaccion>
             </template>
 
+            <template v-if="menu==29">
+                <domiciliacionactiva></domiciliacionactiva>
+            </template>
+
             <template v-if="menu==12">
                 <respuesta :tipo="2"></respuesta>
             </template>
@@ -110,6 +114,10 @@
 
             <template v-if="menu==27">
                 <respuesta :tipo="4"></respuesta>
+            </template>
+
+            <template v-if="menu==30">
+                <pagorecibido></pagorecibido>
             </template>
             @else
 

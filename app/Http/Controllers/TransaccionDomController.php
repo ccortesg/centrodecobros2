@@ -128,6 +128,91 @@ class TransaccionDomController extends Controller
         ], $status);
     }
 
+    private function cargoRecurrenteAprobado(TransaccionDom $transaccionDom)
+    {
+        return (string) $transaccionDom->code === '00' && (string) $transaccionDom->status === 'approved';
+    }
+
+    private function contarIntentosFallidos($idtransaccion)
+    {
+        return TransaccionDom::where('idtransaccion', '=', $idtransaccion)
+            ->where(function ($query) {
+                $query->whereNull('code')
+                    ->orWhere('code', '<>', '00');
+            })
+            ->count();
+    }
+
+    private function siguienteFechaProgramada($fechaBase, $frecuencia)
+    {
+        $newDate = Carbon::parse($fechaBase);
+
+        if ((int) $frecuencia === 1) {
+            return $newDate->addDays(7);
+        }
+
+        if ((int) $frecuencia === 2) {
+            return $newDate->addMonth();
+        }
+
+        if ((int) $frecuencia === 3) {
+            return $newDate->addMonths(2);
+        }
+
+        if ((int) $frecuencia === 4) {
+            return $newDate->addMonths(6);
+        }
+
+        if ((int) $frecuencia === 5) {
+            return $newDate->addYear();
+        }
+
+        return $newDate->addDay();
+    }
+
+    private function actualizarIntentosCargo(Transaccion $transaccion, TransaccionDom $transaccionDom)
+    {
+        $tran = Transaccion::find($transaccion->id);
+        if (!$tran) {
+            return;
+        }
+
+        if ($this->cargoRecurrenteAprobado($transaccionDom)) {
+            $tran->intentos = 0;
+        } else {
+            $tran->intentos = $this->contarIntentosFallidos($transaccion->id);
+        }
+
+        if ($tran->ProximoCargo && !$tran->ProximoCargoBase) {
+            $tran->ProximoCargoBase = $tran->ProximoCargo;
+        }
+
+        $tran->save();
+    }
+
+    private function actualizarControlCronDomiciliacion(Transaccion $transaccion, TransaccionDom $transaccionDom)
+    {
+        $tran = Transaccion::find($transaccion->id);
+        if (!$tran) {
+            return;
+        }
+
+        if ($tran->ProximoCargo && !$tran->ProximoCargoBase) {
+            $tran->ProximoCargoBase = $tran->ProximoCargo;
+        }
+
+        if ($this->cargoRecurrenteAprobado($transaccionDom)) {
+            $base = $tran->ProximoCargo ?: Carbon::now('America/Hermosillo')->toDateString();
+            $tran->ProximoCargo = $this->siguienteFechaProgramada($base, $tran->frecuencia)->toDateString();
+            $tran->intentos = 0;
+        } else {
+            $tran->ProximoCargo = Carbon::now('America/Hermosillo')->addDay()->toDateString();
+            $tran->intentos = $this->contarIntentosFallidos($transaccion->id);
+        }
+
+        $tran->save();
+    }
+
     public function index(Request $request)
     {
         if (!$request->ajax()) return redirect('/');               
@@ -353,6 +438,10 @@ class TransaccionDomController extends Controller
         } catch (Exception $e){
             DB::rollBack();
             $error = $e->getMessage();
+        }
+
+        if ($error === '' && $transaccionDom->id) {
+            $this->actualizarIntentosCargo($transaccion, $transaccionDom);
         }
 
         return [                
@@ -621,6 +710,10 @@ class TransaccionDomController extends Controller
             ], 400);
         }
 
+        if ($transaccionDom->id) {
+            $this->actualizarIntentosCargo($transaccion, $transaccionDom);
+        }
+
         return response()->json([
             'code' => $transaccionDom->code,
             'message' => $transaccionDom->status,
@@ -664,9 +757,6 @@ class TransaccionDomController extends Controller
 
         //Recorrer las transacciones si hay
         foreach ($transacciones as $transaccion) {
-            
-            $cargoDate = Carbon::createFromFormat('Y-m-d', $transaccion->ProximoCargo);
-    
             $respuesta = Respuesta::where([
                 ['idtransaccion', '=', $transaccion->id],
                 ['status','LIKE','approved']])
@@ -789,35 +879,10 @@ class TransaccionDomController extends Controller
                 Log::info('Error al guardar el cargo recurrente. IdTransacción: '.$transaccion->id);            
             }
             
-            //Si el cargo fue rechazado o hubo error la fecha del próximo cargo será el siguiente día
-            $newDate = Carbon::now('America/Hermosillo');
-            if($transaccionDom->code == '00' && $transaccionDom->status == 'approved'){ 
-                if($transaccion->frecuencia == 1){
-                    $newDate = $cargoDate->addDay(7);
-                } else if($transaccion->frecuencia == 2){
-                    $newDate = $cargoDate->addMonth();
-                } else if($transaccion->frecuencia == 3){
-                    $newDate = $cargoDate->addMonth(2);
-                } else if($transaccion->frecuencia == 4){
-                    $newDate = $cargoDate->addMonth(6);
-                } else if($transaccion->frecuencia == 5){
-                    $newDate = $cargoDate->addYear();
-                }
-            } else {
-                $newDate = $newDate->addDay();                        
-            }
-                                
             try{
-                $tran = Transaccion::find($transaccion->id);
-                DB::beginTransaction();    
-                $tran->ProximoCargo = $newDate->toDateString();
-                $tran->save();
-                DB::commit();
+                $this->actualizarControlCronDomiciliacion($transaccion, $transaccionDom);
             } catch (Exception $e){
-                //Poner comentario de que no se pudo guardar correctamente la fecha próxima de cargo
-                DB::rollBack();
-                //Log de error al guardar la fecha próxima de cargo
-                Log::info('Error al guardar la fecha próxima de cargo. IdTransacción: '.$transaccion->id);
+                Log::info('Error al guardar el control de cargo recurrente. IdTransacción: '.$transaccion->id);
             }
 
             //Agregar envío de respuestas de cargos recurrentes

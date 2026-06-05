@@ -368,6 +368,11 @@ Cada agente que ejecute una tarea UX/UI debe actualizar esta tabla o agregar un 
 | UX-07 | 5 | Modales detalle | Pendiente | Agente | captura modal responsive | browser teclado/movil | - |
 | UX-18 | 4 | Domiciliacion status 500 | Validado | Codex | `TransaccionController@index` filtra `transacciones.condicion`; prueba cubre `tipo=2&status=2` | `FinancialFiltersFeatureTest`; Feature completa; `route:list`; build production | 2026-06-04 |
 | UX-19 | 4 | Listados financieros tabla/fechas/filtros | Implementado | Codex | `Transaccion`, `TransaccionDom`, `Respuesta`, `ConsultaSpei`, `CancelaSpei`, `PagoSpei` migrados a tabla shell/paginacion/fechas donde aplica | Feature completa; Unit; `npm run production`; browser local bloqueado por puerto | 2026-06-04 |
+| UX-20 | 1 | Sesion expirada por inactividad | Implementado | Codex | Interceptor Axios global muestra modal `Tu sesión caducó por inactividad`, backdrop negro y redireccion a `/login` | `npm run production`; browser real pendiente por falta de runner autenticado | 2026-06-04 |
+| UX-21 | 7 | Iconografia UI | Implementado | Codex | Sidebars y botones Vue migrados de `icon-*` a FontAwesome donde se tocaron componentes | `npm run production`; revision `rg class=\"icon-` | 2026-06-04 |
+| UX-22 | 4 | Domiciliación Activa | Implementado | Codex | Nuevo submenu y componente `DomiciliacionActiva.vue`; endpoint `/domiciliacion-activa`; acciones reutilizan cancelar/cargo manual existentes | `DomiciliacionAndPaymentsFeatureTest`; `route:list`; `npm run production` | 2026-06-04 |
+| UX-23 | 4 | Estados de domiciliación e intentos | Validado | Codex | Domiciliacion nueva inicia `Pendiente`; aprobada sin token pasa a `Error`; `intentos` cuenta fallos y se reinicia con cargo aprobado | `DomiciliacionAndPaymentsFeatureTest`; `php -l`; Unit | 2026-06-04 |
+| UX-24 | 4 | Pagos Recibidos | Implementado | Codex | Nuevo modulo consolidado con fuentes `respuestas.approved` y `pagospei` exitosos; status ajustable por override | `DomiciliacionAndPaymentsFeatureTest`; `route:list`; `npm run production` | 2026-06-04 |
 
 Estados permitidos:
 
@@ -472,20 +477,71 @@ Pendientes reales:
 - Etapa 5: migrar modales financieros de solo lectura a patron `detail-modal`.
 - Completar cards moviles reales para listados anchos; esta fase deja scroll horizontal controlado, no conversion completa a cards.
 
+## Ejecucion 2026-06-04 - Domiciliacion activa, pagos recibidos y sesion expirada
+
+Cambios aplicados:
+
+- `resources/assets/js/app.js`: interceptor Axios global para sesion expirada. Detecta 401/419 o redireccion AJAX a `/login`, muestra modal `Tu sesión caducó por inactividad`, usa backdrop negro y al confirmar limpia overlay y redirige a `/login`.
+- `resources/views/plantilla/sidebaradministrador.blade.php` y `resources/views/plantilla/sidebarcliente.blade.php`: se cambio `Domiciliacion` a `Domiciliación`, se agrego `Domiciliación Activa` y `Pagos Recibidos`, y se migro iconografia visible a FontAwesome.
+- `resources/views/contenido/contenido.blade.php`: se agregaron targets `menu==29` (`domiciliacionactiva`) y `menu==30` (`pagorecibido`) sin tocar `principal.blade.php`.
+- `app/Http/Controllers/TransaccionController.php`: nuevo endpoint `GET /domiciliacion-activa`; status `Error=5`; nuevas ligas domiciliadas se guardan como `Pendiente=0`; sincronizacion de domiciliaciones vencidas, aprobadas con token y aprobadas sin token desde `revisarStatus`.
+- `app/Http/Controllers/RespuestaController.php`: el webhook aprobado de una domiciliacion activa la transaccion solo si trae token; si el token viene vacio/null marca la transaccion como `Error`.
+- `app/Http/Controllers/TransaccionDomController.php`: el cron conserva `ProximoCargoBase` cuando falta, calcula el siguiente cargo desde la fecha programada actual, sincroniza `intentos` con cargos fallidos `code != 00` y reinicia a cero si el cargo es aprobado.
+- `database/migrations/2026_06_04_120000_add_domiciliacion_control_fields_to_transacciones_table.php`: agrega `ProximoCargoBase` e `intentos` a `transacciones`. No se ejecuto migracion en esta tarea.
+- `app/Http/Controllers/PagoRecibidoController.php`, `app/PagoRecibido.php`, `database/migrations/2026_06_04_120100_create_pagos_recibidos_table.php`: modulo `Pagos Recibidos` como vista unificada con tabla de overrides de status.
+- `resources/assets/js/components/DomiciliacionActiva.vue`: listado con filtros, total de registros, paginacion primera/ultima, fechas MX y acciones para cancelar/cargo manual reutilizando rutas existentes.
+- `resources/assets/js/components/PagoRecibido.vue`: listado consolidado, status `Activo/Cancelado` ajustable y total de registros.
+- `resources/assets/js/components/Transaccion.vue`: total inferior, paginacion con primera/ultima pagina, `Status` compacto, columna `Descripcion` controlada, sticky acciones y nuevo badge `Error`.
+- `resources/assets/js/styles/ux-ui.css`: estilos para `cdc-table-footer`, total, columna descripcion, status compacto, sticky actions y overlay de sesion expirada.
+- `tests/Feature/UX/DomiciliacionAndPaymentsFeatureTest.php`: cobertura para domiciliacion activa, pagos recibidos, status vencido/error/activo e intentos.
+
+Diagnostico `ejecutarCron`:
+
+- Consulta `transacciones` tipo `2`, `condicion=1`, `productivo=1`, con `respuestas.status='approved'`, `users.recurrente=1` y `ProximoCargo` igual al dia actual.
+- Usa datos de `transacciones` y token/expiracion desde la respuesta aprobada para llamar `PagarDomiciliacionIndi`.
+- Guarda cada intento en `transaccionesDom`.
+- Si el cargo es aprobado (`code=00` y `status=approved`), el siguiente `ProximoCargo` se calcula desde la fecha programada actual, no desde la fecha real de ejecucion; `intentos` queda en `0`.
+- Si falla, `ProximoCargo` pasa al dia siguiente e `intentos` se sincroniza con los `transaccionesDom` fallidos de esa domiciliacion.
+- `ProximoCargoBase` queda como ancla/auditoria de la primera fecha de proximo cargo, sin reemplazar la regla correcta de avanzar desde la fecha programada vigente.
+
+Validaciones ejecutadas:
+
+| Validacion | Resultado |
+| --- | --- |
+| `php -l` en controllers/modelos/tests modificados | OK, sin errores de sintaxis |
+| `php artisan route:list --path=domiciliacion-activa`, `--path=pagos-recibidos`, `--path=transaccion` | OK, rutas nuevas registradas |
+| `C:\wamp64\bin\php\php8.3.0\php.exe vendor\bin\phpunit tests\Feature\UX\DomiciliacionAndPaymentsFeatureTest.php` | OK, 7 tests, 21 assertions |
+| `C:\wamp64\bin\php\php8.3.0\php.exe vendor\bin\phpunit tests\Feature\UX\FinancialFiltersFeatureTest.php` | OK, 7 tests, 28 assertions |
+| `C:\wamp64\bin\php\php8.3.0\php.exe vendor\bin\phpunit tests\Feature\UX` | OK, 18 tests, 63 assertions |
+| `C:\wamp64\bin\php\php8.3.0\php.exe vendor\bin\phpunit tests\Feature\Phase32 tests\Feature\Phase34 tests\Feature\Smoke\ApiValidationRegressionTest.php tests\Feature\Smoke\PublicRoutesSmokeTest.php` | OK, 36 tests, 107 assertions |
+| `C:\wamp64\bin\php\php8.3.0\php.exe vendor\bin\phpunit tests\Unit` | OK, 13 tests, 72 assertions |
+| `npm run production -- --no-progress` | OK, build productivo verde; assets compilados no estan versionados |
+| `npm audit --omit=dev` | OK, 0 vulnerabilidades |
+| `C:\wamp64\bin\php\php8.3.0\php.exe vendor\bin\phpunit tests\Feature` | Bloqueado parcialmente por entorno: 13 smoke tests intentan MySQL local `centrodecobros` con `centro_user` y reciben `Access denied`; las suites aisladas relevantes pasaron |
+
+Pendientes reales:
+
+- Ejecutar migraciones nuevas en ambiente controlado antes de usar `ProximoCargoBase`, `intentos` y overrides de `pagos_recibidos` en servidor.
+- QA browser autenticado en sandbox/productivo: sesion expirada, menu `Domiciliación Activa`, menu `Pagos Recibidos`, filtros, carga manual y cancelacion.
+- Convertir listados anchos a cards moviles reales; esta fase mejora scroll/tabla, no implementa cards.
+- Revisar con negocio si el canal `Caja` debe diferenciarse tecnicamente de `SPEI`, porque ambos comparten `tipo=3` en la pantalla actual; `Pagos Recibidos` etiqueta `pagospei` como `SPEI` y respuestas tipo 3 como `Caja`.
+
 ## Prompt recomendado para ejecutar la siguiente etapa
 
 ```text
 Trabaja sobre:
 C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia
 
-No crees una nueva carpeta. Ejecuta la Etapa 5 del plan UX/UI documentado en `docs/UX_UI_AUDIT_AND_WORK_PLAN_2026-06-04.md`.
+No crees una nueva carpeta. Ejecuta QA browser autenticado y la Etapa 5 del plan UX/UI documentado en `docs/UX_UI_AUDIT_AND_WORK_PLAN_2026-06-04.md`.
 
 Objetivo:
+- validar en browser real, con usuario autorizado, que no hay consola critica en `/main`, que el modal de sesion expirada funciona y que los nuevos menus `Domiciliación Activa` y `Pagos Recibidos` renderizan correctamente;
 - convertir los modales financieros de solo lectura en vistas de detalle profesionales;
-- empezar por `PagoSpei.vue`, `Respuesta.vue`, `CancelaSpei.vue`, `TransaccionDom.vue` y `Transaccion.vue`;
+- empezar por `PagoSpei.vue`, `Respuesta.vue`, `CancelaSpei.vue`, `TransaccionDom.vue`, `Transaccion.vue`, `DomiciliacionActiva.vue` y `PagoRecibido.vue`;
 - separar visualmente secciones, etiquetas/valores, referencias largas, status badges y fechas `dd-mm-yyyy` con hora `hh:mm:ss`;
+- revisar responsivo 1366, 768, 390 y 360 px para listados anchos;
 - no cambiar reglas de negocio, rutas publicas, exports ni contratos Pagadetodo;
-- ejecutar `npm run production`, Feature si cambia backend, y browser real si hay runner disponible;
+- ejecutar `npm run production`, PHPUnit relevante si cambia backend, y browser real;
 - actualizar el control de avances del documento UX/UI con evidencia y validaciones ejecutadas.
 
 Restricciones:

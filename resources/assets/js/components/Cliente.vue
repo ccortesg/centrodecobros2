@@ -11,10 +11,10 @@
                     <div class="card-header">
                         <i class="fa fa-align-justify"></i> Clientes
                         <button type="button" @click="abrirModal('persona','registrar')" class="btn btn-secondary">
-                            <i class="icon-plus"></i>&nbsp;Nuevo
+                            <i class="fa fa-plus-circle"></i>&nbsp;Nuevo
                         </button> &nbsp;
                         <button type="button" @click="descargarExportar()" class="btn btn-success btn-sm">
-                            <i class="icon-cloud-download"></i>&nbsp;Exportar
+                            <i class="fa fa-cloud-download"></i>&nbsp;Exportar
                         </button> &nbsp;
                     </div>
                     <div class="card-body">
@@ -57,10 +57,10 @@
                                 <tr v-for="persona in arrayPersona" :key="persona.id">
                                     <td>
                                         <button type="button" @click="abrirModal('persona','actualizar',persona)" class="btn btn-warning btn-sm">
-                                          <i class="icon-pencil"></i>
+                                          <i class="fa fa-pencil"></i>
                                         </button>
                                         <button type="button" @click="abrirModal('persona','ver',persona)" class="btn btn-warning btn-sm">
-                                          <i class="icon-folder"></i>
+                                          <i class="fa fa-folder-open"></i>
                                         </button>
                                     </td>
                                     <td v-text="persona.num_documento"></td>
@@ -285,10 +285,10 @@
                                             <tr v-for="archivo in arrayArchivo" :key="archivo.id">
                                                 <td>
                                                     <button type="button" @click="descargarArchivo(archivo.id, archivo.nombre)" class="btn btn-success btn-sm">
-                                                    <i class="icon-cloud-download"></i>
+                                                    <i class="fa fa-cloud-download"></i>
                                                     </button>
                                                     <button type="button" @click="eliminarArchivo(archivo.id)" class="btn btn-danger btn-sm">
-                                                    <i class="icon-trash"></i>
+                                                    <i class="fa fa-trash"></i>
                                                     </button>                                        
                                                 </td>
                                                 <td v-text="archivo.nombre"></td>

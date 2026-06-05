@@ -10,7 +10,7 @@
                     <div class="card-header">
                         <i class="fa fa-align-justify"></i> Estados
                         <button type="button" @click="abrirModal('estado','registrar')" class="btn btn-secondary">
-                            <i class="icon-plus"></i>&nbsp;Nuevo
+                            <i class="fa fa-plus-circle"></i>&nbsp;Nuevo
                         </button>
                     </div>
                     <div class="card-body">
@@ -51,16 +51,16 @@
                                     <tr v-for="estado in arrayEstado" :key="estado.id">
                                         <td>
                                             <button type="button" @click="abrirModal('estado','actualizar',estado)" class="btn btn-warning btn-sm cdc-action-button" title="Editar estado" aria-label="Editar estado">
-                                              <i class="icon-pencil"></i>
+                                              <i class="fa fa-pencil"></i>
                                             </button> &nbsp;
                                             <template v-if="estado.condicion">
                                                 <button type="button" class="btn btn-danger btn-sm cdc-action-button" @click="desactivarEstado(estado.id)" title="Desactivar estado" aria-label="Desactivar estado">
-                                                    <i class="icon-trash"></i>
+                                                    <i class="fa fa-trash"></i>
                                                 </button>
                                             </template>
                                             <template v-else>
                                                 <button type="button" class="btn btn-info btn-sm cdc-action-button" @click="activarEstado(estado.id)" title="Activar estado" aria-label="Activar estado">
-                                                    <i class="icon-check"></i>
+                                                    <i class="fa fa-check"></i>
                                                 </button>
                                             </template>
                                         </td>

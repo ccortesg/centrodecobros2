@@ -52,6 +52,34 @@
     min-width: max-content;
 }
 
+.cdc-column-description {
+    max-width: 21rem;
+    min-width: 12rem;
+    white-space: normal;
+    word-break: break-word;
+}
+
+.cdc-status-filter-heading {
+    min-width: 8.5rem;
+}
+
+.cdc-status-filter-heading span {
+    display: block;
+    margin-bottom: .25rem;
+}
+
+.cdc-status-filter-heading select,
+.cdc-inline-status-select {
+    max-width: 8rem;
+}
+
+.cdc-sticky-col {
+    background: inherit;
+    left: 0;
+    position: sticky;
+    z-index: 2;
+}
+
 .cdc-pagination {
     display: flex;
     flex-wrap: wrap;
@@ -86,6 +114,30 @@
     min-width: 2rem;
 }
 
+.cdc-action-button + .cdc-action-button {
+    margin-left: .25rem;
+}
+
+.cdc-table-footer {
+    align-items: flex-start;
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+    margin-top: .75rem;
+}
+
+.cdc-table-total {
+    color: #536c79;
+    font-weight: 600;
+    padding-top: .45rem;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.cdc-session-expired-active .swal2-container {
+    background: rgba(0, 0, 0, .8) !important;
+}
+
 @media (max-width: 575.98px) {
     .cdc-list-toolbar .input-group {
         display: grid;
@@ -105,5 +157,13 @@
 
     .cdc-pagination {
         justify-content: flex-start;
+    }
+
+    .cdc-table-footer {
+        display: block;
+    }
+
+    .cdc-table-total {
+        text-align: left;
     }
 }

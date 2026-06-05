@@ -38,6 +38,8 @@ class Transaccion extends Model
                         'tipo',
                         'frecuencia',
                         'ProximoCargo',
+                        'ProximoCargoBase',
+                        'intentos',
                         'condicion',
                         'productivo'
                         ];

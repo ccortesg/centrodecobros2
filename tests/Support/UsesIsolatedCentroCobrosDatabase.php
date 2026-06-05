@@ -179,6 +179,8 @@ trait UsesIsolatedCentroCobrosDatabase
             $table->integer('tipo')->nullable();
             $table->integer('frecuencia')->nullable();
             $table->date('ProximoCargo')->nullable();
+            $table->date('ProximoCargoBase')->nullable();
+            $table->integer('intentos')->default(0);
             $table->integer('condicion')->default(1);
             $table->integer('status')->nullable();
             $table->integer('productivo')->default(1);
@@ -300,6 +302,15 @@ trait UsesIsolatedCentroCobrosDatabase
             $table->integer('productivo')->default(1);
             $table->timestamps();
         });
+
+        Schema::create('pagos_recibidos', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('source_type')->nullable();
+            $table->integer('source_id')->nullable();
+            $table->string('status')->default('activo');
+            $table->integer('idusuario')->nullable();
+            $table->timestamps();
+        });
     }
 
     private function seedCentroCobrosData(): void
@@ -399,6 +410,10 @@ trait UsesIsolatedCentroCobrosDatabase
             'idusuario' => $idusuario,
             'idcliente' => $idcliente,
             'tipo' => $tipo,
+            'frecuencia' => $tipo === 2 ? 2 : null,
+            'ProximoCargo' => $tipo === 2 ? now()->addMonth()->toDateString() : null,
+            'ProximoCargoBase' => $tipo === 2 ? now()->addMonth()->toDateString() : null,
+            'intentos' => 0,
             'condicion' => 1,
             'productivo' => 1,
             'created_at' => now(),

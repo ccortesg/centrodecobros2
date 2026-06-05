@@ -200,7 +200,26 @@ class TransaccionController extends Controller
 
     private function condicionTransaccionValida($status)
     {
-        return in_array((string) $status, ['0', '1', '2', '3', '4', '99'], true);
+        return in_array((string) $status, ['0', '1', '2', '3', '4', '5', '99'], true);
+    }
+
+    private function criteriosDomiciliacionActivaPermitidos()
+    {
+        return [
+            'folio',
+            'fecha',
+            'Description',
+            'Reference',
+            'ClientReference',
+            'Amount',
+            'ProximoCargo',
+            'cliente_nombre',
+        ];
+    }
+
+    private function statusDomiciliacionActivaValido($status)
+    {
+        return in_array((string) $status, ['1', '2', '99'], true);
     }
 
     private function normalizarTelefonoCliente($telefono)
@@ -306,7 +325,8 @@ class TransaccionController extends Controller
             'transacciones.ExpirationDate','transacciones.ClientReference','transacciones.url', 'transacciones.code',
             'transacciones.message','transacciones.responseReference','transacciones.referenceEmisor','transacciones.Error',
             'transacciones.Date','transacciones.Clabe','transacciones.idusuario','transacciones.idcliente','clientes.razon_social',
-            'users.usuario','transacciones.tipo','transacciones.frecuencia','transacciones.ProximoCargo','transacciones.condicion',
+            'users.usuario','transacciones.tipo','transacciones.frecuencia','transacciones.ProximoCargo','transacciones.ProximoCargoBase',
+            'transacciones.intentos','transacciones.condicion',
             'transacciones.codeQR', 'transacciones.productivo');
 
         $query->where('transacciones.tipo', '=', $tipo);
@@ -351,6 +371,90 @@ class TransaccionController extends Controller
                 'to'           => $transacciones->lastItem(),
             ],    
             'transacciones' => $transacciones
+        ];
+    }
+
+    public function domiciliacionActiva(Request $request)
+    {
+        if (!$request->ajax()) return redirect('/');
+
+        $buscar = $request->buscar ?? '';
+        $criterio = $request->criterio ?? 'ClientReference';
+        $offset = $this->offsetPaginacion($request->offset ?? 10);
+        $status = $request->status ?? 99;
+
+        $query = Transaccion::leftJoin('clientes', 'clientes.id', '=', 'transacciones.idcliente')
+            ->leftJoin('users', 'users.id', '=', 'transacciones.idusuario')
+            ->select(
+                'transacciones.id',
+                'transacciones.folio',
+                'transacciones.fecha',
+                'transacciones.PaymentTypes',
+                'transacciones.Description',
+                'transacciones.Amount',
+                'transacciones.Reference',
+                'transacciones.ClientReference',
+                'transacciones.idusuario',
+                'transacciones.idcliente',
+                'clientes.razon_social',
+                'users.usuario',
+                'transacciones.frecuencia',
+                'transacciones.ProximoCargo',
+                'transacciones.ProximoCargoBase',
+                'transacciones.intentos',
+                'transacciones.condicion',
+                'transacciones.productivo'
+            )
+            ->where('transacciones.tipo', '=', 2)
+            ->where('transacciones.productivo', '=', 1)
+            ->whereIn('transacciones.condicion', [1, 2])
+            ->whereExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('respuestas')
+                    ->whereRaw('respuestas.idtransaccion = transacciones.id')
+                    ->where('respuestas.status', '=', 'approved');
+            });
+
+        $this->aplicarScopePropietario($query, 'transacciones');
+
+        if ($buscar !== '') {
+            if (!$this->criterioPermitido($criterio, $this->criteriosDomiciliacionActivaPermitidos())) {
+                return response()->json([
+                    'status' => 'error',
+                    'msg' => 'Criterio de búsqueda no permitido.',
+                ], 422);
+            }
+
+            if ($criterio === 'cliente_nombre') {
+                $query->where('clientes.razon_social', 'like', '%' . $buscar . '%');
+            } else {
+                $query->where('transacciones.' . $criterio, 'like', '%' . $buscar . '%');
+            }
+        }
+
+        if (!$this->statusDomiciliacionActivaValido($status)) {
+            return response()->json([
+                'status' => 'error',
+                'msg' => 'Status no permitido.',
+            ], 422);
+        }
+
+        if ((string) $status !== '99') {
+            $query->where('transacciones.condicion', '=', (int) $status);
+        }
+
+        $domiciliaciones = $query->orderBy('transacciones.id', 'desc')->paginate($offset);
+
+        return [
+            'pagination' => [
+                'total' => $domiciliaciones->total(),
+                'current_page' => $domiciliaciones->currentPage(),
+                'per_page' => $domiciliaciones->perPage(),
+                'last_page' => $domiciliaciones->lastPage(),
+                'from' => $domiciliaciones->firstItem(),
+                'to' => $domiciliaciones->lastItem(),
+            ],
+            'domiciliaciones' => $domiciliaciones,
         ];
     }
 
@@ -952,6 +1056,9 @@ class TransaccionController extends Controller
             $transaccion->tipo = $request->tipo;
             $transaccion->frecuencia = $request->frecuencia;
             $transaccion->ProximoCargo = $request->ProximoCargo;
+            $transaccion->ProximoCargoBase = $request->ProximoCargo;
+            $transaccion->intentos = 0;
+            $transaccion->condicion = 0;
             $transaccion->idusuario =  \Auth::user()->id;
             $transaccion->productivo = \Auth::user()->productivo;
             $transaccion->save();            
@@ -1259,6 +1366,9 @@ class TransaccionController extends Controller
              $transaccion->tipo = 2;
              $transaccion->frecuencia = $Frecuencia;
              $transaccion->ProximoCargo = $ProximoCargo;
+             $transaccion->ProximoCargoBase = $ProximoCargo;
+             $transaccion->intentos = 0;
+             $transaccion->condicion = 0;
              $transaccion->idusuario =  $usuario->id;
              $transaccion->productivo = $usuario->productivo;
              //Si el objecto $cliente se creo correctamente se asigna el id del cliente a la variable $transaccion->idcliente
@@ -2817,7 +2927,70 @@ class TransaccionController extends Controller
         }
     }
 
+    private function sincronizarStatusDomiciliaciones()
+    {
+        $hoy = Carbon::now('America/Hermosillo')->toDateString();
+
+        Transaccion::where('tipo', '=', 2)
+            ->where('condicion', '=', 0)
+            ->whereDate('ExpirationDate', '<', $hoy)
+            ->whereNotExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('respuestas')
+                    ->whereRaw('respuestas.idtransaccion = transacciones.id')
+                    ->where('respuestas.status', '=', 'approved');
+            })
+            ->update(['condicion' => 4]);
+
+        $domiciliacionesConToken = Transaccion::where('tipo', '=', 2)
+            ->whereIn('condicion', [0, 5])
+            ->whereExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('respuestas')
+                    ->whereRaw('respuestas.idtransaccion = transacciones.id')
+                    ->where('respuestas.status', '=', 'approved')
+                    ->whereNotNull('respuestas.number_tkn')
+                    ->where('respuestas.number_tkn', '<>', '');
+            })
+            ->get();
+
+        foreach ($domiciliacionesConToken as $transaccion) {
+            $transaccion->condicion = 1;
+            if ($transaccion->ProximoCargo && !$transaccion->ProximoCargoBase) {
+                $transaccion->ProximoCargoBase = $transaccion->ProximoCargo;
+            }
+            if ($transaccion->intentos === null) {
+                $transaccion->intentos = 0;
+            }
+            $transaccion->save();
+        }
+
+        Transaccion::where('tipo', '=', 2)
+            ->whereIn('condicion', [0, 1])
+            ->whereExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('respuestas')
+                    ->whereRaw('respuestas.idtransaccion = transacciones.id')
+                    ->where('respuestas.status', '=', 'approved')
+                    ->where(function ($query) {
+                        $query->whereNull('respuestas.number_tkn')
+                            ->orWhere('respuestas.number_tkn', '=', '');
+                    });
+            })
+            ->whereNotExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('respuestas')
+                    ->whereRaw('respuestas.idtransaccion = transacciones.id')
+                    ->where('respuestas.status', '=', 'approved')
+                    ->whereNotNull('respuestas.number_tkn')
+                    ->where('respuestas.number_tkn', '<>', '');
+            })
+            ->update(['condicion' => 5]);
+    }
+
     public function revisarStatus() {
+        $this->sincronizarStatusDomiciliaciones();
+
         $pagos = PagoSpei::join('transacciones','transacciones.id','pagospei.idtransaccion')
         ->join('users','users.id','transacciones.idusuario')
         ->select('pagospei.id as id')

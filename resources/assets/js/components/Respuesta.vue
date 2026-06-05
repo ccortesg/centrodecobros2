@@ -11,10 +11,10 @@
                     <div class="card-header">
                         <i class="fa fa-align-justify"></i> Respuestas
                         <!--<button type="button" @click="abrirModal('respuesta','registrar')" class="btn btn-secondary">
-                            <i class="icon-plus"></i>&nbsp;Nuevo
+                            <i class="fa fa-plus-circle"></i>&nbsp;Nuevo
                         </button>--> &nbsp;
                         <button type="button" @click="descargarExportar()" class="btn btn-success btn-sm">
-                            <i class="icon-cloud-download"></i>&nbsp;Exportar
+                            <i class="fa fa-cloud-download"></i>&nbsp;Exportar
                         </button> &nbsp;
                     </div>
                     <div class="card-body">
@@ -72,10 +72,10 @@
                                 <tr v-for="respuesta in arrayRespuesta" :key="respuesta.id">
                                     <td class="text-center">
                                         <button type="button" @click="abrirModal('respuesta','ver',respuesta)" class="btn btn-success btn-sm cdc-action-button" title="Ver respuesta" aria-label="Ver respuesta">
-                                          <i class="icon-eye"></i>
+                                          <i class="fa fa-eye"></i>
                                         </button> &nbsp;
                                         <!--<button type="button" class="btn btn-danger btn-sm" @click="eliminarRespuesta(respuesta.id)">
-                                            <i class="icon-trash"></i>
+                                            <i class="fa fa-trash"></i>
                                         </button>-->
                                     </td>
                                     <td v-text="respuesta.id" class="text-center"></td>

@@ -39,7 +39,7 @@
                                 <div class="col-md-4">
                                     <div class="form-group">
                                         <button type="button" @click="exportarTransacciones()" class="btn btn-success btn-sm">
-                                            <i class="icon-cloud-download"></i>&nbsp;Exportar
+                                            <i class="fa fa-cloud-download"></i>&nbsp;Exportar
                                         </button> &nbsp;
                                         <button type="submit" @click="listarTransacciones()" class="btn btn-primary">
                                             <i class="fa fa-file"></i> Listar

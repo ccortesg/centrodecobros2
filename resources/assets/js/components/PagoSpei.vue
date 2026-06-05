@@ -11,10 +11,10 @@
                     <div class="card-header">
                         <i class="fa fa-align-justify"></i> Pagos Spei
                         <!--<button type="button" @click="abrirModal('pagospei','registrar')" class="btn btn-secondary">
-                            <i class="icon-plus"></i>&nbsp;Nuevo
+                            <i class="fa fa-plus-circle"></i>&nbsp;Nuevo
                         </button>--> &nbsp;
                         <button type="button" @click="descargarExportar()" class="btn btn-success btn-sm">
-                            <i class="icon-cloud-download"></i>&nbsp;Exportar
+                            <i class="fa fa-cloud-download"></i>&nbsp;Exportar
                         </button> &nbsp;
                     </div>
                     <div class="card-body">
@@ -74,10 +74,10 @@
                                 <tr v-for="pagospei in arrayPagoSpei" :key="pagospei.id">
                                     <td class="text-center">
                                         <button type="button" @click="abrirModal('pagospei','ver',pagospei)" class="btn btn-success btn-sm cdc-action-button" title="Ver pago SPEI" aria-label="Ver pago SPEI">
-                                          <i class="icon-eye"></i>
+                                          <i class="fa fa-eye"></i>
                                         </button> &nbsp;
                                         <!--<button type="button" class="btn btn-danger btn-sm" @click="eliminarPagoSpei(pagospei.id)">
-                                            <i class="icon-trash"></i>
+                                            <i class="fa fa-trash"></i>
                                         </button>-->
                                     </td>
                                     <td v-text="pagospei.id" class="text-center"></td>

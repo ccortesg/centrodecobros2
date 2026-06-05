@@ -79,6 +79,26 @@ class RespuestaController extends Controller
             ->first();
     }
 
+    private function actualizarStatusDomiciliacionPorRespuesta($transaccion, Respuesta $respuesta)
+    {
+        if ($transaccion === null || (int) $transaccion->tipo !== 2 || $respuesta->status !== 'approved') {
+            return;
+        }
+
+        $token = trim((string) $respuesta->number_tkn);
+        $transaccion->condicion = $token === '' ? 5 : 1;
+
+        if ($transaccion->ProximoCargo && !$transaccion->ProximoCargoBase) {
+            $transaccion->ProximoCargoBase = $transaccion->ProximoCargo;
+        }
+
+        if ($transaccion->intentos === null) {
+            $transaccion->intentos = 0;
+        }
+
+        $transaccion->save();
+    }
+
     private function criteriosRespuestaPermitidos()
     {
         return [
@@ -271,7 +291,8 @@ class RespuestaController extends Controller
             $respuesta->number_tkn = $this->valorWebhook($date_response, 'number_tkn');
             $respuesta->cc_mask = $this->valorWebhook($date_response, 'cc_mask');
             $respuesta->response = $data;
-            $respuesta->save();            
+            $respuesta->save();
+            $this->actualizarStatusDomiciliacionPorRespuesta($transaccion, $respuesta);
             DB::commit();
         } catch (Exception $e){
             DB::rollBack();
