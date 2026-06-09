@@ -170,7 +170,7 @@ class TransaccionDomController extends Controller
         return $newDate->addDay();
     }
 
-    private function actualizarIntentosCargo(Transaccion $transaccion, TransaccionDom $transaccionDom)
+    private function actualizarIntentosCargo(Transaccion $transaccion, TransaccionDom $transaccionDom, $actualizarProximoCargo = false)
     {
         $tran = Transaccion::find($transaccion->id);
         if (!$tran) {
@@ -179,6 +179,11 @@ class TransaccionDomController extends Controller
 
         if ($this->cargoRecurrenteAprobado($transaccionDom)) {
             $tran->intentos = 0;
+
+            if ($actualizarProximoCargo) {
+                $base = $tran->ProximoCargo ?: Carbon::now('America/Hermosillo')->toDateString();
+                $tran->ProximoCargo = $this->siguienteFechaProgramada($base, $tran->frecuencia)->toDateString();
+            }
         } else {
             $tran->intentos = $this->contarIntentosFallidos($transaccion->id);
         }
@@ -441,7 +446,7 @@ class TransaccionDomController extends Controller
         }
 
         if ($error === '' && $transaccionDom->id) {
-            $this->actualizarIntentosCargo($transaccion, $transaccionDom);
+            $this->actualizarIntentosCargo($transaccion, $transaccionDom, true);
         }
 
         return [                

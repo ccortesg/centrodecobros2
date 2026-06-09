@@ -1,6 +1,6 @@
 # Modulo: SPEI
 
-Ultima actualizacion: 2026-06-03
+Ultima actualizacion: 2026-06-07
 
 ## Proposito
 
@@ -62,7 +62,7 @@ Gestionar generacion de CLABE/referencia SPEI, consulta de estado, registro de p
 - Contrato externo sensible a formato de proveedor.
 - Campos de trazabilidad mezclan texto/json.
 - Falta firma/origen si Pagadetodo lo soporta.
-- Sandbox oficial pendiente.
+- Pagadetodo real probado exitosamente desde servidor sandbox/productivo, confirmado por el propietario el 2026-06-08; local no puede reproducir llamadas reales por restriccion de IP de origen.
 
 ## Pruebas recomendadas
 
@@ -76,7 +76,14 @@ Gestionar generacion de CLABE/referencia SPEI, consulta de estado, registro de p
 
 ## Pendientes y mejoras
 
-- Validacion contra sandbox oficial Pagadetodo.
+- Evidencia sanitizada de pruebas Pagadetodo servidor sandbox/productivo.
 - Fixtures sanitizados de pagos/cancelaciones reales.
 - Adapter SPEI separado de `TransaccionController`.
 - Pruebas de concurrencia/idempotencia ampliadas.
+
+## Corte diagnostico 2026-06-07
+
+- Las rutas SPEI web y `Service/*` cargan en el inventario vigente de 100 rutas.
+- Los filtros `condicion` y `enviada` de pagos/cancelaciones estan cubiertos por `FinancialFiltersFeatureTest` dentro del carril WAMP/SQLite verde.
+- El cliente (`idrol=2`) no tiene SPEI visible en sidebar y el middleware bloquea generacion SPEI oculta; ownership de controladores SPEI esta probado cuando el middleware permite ejecutar.
+- Addendum 2026-06-08: pago/cancelacion Pagadetodo fueron probados exitosamente desde servidor en sandbox y productivo segun propietario; pendiente confirmar si Pagadetodo ofrece firma/origen y guardar evidencia sanitizada.

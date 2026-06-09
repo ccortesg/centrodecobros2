@@ -1,6 +1,6 @@
 # Modulo: Domiciliacion y cargos recurrentes
 
-Ultima actualizacion: 2026-06-04
+Ultima actualizacion: 2026-06-07
 
 ## Proposito
 
@@ -47,7 +47,9 @@ Gestionar generacion de ligas de domiciliacion, cargos recurrentes, cancelacione
 - Callback cliente: usa `users.ligaRecurrente` cuando el flujo lo requiere.
 - Scheduler diario ejecuta `TransaccionDomController@ejecutarCron`.
 - `Domiciliación Activa` lista domiciliaciones tipo `2`, productivas, con respuesta aprobada y `condicion` `Activo` o `Cancelado`.
-- Desde `Domiciliación Activa`, el cargo manual reutiliza `POST transaccionDom/registrar` y la cancelacion reutiliza `PUT transaccion/rechazar`.
+- Desde `Domiciliación Activa`, el cargo manual reutiliza `POST transaccionDom/registrar`; cuando el cargo manual queda aprobado, avanza `ProximoCargo` con la frecuencia configurada de la domiciliacion.
+- Desde `Domiciliación Activa`, la accion de calendario permite actualizar manualmente `ProximoCargo` con `PUT transaccion/proximo-cargo`.
+- La cancelacion desde `Domiciliación Activa` reutiliza `PUT transaccion/rechazar`.
 
 ## Tablas involucradas
 
@@ -77,7 +79,7 @@ Campos de control agregados a `transacciones`:
   - `PAGADETODO_URL_CARGO_DOMICILIACION`
   - `PAGADETODO_URL_CANCELAR_DOMICILIACION`
   - credenciales e IDs `PAGADETODO_DOM_*` y `PAGADETODO_DOM_BA_*`
-- En validacion sin sandbox oficial usar `PAGADETODO_MOCK=true`.
+- En validacion local usar `PAGADETODO_MOCK=true`; llamadas reales Pagadetodo solo desde servidor/IP autorizado.
 
 ## Importacion masiva de ligas de domiciliacion
 
@@ -103,6 +105,7 @@ Campos de control agregados a `transacciones`:
 - Si falla, reprograma al dia siguiente.
 - `intentos` se sincroniza con los `transaccionesDom` fallidos (`code != 00`) y se reinicia a `0` cuando el cargo es aprobado.
 - `ProximoCargoBase` se conserva como ancla/auditoria de la primera fecha configurada; no sustituye el avance desde la fecha programada vigente.
+- El cargo manual aprobado desde `Domiciliación Activa` usa la misma regla de avance de frecuencia, pero el endpoint publico `CargoDomiciliacion` conserva su contrato externo y no fue modificado para cambiar `ProximoCargo`.
 
 ## Pruebas recomendadas
 
@@ -110,12 +113,20 @@ Campos de control agregados a `transacciones`:
 - Feature SQLite con `PAGADETODO_MOCK=true` si cambia API, ownership o importacion.
 - Smoke UI admin/cliente para listados y reportes.
 - Scheduler solo en ambiente controlado, nunca contra produccion sin autorizacion.
-- Browser QA para `Domiciliación Activa`: filtros, total de registros, cancelar y cargo manual con Pagadetodo mock o sandbox oficial.
+- Browser QA para `Domiciliación Activa`: filtros, total de registros, cancelar y cargo manual con Pagadetodo mock local o servidor/IP autorizado.
 
 ## Pendientes y mejoras
 
 - Extraer scheduler a comandos/jobs dedicados con locks.
-- Validar contrato con sandbox oficial Pagadetodo.
+- Conservar evidencia sanitizada de pruebas Pagadetodo servidor sandbox/productivo.
 - Documentar matriz de estados/frecuencias con ejemplos reales.
 - Agregar pruebas de concurrencia/idempotencia de cargos.
 - Ejecutar migracion controlada para `ProximoCargoBase` e `intentos` antes de usar esta funcionalidad en servidor.
+
+## Corte diagnostico 2026-06-07
+
+- `domiciliacion-activa`, `transaccionDom/*`, `GenerarLigaDomiciliacion`, `CargoDomiciliacion` y `CancelarDomiciliacion` cargan en `route:list`.
+- `DomiciliacionAndPaymentsFeatureTest` esta cubierto dentro del carril Feature aislado WAMP/SQLite verde.
+- `schedule:list` muestra `TransaccionDomController@ejecutarCron` diario 07:00; no se activo ni se modifico.
+- Addendum 2026-06-08: Pagadetodo fue probado exitosamente desde servidor en sandbox y productivo, confirmado por el propietario; local no puede reproducir llamadas reales por restriccion de IP de origen.
+- Mantener scheduler apagado en cualquier sandbox que comparta DB hasta tener locks y una sola instancia garantizada.

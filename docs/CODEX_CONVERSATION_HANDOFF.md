@@ -37,6 +37,7 @@ Durante esta conversacion se trabajo principalmente sobre:
 - Ajuste funcional de `Pagos Recibidos` para incluir cargos recurrentes aprobados, reglas correctas de monto y filtro por rango de fechas.
 - Diagnostico de `PAGADETODO_MOCK`.
 - Diagnostico de `npm audit` en Docker.
+- Revalidacion documental 2026-06-07 con snapshot nuevo `docs/PROJECT_STATUS_DIAGNOSTIC_2026-06-07.md`.
 
 Regla operativa actual confirmada por el usuario:
 
@@ -44,6 +45,23 @@ Regla operativa actual confirmada por el usuario:
 - Trabajar sobre la carpeta actual local: `C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`.
 - En servidor la carpeta usada es `/var/www/centrodecobros2`.
 - El usuario subira cambios al repositorio cuando lo considere necesario.
+
+### Corte critico 2026-06-07
+
+- `php artisan route:list` en el checkout actual registra 100 rutas, no 97.
+- `php -l` paso en rutas/controladores criticos: `routes/web.php`, `routes/api.php`, `Administrador.php`, `Controller.php`, `TransaccionController.php`, `TransaccionDomController.php`, `RespuestaController.php`, `PagoRecibidoController.php` y `WebhookIdempotencyFeatureTest.php`.
+- Unit local paso: 13 tests, 72 assertions.
+- Feature aislado WAMP/SQLite paso para `tests\Feature\Phase32`, `tests\Feature\Phase34` y `tests\Feature\UX`: 52 tests, 170 assertions.
+- Feature completo con WAMP PHP 8.3 fallo en este entorno: 79 tests, 211 assertions, 13 errores por `SQLSTATE[HY000] [1045] Access denied for user 'centro_user'@'localhost'` en smoke tests que intentan MySQL local. No resolver con credenciales productivas ni migraciones; abrir carril de runner/dataset de testing.
+- `resources/assets/js/components/ReporteTransacciones.vue` no existe; la documentacion viva se corrigio para usar reportes reales (`ReporteLigas`, `ReporteLigasDom`, `ReporteSpei`, `ReporteCargosRecurrentes`).
+- No se ejecuto build frontend porque no hubo cambios frontend y no se deben versionar assets compilados.
+
+### Addendum Pagadetodo 2026-06-08
+
+- El propietario confirmo que los servicios Pagadetodo ya fueron probados exitosamente en el servidor tanto en sandbox como en productivo.
+- No se puede probar Pagadetodo real desde ambiente local porque el proveedor restringe las llamadas API por IP address de origen.
+- Para local y pruebas automatizadas se mantiene `PAGADETODO_MOCK=true`.
+- Las llamadas reales Pagadetodo deben ejecutarse solo desde servidor/IP autorizado y sin exponer credenciales ni payloads sensibles.
 
 ---
 
@@ -316,7 +334,7 @@ Significado:
 - `PAGADETODO_MOCK=true`
   - No llama a Pagadetodo real.
   - Usa respuestas simuladas controladas por el sistema.
-  - Recomendado para local, pruebas, sandbox sin credenciales oficiales y Feature tests.
+  - Recomendado para local, pruebas automatizadas y Feature tests; local no puede llamar Pagadetodo real por restriccion de IP de origen del proveedor.
 - `PAGADETODO_MOCK=false`
   - Llama por HTTP/Guzzle a endpoints reales configurados.
   - Debe usarse solo en ambiente autorizado con URLs/credenciales correctas.
@@ -333,7 +351,7 @@ Flujos afectados:
 Decision confirmada:
 
 - Produccion real normalmente debe usar `PAGADETODO_MOCK=false`.
-- Sandbox paralelo sin sandbox oficial de Pagadetodo debe usar `PAGADETODO_MOCK=true`.
+- Sandbox paralelo local debe usar `PAGADETODO_MOCK=true`; pruebas reales solo desde servidor/IP autorizado.
 - No usar credenciales productivas Pagadetodo en sandbox.
 
 ---
@@ -1099,17 +1117,18 @@ Nota del estado local al inicio de este handoff:
 
 ## 13. Riesgos activos
 
-### R-01: Sandbox oficial Pagadetodo no disponible
+### R-01: Pagadetodo real solo desde servidor/IP autorizado
 
 Impacto:
 
-- Los mocks pueden desviarse del contrato real.
+- Un agente o desarrollador puede perder tiempo intentando validar Pagadetodo real desde local, donde el proveedor bloquea por IP de origen.
+- Los mocks locales pueden desviarse del contrato real si no se conserva evidencia sanitizada de servidor.
 
 Mitigacion:
 
-- Mantener `PAGADETODO_MOCK=true` en validacion sin credenciales oficiales.
-- Obtener credenciales/URL sandbox no productivas.
-- Comparar payloads/respuestas reales contra matriz mock.
+- Mantener `PAGADETODO_MOCK=true` en local.
+- Ejecutar llamadas reales solo desde servidor/IP autorizado.
+- Guardar evidencia sanitizada de pruebas servidor sandbox/productivo si se requiere auditoria o release.
 
 ### R-02: Scheduler en sandbox/paralelo
 
@@ -1120,7 +1139,7 @@ Impacto:
 Mitigacion:
 
 - No activar scheduler en sandbox.
-- Si se prueba `ejecutarCron`, hacerlo con DB aislada o mock/sandbox oficial y locks.
+- Si se prueba `ejecutarCron`, hacerlo con DB aislada, mock local o servidor/IP autorizado y locks.
 
 ### R-03: Deuda npm audit
 
@@ -1329,4 +1348,3 @@ Entrega:
 - Si se toca deploy/sandbox, actualizar runbook correspondiente.
 - Si se toca Pagadetodo, ejecutar Feature con `PAGADETODO_MOCK=true` y no usar credenciales productivas.
 - Si se toca scheduler o `ejecutarCron`, tratar como cambio de alto riesgo.
-

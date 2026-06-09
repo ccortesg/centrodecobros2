@@ -1,6 +1,6 @@
 # Analisis frontend
 
-Ultima actualizacion: 2026-06-04
+Ultima actualizacion: 2026-06-07
 
 ## Estructura actual
 
@@ -161,3 +161,11 @@ Para domiciliacion:
 - Browser smoke de `/login`, `/url`, `/main`, sidebar/topbar y modulos tocados.
 - Validar consola sin errores criticos.
 - Si cambia realtime, validar `window.Echo`, `window.Pusher` y `broadcasting/auth` con credenciales aisladas.
+
+## Corte diagnostico 2026-06-07
+
+- No se ejecuto `npm run production` en este corte porque no hubo cambios frontend y los assets compilados no se versionan.
+- En bash/WSL directo `node` no esta disponible; via Windows si responde `node v20.20.0` y `npm 10.8.2`.
+- `resources/assets/js/app.js` registra 22 componentes Vue actuales. No existe `resources/assets/js/components/ReporteTransacciones.vue`; los reportes reales registrados son `ReporteLigas.vue`, `ReporteLigasDom.vue`, `ReporteSpei.vue` y `ReporteCargosRecurrentes.vue`.
+- `route:list` vigente registra 100 rutas. Las pantallas nuevas de mayor riesgo frontend siguen siendo `DomiciliacionActiva.vue` y `PagoRecibido.vue` por ownership, filtros y datos financieros.
+- Los pendientes UX/UI de listados anchos y migracion responsive siguen abiertos salvo pilotos ya documentados; cualquier cambio visual debe incluir build y browser smoke admin/cliente.

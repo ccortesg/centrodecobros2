@@ -1,6 +1,6 @@
 # Modulo: Transacciones, ligas, caja, terminal y SPEI
 
-Ultima actualizacion: 2026-06-04
+Ultima actualizacion: 2026-06-07
 
 ## Proposito
 
@@ -12,7 +12,9 @@ Generar referencias/ligas y registrar estado operativo de cobros por distintos t
 - `app/Transaccion.php`
 - `resources/assets/js/components/Transaccion.vue`
 - `resources/assets/js/components/ReporteLigas.vue`
-- `resources/assets/js/components/ReporteTransacciones.vue`
+- `resources/assets/js/components/ReporteLigasDom.vue`
+- `resources/assets/js/components/ReporteSpei.vue`
+- `resources/assets/js/components/ReporteCargosRecurrentes.vue`
 - `config/services.php`
 
 ## Tipos funcionales
@@ -106,8 +108,8 @@ Reglas especificas para `tipo=2` domiciliacion:
 
 - Credenciales, IDs y endpoints estan externalizados en `config/services.php`.
 - Valores reales deben vivir en `.env` de servidor.
-- En validacion local/sandbox sin credenciales oficiales usar `PAGADETODO_MOCK=true`.
-- No cambiar payloads `User`, `Password`, `BusinessID`, `IntegrationID` o nombres legacy sin evidencia de sandbox.
+- En validacion local usar `PAGADETODO_MOCK=true`; Pagadetodo real solo puede validarse desde servidor/IP autorizado por restriccion de IP address de origen.
+- No cambiar payloads `User`, `Password`, `BusinessID`, `IntegrationID` o nombres legacy sin evidencia servidor/IP autorizado y sanitizada.
 
 ## Acceso por rol
 
@@ -181,5 +183,13 @@ Reglas por renglon:
 - Adapter Pagadetodo separado.
 - Tests de concurrencia para folios.
 - Matriz de estados/tipos documentada con ejemplos reales.
-- Sandbox oficial Pagadetodo con fixtures sanitizados.
+- Evidencia sanitizada de pruebas Pagadetodo servidor sandbox/productivo.
 - Ejecutar migraciones de `ProximoCargoBase`, `intentos` y `pagos_recibidos` en ambiente controlado antes de desplegar funcionalidades dependientes.
+
+## Corte diagnostico 2026-06-07
+
+- `php artisan route:list` registra 100 rutas; las rutas de transaccion, reportes, importacion, domiciliacion activa y pagos recibidos estan presentes.
+- `ReporteTransacciones.vue` no existe en el filesystem actual; los reportes de ingreso se soportan por los componentes listados en esta ficha.
+- Feature aislado WAMP/SQLite de `Phase32`, `Phase34` y `UX` paso con 52 tests y 170 assertions; el Feature completo fallo por credenciales MySQL locales, no por este modulo aislado.
+- Addendum 2026-06-08: el propietario confirmo pruebas exitosas de Pagadetodo desde servidor en sandbox y productivo; no se puede reproducir desde local por restriccion de IP de origen.
+- Pendiente de alto riesgo: concurrencia de folios, evidencia sanitizada de servidor y adapter Pagadetodo antes de cambios mayores.

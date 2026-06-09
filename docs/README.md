@@ -1,6 +1,6 @@
 # Documentacion tecnica - Centro de Cobros
 
-Ultima actualizacion: 2026-06-03
+Ultima actualizacion: 2026-06-07
 
 ## Punto de entrada actual
 
@@ -15,15 +15,16 @@ Leer en este orden para entender el estado vigente:
 7. `docs/SECURITY_AND_RISKS.md`
 8. `docs/INTEGRATIONS.md`
 9. `docs/UX_UI_AUDIT_AND_WORK_PLAN_2026-06-04.md`
-10. `docs/MODULES/*.md`
-11. `docs/MIGRATION_DEPLOY_AND_ROLLBACK_RUNBOOK.md`
-12. `docs/MIGRATION_RELEASE_CHECKLIST.md`
-13. `docs/MIGRATION_PHASE_34_VALIDACION_PAGADETODO_WEBHOOKS_IDEMPOTENCIA.md`
-14. `docs/MIGRATION_PHASE_35_GITHUB_SANDBOX_RELEASE.md`
-15. `docs/MIGRATION_MASTER_PLAN.md`
-16. `docs/MIGRATION_DECISIONS_LOG.md`
-17. `docs/MIGRATION_RISK_REGISTER.md`
-18. `docs/MIGRATION_CHANGELOG.md`
+10. `docs/PROJECT_STATUS_DIAGNOSTIC_2026-06-07.md`
+11. `docs/MODULES/*.md`
+12. `docs/MIGRATION_DEPLOY_AND_ROLLBACK_RUNBOOK.md`
+13. `docs/MIGRATION_RELEASE_CHECKLIST.md`
+14. `docs/MIGRATION_PHASE_34_VALIDACION_PAGADETODO_WEBHOOKS_IDEMPOTENCIA.md`
+15. `docs/MIGRATION_PHASE_35_GITHUB_SANDBOX_RELEASE.md`
+16. `docs/MIGRATION_MASTER_PLAN.md`
+17. `docs/MIGRATION_DECISIONS_LOG.md`
+18. `docs/MIGRATION_RISK_REGISTER.md`
+19. `docs/MIGRATION_CHANGELOG.md`
 
 Los documentos `MIGRATION_PHASE_*` son evidencia historica por fase. Para tareas nuevas, la regla rectora es `PROJECT_OPERATING_MODEL.md`.
 
@@ -41,6 +42,7 @@ Los documentos `MIGRATION_PHASE_*` son evidencia historica por fase. Para tareas
 - Composer local observado: `2.2.6`.
 - Frontend: Vue `3.5.30`, Vite `7.x`.
 - Node/npm observados desde Windows: Node `v20.20.0`, npm `10.8.2`.
+- Rutas vigentes: `php artisan route:list` registra 100 rutas en el corte 2026-06-07.
 - Assets compilados: no se versionan; se generan con `npm ci && npm run production` en CI/deploy.
 - Contrato publico preservado:
   - `public/js/app.js`
@@ -56,6 +58,7 @@ Los documentos `MIGRATION_PHASE_*` son evidencia historica por fase. Para tareas
 - Vite genera el bundle principal; la lane `plantilla.*` y assets guest siguen como contrato publico separado.
 - MySQL productivo es la fuente operativa de datos; migrations historicas no reconstruyen todo el esquema real.
 - Feature tests usan SQLite aislado con `PAGADETODO_MOCK=true`.
+- El Feature completo puede mezclar smoke tests que intentan MySQL local; en el corte 2026-06-07 fallo por `Access denied` de `centro_user@localhost`, mientras los carriles SQLite `Phase32`, `Phase34` y `UX` pasaron con WAMP PHP 8.3.
 
 ## Alcance tecnico cerrado hasta Fase 35
 
@@ -67,10 +70,11 @@ Los documentos `MIGRATION_PHASE_*` son evidencia historica por fase. Para tareas
 - Webhooks `Service/*` endurecidos con validacion minima e idempotencia local en Fase 34.
 - Repo Git inicializado en `main`, `.gitignore` saneado y workflow GitHub de validacion sandbox agregado.
 - Credenciales Pagadetodo/Pusher externalizadas hacia `.env`, `config/services.php` y variables `VITE_PUSHER_*`.
+- Servicios Pagadetodo probados exitosamente en servidor sandbox y productivo, confirmado por el propietario el 2026-06-08.
 
 ## Condiciones abiertas
 
-- Sandbox oficial Pagadetodo sigue pendiente de URL/credenciales no productivas.
+- Pagadetodo no puede probarse con llamadas reales desde ambiente local por restricciones del proveedor sobre el IP address de origen; local debe usar `PAGADETODO_MOCK=true`.
 - Firma/origen de webhooks queda pendiente hasta recibir especificacion del proveedor.
 - Realtime Pusher/Echo requiere validacion end-to-end con credenciales aisladas.
 - `npm audit` completo puede reportar deuda dev/tooling; la frontera runtime es `npm audit --omit=dev`.
@@ -89,7 +93,7 @@ php vendor/bin/phpunit --testsuite Unit
 git diff --check docs
 ```
 
-Para Feature completo local, usar el runner WAMP PHP 8.3 descrito en `docs/PROJECT_OPERATING_MODEL.md`.
+Para Feature local seguro, usar el runner WAMP PHP 8.3 descrito en `docs/PROJECT_OPERATING_MODEL.md`; si se ejecuta el suite completo, verificar primero que no dependa de MySQL productivo/local no autorizado.
 
 ## Siguiente prompt recomendado
 

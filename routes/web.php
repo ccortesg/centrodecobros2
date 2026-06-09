@@ -73,6 +73,7 @@ Route::group(['middleware'=>['auth']],function(){
         Route::put('/transaccion/desactivar', 'TransaccionController@desactivar');
         Route::put('/transaccion/activar', 'TransaccionController@activar');
         Route::put('/transaccion/rechazar', 'TransaccionController@rechazar'); 
+        Route::put('/transaccion/proximo-cargo', 'TransaccionController@actualizarProximoCargoDomiciliacion');
         Route::put('/transaccion/eliminar', 'TransaccionController@delete');
         Route::get('/transaccion/selectDomiciliacion', 'TransaccionController@selectDomiciliacion');
         Route::get('/domiciliacion-activa', 'TransaccionController@domiciliacionActiva');

@@ -1,6 +1,6 @@
 # Modulo: Notificaciones y dashboard
 
-Ultima actualizacion: 2026-06-03
+Ultima actualizacion: 2026-06-07
 
 ## Proposito
 
@@ -64,3 +64,10 @@ Exponer metricas operativas y notificaciones para usuario autenticado.
 - Validacion E2E de realtime.
 - Pruebas de dashboard por rol con datos controlados.
 - Documentar definicion exacta de cada metrica.
+
+## Corte diagnostico 2026-06-07
+
+- `GET dashboard`, `POST notification/get` y `broadcasting/auth` cargan en el inventario vigente de 100 rutas.
+- `DashboardController` sigue usando alcance por `idusuario` y `productivo`; falta validar el significado de metricas con dataset real.
+- Realtime permanece no validado E2E; si `VITE_PUSHER_APP_KEY` no existe, `window.Echo` queda en `null`.
+- El Feature completo fallo por smoke tests que intentan MySQL local, incluyendo dashboard; separar ese bloqueo del estado del endpoint cuando se use SQLite/dataset controlado.

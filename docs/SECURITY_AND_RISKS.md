@@ -8,7 +8,8 @@ Ultima actualizacion: 2026-06-03
    - `.env.example` esta saneado; `.env` real no debe versionarse.
    - Pagadetodo y Pusher fueron externalizados hacia `.env`, `config/services.php` y variables `VITE_PUSHER_*`.
    - Los secretos reales deben vivir en el servidor/Docker o gestor de secretos, nunca en Git.
-   - Sin sandbox oficial Pagadetodo, los ambientes de validacion deben usar `PAGADETODO_MOCK=true`.
+   - Pagadetodo fue probado exitosamente desde servidor en sandbox y productivo, confirmado por el propietario el 2026-06-08.
+   - Las llamadas reales Pagadetodo no deben intentarse desde local porque el proveedor restringe el IP address de origen; local debe usar `PAGADETODO_MOCK=true`.
 
 2. Autorizacion y ownership
    - Fase 31 corrigio middleware `Administrador`: admin tiene acceso total, cliente queda acotado por allowlist y otros roles reciben `403`.
@@ -17,7 +18,7 @@ Ultima actualizacion: 2026-06-03
 
 3. Autenticacion API heterogenea
    - Endpoints legacy aceptan `User`/`Password` por payload.
-   - Validaciones tempranas y mock reducen regresiones, pero no sustituyen un contrato moderno ni sandbox oficial.
+   - Validaciones tempranas y mock reducen regresiones locales, pero no sustituyen evidencia servidor ni un contrato moderno.
    - Webhooks `Service/*` tienen validacion minima e idempotencia local; falta firma/origen hasta recibir especificacion del proveedor.
 
 4. Scheduler financiero

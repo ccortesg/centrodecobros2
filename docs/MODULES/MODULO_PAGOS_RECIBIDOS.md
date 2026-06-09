@@ -1,6 +1,6 @@
 # Modulo: Pagos Recibidos
 
-Ultima actualizacion: 2026-06-05
+Ultima actualizacion: 2026-06-07
 
 ## Proposito
 
@@ -99,3 +99,10 @@ Nota: la plataforma comparte `tipo=3` para pantallas de referencia SPEI/Pago en 
 - Confirmar regla final para diferenciar `Caja` y `SPEI` cuando ambos nacen desde referencias tipo `3`.
 - Agregar exportacion si negocio la requiere.
 - Agregar filtros por canal si negocio lo requiere.
+
+## Corte diagnostico 2026-06-07
+
+- `GET pagos-recibidos` y `PUT pagos-recibidos/status` cargan en el inventario vigente de 100 rutas.
+- El endpoint de status sigue disponible por compatibilidad, aunque la pantalla principal no lo expone.
+- La fuente unificada y ownership de admin/cliente estan cubiertos por el carril Feature aislado WAMP/SQLite verde.
+- La brecha funcional principal sigue siendo de negocio: diferenciar con precision historica `Caja` vs `SPEI` cuando ambos comparten `tipo=3`.

@@ -1,6 +1,6 @@
 # Modulo: Respuestas y webhooks
 
-Ultima actualizacion: 2026-06-03
+Ultima actualizacion: 2026-06-07
 
 ## Proposito
 
@@ -59,7 +59,8 @@ Recibir, validar y persistir respuestas del proveedor para conciliacion, trazabi
 - Falta firma/origen de webhook hasta recibir especificacion Pagadetodo.
 - Dependencia fuerte de formato externo.
 - Callbacks a sistemas cliente pueden tener reintentos/timeouts no normalizados.
-- Sandbox oficial Pagadetodo pendiente.
+- Pagadetodo real probado exitosamente desde servidor en sandbox y productivo, confirmado por el propietario el 2026-06-08.
+- Validacion local real bloqueada por restriccion de IP de origen del proveedor; usar mock local.
 
 ## Pruebas recomendadas
 
@@ -75,6 +76,14 @@ Recibir, validar y persistir respuestas del proveedor para conciliacion, trazabi
 ## Pendientes y mejoras
 
 - Agregar verificacion de firma/origen cuando proveedor entregue especificacion.
-- Guardar evidencia sanitizada de sandbox oficial.
+- Guardar evidencia sanitizada de pruebas servidor sandbox/productivo.
 - Formalizar politica de reintentos de callbacks.
 - Extraer parseo de payloads a adaptadores probables.
+
+## Corte diagnostico 2026-06-07
+
+- Las rutas `Service/EntregarPagoLiga`, `Service/EntregarPagoLigaToken`, `Service/EntregarPagoLector`, `Service/ConsultaClabe`, `Service/PagoClabe` y `Service/CancelaClabe` siguen vigentes sin prefijo `/api`.
+- `tests\Feature\Phase34\WebhookIdempotencyFeatureTest.php` queda cubierto dentro del carril Feature aislado WAMP/SQLite que paso con 52 tests y 170 assertions.
+- Addendum 2026-06-08: el bloqueo principal ya no es sandbox Pagadetodo; las pruebas reales fueron exitosas en servidor. El bloqueo local es una restriccion de IP de origen del proveedor.
+- Sigue pendiente confirmar firma/origen del proveedor y conservar evidencia sanitizada de servidor.
+- El Feature completo fallo por smoke tests MySQL locales; no usar ese resultado para degradar el estado de webhooks sin separar el runner.

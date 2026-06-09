@@ -1,6 +1,6 @@
 # Rutas y flujo de navegacion
 
-Ultima actualizacion: 2026-06-03
+Ultima actualizacion: 2026-06-07
 
 ## Contexto operativo vigente
 
@@ -11,7 +11,7 @@ Ultima actualizacion: 2026-06-03
 
 ## 1) Mapa de rutas web
 
-`php artisan route:list` registra 97 rutas.
+`php artisan route:list` registra 100 rutas en el corte 2026-06-07.
 
 ### Guest
 
@@ -46,6 +46,7 @@ Superficies del grupo protegido:
 - respuestas;
 - transacciones domiciliadas y cargos recurrentes;
 - consultas, pagos y cancelaciones SPEI;
+- domiciliacion activa y pagos recibidos;
 - roles y usuarios.
 
 ## 2) Rutas API sin prefijo `/api`
@@ -103,6 +104,7 @@ Fase 34 no cambia nombres de rutas ni payloads externos de exito. Endurece inter
 
 - No hay ruta actual hacia `ArticuloController`; la observacion historica de ruta rota ya no aplica al `route:list` vigente.
 - `RoleController` legacy si permanece en codigo, pero las rutas `/rol` y `/role` apuntan a `RolController`.
+- `route:list` incluye rutas nuevas frente a snapshots de 97 rutas, principalmente superficies agregadas o formalizadas despues: `domiciliacion-activa`, `pagos-recibidos/status` y `broadcasting/auth` en el inventario actual.
 - Publicar bajo subcarpeta en Apache puede romper o mezclar assets porque el HTML usa rutas como `js/app.js` y `css/plantilla.css`; para un sandbox futuro usar subdominio/vhost separado o configuracion Docker equivalente.
 - En ambientes paralelos con la misma DB, no habilitar scheduler duplicado.
 - En produccion Docker, validar el compose real antes de documentar comandos de servicios o reinicios.

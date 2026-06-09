@@ -1,6 +1,6 @@
 # Modulo: Clientes, personas, usuarios, roles y catalogos
 
-Ultima actualizacion: 2026-06-03
+Ultima actualizacion: 2026-06-07
 
 ## Proposito
 
@@ -88,3 +88,10 @@ Administrar identidades, datos de cliente, usuarios de acceso, roles y catalogos
 - Normalizar relaciones y FKs en una fase de DB controlada.
 - Agregar pruebas Feature especificas de archivos y usuarios.
 - Documentar mapa completo de columnas cuando exista dump autorizado actualizado.
+
+## Corte diagnostico 2026-06-07
+
+- Cliente, archivo, usuario, rol, estado y ciudad cargan en `route:list`; `/rol` y `/role` apuntan a `RolController`.
+- `RoleController` y `Role.vue` permanecen como legado/alias; no son la ruta principal para roles.
+- `ArchivoController` usa `archivos.hashname`, pero `app/Archivo.php` mantiene `fillable` con `hasname`; hoy no rompe porque el controlador asigna directo, pero es deuda tecnica si aparece mass assignment.
+- El carril Feature aislado WAMP/SQLite valida ownership de clientes/archivos/transacciones/respuestas y acceso de usuario/roles.

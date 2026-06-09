@@ -241,13 +241,61 @@ class DomiciliacionAndPaymentsFeatureTest extends TestCase
 
     public function test_manual_successful_recurring_charge_resets_domiciliacion_intentos()
     {
-        DB::table('transacciones')->where('id', 200)->update(['condicion' => 1, 'intentos' => 4]);
+        DB::table('transacciones')->where('id', 200)->update([
+            'condicion' => 1,
+            'frecuencia' => 2,
+            'ProximoCargo' => '2026-06-08',
+            'ProximoCargoBase' => '2026-06-08',
+            'intentos' => 4,
+        ]);
 
         $this->actingAs($this->adminUser())
             ->post('/transaccionDom/registrar', ['idtransaccion' => 200], $this->ajaxHeaders())
             ->assertOk();
 
-        $this->assertSame(0, (int) DB::table('transacciones')->where('id', 200)->value('intentos'));
+        $transaccion = DB::table('transacciones')->where('id', 200)->first();
+        $this->assertSame(0, (int) $transaccion->intentos);
+        $this->assertSame('2026-07-08', $transaccion->ProximoCargo);
+    }
+
+    public function test_client_can_update_next_charge_date_for_own_active_domiciliation()
+    {
+        $nextDate = now()->addDays(10)->toDateString();
+
+        $this->actingAs($this->clientAUser())
+            ->put('/transaccion/proximo-cargo', [
+                'id' => 200,
+                'ProximoCargo' => $nextDate,
+            ], $this->ajaxHeaders())
+            ->assertOk()
+            ->assertJson([
+                'error' => '',
+                'ProximoCargo' => $nextDate,
+            ]);
+
+        $this->assertSame($nextDate, DB::table('transacciones')->where('id', 200)->value('ProximoCargo'));
+    }
+
+    public function test_client_cannot_update_next_charge_date_for_another_users_domiciliation()
+    {
+        $this->actingAs($this->clientAUser())
+            ->put('/transaccion/proximo-cargo', [
+                'id' => 201,
+                'ProximoCargo' => now()->addDays(10)->toDateString(),
+            ], $this->ajaxHeaders())
+            ->assertStatus(403);
+    }
+
+    public function test_cannot_update_next_charge_date_for_inactive_domiciliation()
+    {
+        DB::table('transacciones')->where('id', 200)->update(['condicion' => 2]);
+
+        $this->actingAs($this->adminUser())
+            ->put('/transaccion/proximo-cargo', [
+                'id' => 200,
+                'ProximoCargo' => now()->addDays(10)->toDateString(),
+            ], $this->ajaxHeaders())
+            ->assertStatus(422);
     }
 
     private function transactionRowForStatus($id, $condicion, $expirationDate)

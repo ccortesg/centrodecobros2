@@ -75,6 +75,7 @@ class Administrador
                 'archivo/eliminar',
                 'transaccion/actualizar',
                 'transaccion/rechazar',
+                'transaccion/proximo-cargo',
                 'pagos-recibidos/status',
             ],
         ];

@@ -458,6 +458,52 @@ class TransaccionController extends Controller
         ];
     }
 
+    public function actualizarProximoCargoDomiciliacion(Request $request)
+    {
+        if (!$request->ajax()) return redirect('/');
+
+        $this->validate($request, [
+            'id' => 'required|integer',
+            'ProximoCargo' => 'required|date_format:Y-m-d',
+        ], [
+            'id.required' => 'Debe seleccionar la domiciliación.',
+            'ProximoCargo.required' => 'Debe ingresar la fecha del próximo cargo.',
+            'ProximoCargo.date_format' => 'La fecha del próximo cargo debe tener formato YYYY-MM-DD.',
+        ]);
+
+        $transaccion = Transaccion::findOrFail($request->id);
+        if (!$this->usuarioPuedeOperarRegistro($transaccion)) {
+            return $this->respuestaNoAutorizado($request);
+        }
+
+        if ((int) $transaccion->tipo !== 2 || (int) $transaccion->condicion !== 1) {
+            return response()->json([
+                'error' => 'Solo se puede actualizar la fecha de una domiciliación activa.',
+                'msg' => '',
+            ], 422);
+        }
+
+        $proximoCargo = Carbon::createFromFormat('Y-m-d', $request->ProximoCargo);
+        if ($proximoCargo->lt(Carbon::today('America/Hermosillo'))) {
+            return response()->json([
+                'error' => 'La fecha del próximo cargo no puede ser anterior a hoy.',
+                'msg' => '',
+            ], 422);
+        }
+
+        $transaccion->ProximoCargo = $proximoCargo->toDateString();
+        if (!$transaccion->ProximoCargoBase) {
+            $transaccion->ProximoCargoBase = $proximoCargo->toDateString();
+        }
+        $transaccion->save();
+
+        return [
+            'error' => '',
+            'msg' => 'La fecha del próximo cargo se actualizó con éxito.',
+            'ProximoCargo' => $transaccion->ProximoCargo,
+        ];
+    }
+
     public function reporteTransacciones(Request $request)
     {
         if (!$request->ajax()) return redirect('/');               

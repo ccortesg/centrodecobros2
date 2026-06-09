@@ -67,6 +67,9 @@
                                         <button v-if="domiciliacion.condicion == 1" type="button" @click="cargarDomiciliacion(domiciliacion.id)" class="btn btn-success btn-sm cdc-action-button" title="Realizar cargo recurrente manual" aria-label="Realizar cargo recurrente manual">
                                             <i class="fa fa-credit-card"></i>
                                         </button>
+                                        <button v-if="domiciliacion.condicion == 1" type="button" @click="abrirModalProximoCargo(domiciliacion)" class="btn btn-info btn-sm cdc-action-button" title="Actualizar próximo cargo" aria-label="Actualizar fecha del próximo cargo">
+                                            <i class="fa fa-calendar"></i>
+                                        </button>
                                     </td>
                                     <td v-text="domiciliacion.folio" class="text-center"></td>
                                     <td class="text-center">
@@ -120,6 +123,35 @@
                 </div>
             </div>
         </div>
+
+        <div class="modal fade" tabindex="-1" :class="{'mostrar' : modalProximoCargo}" role="dialog" aria-labelledby="modalProximoCargoLabel" style="overflow-y: scroll;display: none;" aria-hidden="true">
+            <div class="modal-dialog modal-primary" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 id="modalProximoCargoLabel" class="modal-title">Actualizar próximo cargo</h4>
+                        <button type="button" class="close" @click="cerrarModalProximoCargo()" aria-label="Cerrar">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="proximoCargoFecha" class="control-label">Próximo cargo</label>
+                            <input id="proximoCargoFecha" type="date" v-model="proximoCargoFecha" class="form-control">
+                        </div>
+
+                        <div v-show="errorProximoCargo" class="form-group row div-error">
+                            <div class="text-center text-error">
+                                <div v-for="error in errorMostrarMsjProximoCargo" :key="error" v-text="error"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @click="cerrarModalProximoCargo()">Cerrar</button>
+                        <button type="button" class="btn btn-primary" @click="actualizarProximoCargo()">Guardar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </main>
 </template>
 
@@ -141,6 +173,11 @@ export default {
             criterio: 'ClientReference',
             buscar: '',
             loading: false,
+            modalProximoCargo: 0,
+            proximoCargoId: 0,
+            proximoCargoFecha: '',
+            errorProximoCargo: 0,
+            errorMostrarMsjProximoCargo: [],
         };
     },
     computed: {
@@ -241,6 +278,96 @@ export default {
                     swal('Error!', 'Error al realizar el cargo recurrente. Error: ' + error, 'error');
                     console.log(error);
                 });
+            });
+        },
+        abrirModalProximoCargo(domiciliacion) {
+            this.proximoCargoId = domiciliacion.id;
+            this.proximoCargoFecha = domiciliacion.ProximoCargo;
+            this.errorProximoCargo = 0;
+            this.errorMostrarMsjProximoCargo = [];
+            this.modalProximoCargo = 1;
+        },
+        cerrarModalProximoCargo() {
+            this.modalProximoCargo = 0;
+            this.proximoCargoId = 0;
+            this.proximoCargoFecha = '';
+            this.errorProximoCargo = 0;
+            this.errorMostrarMsjProximoCargo = [];
+        },
+        fechaActualIso() {
+            const fecha = new Date();
+            const year = fecha.getFullYear();
+            const month = String(fecha.getMonth() + 1).padStart(2, '0');
+            const day = String(fecha.getDate()).padStart(2, '0');
+
+            return year + '-' + month + '-' + day;
+        },
+        validarProximoCargo() {
+            this.errorProximoCargo = 0;
+            this.errorMostrarMsjProximoCargo = [];
+
+            if (!this.proximoCargoFecha) {
+                this.errorMostrarMsjProximoCargo.push('Debe ingresar la fecha del próximo cargo.');
+            }
+
+            if (this.proximoCargoFecha && this.proximoCargoFecha < this.fechaActualIso()) {
+                this.errorMostrarMsjProximoCargo.push('La fecha del próximo cargo no puede ser anterior a hoy.');
+            }
+
+            if (this.errorMostrarMsjProximoCargo.length) {
+                this.errorProximoCargo = 1;
+            }
+
+            return this.errorProximoCargo;
+        },
+        mensajeErrorHttp(error) {
+            const data = error && error.response ? error.response.data : null;
+            if (!data) {
+                return error;
+            }
+
+            if (data.error) {
+                return data.error;
+            }
+
+            if (data.msg) {
+                return data.msg;
+            }
+
+            if (data.errors) {
+                const keys = Object.keys(data.errors);
+                if (keys.length && data.errors[keys[0]].length) {
+                    return data.errors[keys[0]][0];
+                }
+            }
+
+            if (data.message) {
+                return data.message;
+            }
+
+            return error;
+        },
+        actualizarProximoCargo() {
+            if (this.validarProximoCargo()) {
+                return;
+            }
+
+            const me = this;
+            axios.put('/transaccion/proximo-cargo', {
+                id: this.proximoCargoId,
+                ProximoCargo: this.proximoCargoFecha,
+            }).then(function(response) {
+                const respuesta = response.data;
+                if (respuesta.error === '') {
+                    swal('Fecha actualizada!', respuesta.msg, 'success');
+                    me.cerrarModalProximoCargo();
+                    me.listarDomiciliaciones(me.pagination.current_page || 1, me.buscar, me.criterio);
+                } else {
+                    swal('Error!', 'Error al actualizar la fecha. Error: ' + respuesta.error, 'error');
+                }
+            }).catch(function(error) {
+                swal('Error!', 'Error al actualizar la fecha. Error: ' + me.mensajeErrorHttp(error), 'error');
+                console.log(error);
             });
         },
         formaPago(paymentTypes) {

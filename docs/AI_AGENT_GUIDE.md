@@ -1,6 +1,6 @@
 # Guia para agentes de IA
 
-Ultima actualizacion: 2026-06-03
+Ultima actualizacion: 2026-06-07
 
 ## Regla operativa obligatoria
 
@@ -31,6 +31,8 @@ No crear copias nuevas para fases, fixes, documentacion o actualizaciones futura
 - Configuracion externa: `.env` en servidor, `.env.example`, `config/services.php`, `config/broadcasting.php`.
 - Esquema operativo: MySQL productivo o dump autorizado fuera de Git. No asumir que `database/migrations` reconstruye el sistema real.
 - Pruebas Feature: SQLite preparado por `scripts/local/prepare_phase33_browser_sqlite.php` y soporte bajo `tests/Support`.
+- Inventario de rutas vigente: `php artisan route:list` muestra 100 rutas en el corte 2026-06-07.
+- Diagnostico vigente: `docs/PROJECT_STATUS_DIAGNOSTIC_2026-06-07.md`.
 
 ## Flujo de trabajo para cualquier cambio
 
@@ -49,6 +51,7 @@ No crear copias nuevas para fases, fixes, documentacion o actualizaciones futura
 - No ejecutar migraciones sobre DB productiva.
 - No activar scheduler ni cron sin orden explicita.
 - No usar credenciales productivas de Pagadetodo en pruebas.
+- No intentar llamadas reales Pagadetodo desde ambiente local: el proveedor restringe por IP address de origen. Usar `PAGADETODO_MOCK=true` local y validar llamadas reales solo desde servidor/IP autorizado.
 - No publicar `.env`, dumps SQL, SQLite, logs, `vendor/`, `node_modules/`, outputs ni assets compilados.
 - No tocar `principal.blade.php` ni contrato publico de assets sin justificacion y validacion.
 - No renombrar rutas API legacy ni agregar prefijo `/api` sin plan de compatibilidad.
@@ -76,3 +79,10 @@ git diff --check docs
 ```
 
 Si la tarea toca contratos Pagadetodo o ownership, ejecutar tambien Feature con SQLite/WAMP y `PAGADETODO_MOCK=true`.
+
+## Nota de validacion 2026-06-07
+
+- El PHP CLI de WSL no trae `pdo_sqlite`; usar `C:\wamp64\bin\php\php8.3.0\php.exe` para Feature SQLite.
+- `tests\Feature\Phase32`, `tests\Feature\Phase34` y `tests\Feature\UX` pasaron con WAMP PHP 8.3 y SQLite aislado: 52 tests, 170 assertions.
+- `vendor\bin\phpunit --testsuite Feature` completo fallo en este entorno por smoke tests que intentan MySQL local con `centro_user@localhost`. No corregir eso tocando `.env`, credenciales ni migraciones productivas; abrir un carril de runner/dataset de testing o adaptar los smoke a SQLite controlado.
+- `npm run production` solo debe ejecutarse si hay cambio frontend o si la tarea pide validar build; no versionar los assets generados.

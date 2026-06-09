@@ -23,7 +23,7 @@ Variables principales:
 - `PAGADETODO_DOM_BA_USER`, `PAGADETODO_DOM_BA_PASSWORD`
 - `PAGADETODO_*_INTEGRATION_ID`, `PAGADETODO_*_BUSINESS_ID`
 
-Los valores reales no deben versionarse. Si no hay sandbox oficial, usar `PAGADETODO_MOCK=true`.
+Los valores reales no deben versionarse. En ambiente local usar `PAGADETODO_MOCK=true`; Pagadetodo restringe llamadas reales por IP address de origen y no se puede validar localmente.
 
 ### Endpoints externos usados
 
@@ -56,7 +56,8 @@ Estas rutas no usan prefijo `/api`:
 
 - Fases 31-33 agregaron validaciones tempranas, ownership y mock controlado.
 - Fase 34 agrego validacion minima e idempotencia local en `Service/*`.
-- Sandbox oficial sigue pendiente por falta de URL/credenciales no productivas.
+- El propietario confirmo el 2026-06-08 que los servicios Pagadetodo ya fueron probados exitosamente desde servidor en sandbox y en productivo.
+- La validacion real no es reproducible desde ambiente local por restriccion de IP de origen del proveedor.
 - Firma/origen de webhooks sigue pendiente por falta de especificacion del proveedor.
 
 ## 2. Callback a sistemas cliente
@@ -99,8 +100,8 @@ Si `VITE_PUSHER_APP_KEY` no existe, `window.Echo` queda en `null` y el sistema n
 
 ## 7. Reglas para cambios de integracion
 
-1. No cambiar payloads publicos sin evidencia de sandbox.
+1. No cambiar payloads publicos sin evidencia servidor/IP autorizado y sanitizada.
 2. No usar credenciales productivas en pruebas automatizadas.
 3. Sanitizar request/response en cualquier evidencia.
-4. Mantener `PAGADETODO_MOCK=true` si no hay sandbox oficial.
+4. Mantener `PAGADETODO_MOCK=true` en local; ejecutar llamadas reales Pagadetodo solo desde servidor/IP autorizado.
 5. Actualizar `docs/MODULES` y pruebas si cambia un contrato.

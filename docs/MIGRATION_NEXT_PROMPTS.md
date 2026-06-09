@@ -1,6 +1,6 @@
 # Prompts sugeridos vigentes
 
-Ultima actualizacion: 2026-06-03
+Ultima actualizacion: 2026-06-08
 
 ## Estado rector
 
@@ -9,6 +9,8 @@ La plataforma ya funciona en produccion por Docker. A partir del 2026-06-03 no s
 `C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`
 
 Rama vigente: `main`.
+
+Addendum 2026-06-08: el propietario confirmo que los servicios Pagadetodo ya fueron probados exitosamente desde servidor en sandbox y productivo. No intentar llamadas reales Pagadetodo desde local; el proveedor restringe por IP address de origen. Local debe usar `PAGADETODO_MOCK=true`.
 
 ## 1. Prompt recomendado exacto - siguiente tarea tecnica general
 
@@ -85,18 +87,20 @@ Restricciones:
 5. No versionar assets compilados.
 ```
 
-## 4. Prompt recomendado exacto - sandbox oficial Pagadetodo
+## 4. Prompt recomendado exacto - evidencia Pagadetodo servidor/IP autorizado
 
-Usar solo cuando ya existan credenciales y URL sandbox no productivas.
+Usar solo cuando se trabaje desde servidor/IP autorizado o cuando se documente evidencia ya obtenida. No usar para llamadas reales desde ambiente local.
 
 ```text
 Trabaja sobre:
 C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia
 
-No crees una nueva carpeta. Ejecuta la validacion oficial de sandbox Pagadetodo.
+No crees una nueva carpeta. Documenta y valida la evidencia de Pagadetodo ejecutada desde servidor/IP autorizado.
 
 Objetivo:
-- usar exclusivamente credenciales y URL sandbox no productivas;
+- no intentar llamadas reales desde ambiente local porque Pagadetodo restringe por IP de origen;
+- usar `PAGADETODO_MOCK=true` para pruebas locales automatizadas;
+- conservar o solicitar evidencia sanitizada de las pruebas servidor sandbox/productivo ya exitosas;
 - mantener scheduler deshabilitado salvo instruccion explicita;
 - comparar payload y respuesta real contra la matriz mock de Fase 34 para GenerarLigaPago, GenerarLigaDomiciliacion, GenerarSpei, GenerarLigaLector, CargoDomiciliacion, CancelarDomiciliacion y Service/*;
 - registrar evidencia request/response sanitizada sin secretos;
@@ -105,7 +109,7 @@ Objetivo:
 - actualizar documentacion y dictamen de release.
 
 Restricciones:
-1. No usar credenciales productivas.
+1. No usar credenciales productivas fuera del servidor autorizado.
 2. No cambiar rutas publicas sin evidencia.
 3. No cambiar payloads externos sin prueba.
 4. No ejecutar migraciones.

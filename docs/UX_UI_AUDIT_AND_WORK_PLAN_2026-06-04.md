@@ -9,6 +9,8 @@ Repositorio de trabajo: `C:\temp\centrodecobros_phase34_validacion_pagadetodo_we
 
 Identificar errores de diseno web, diseno grafico, usabilidad y responsividad observados en produccion, contrastarlos contra codigo fuente y documentacion, y definir una ruta critica para corregirlos sin cambiar reglas de negocio ni contratos externos.
 
+Nota de revalidacion 2026-06-07: este documento conserva evidencias UX/UI del 2026-06-04. Para el estado vigente de rutas, pruebas y porcentajes por modulo/rol, usar `docs/PROJECT_STATUS_DIAGNOSTIC_2026-06-07.md`; `php artisan route:list` registra ahora 100 rutas en el checkout actual.
+
 ## Evidencia revisada
 
 Capturas:

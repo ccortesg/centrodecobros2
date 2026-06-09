@@ -1,6 +1,6 @@
 # Modelo operativo vigente del proyecto
 
-Ultima actualizacion: 2026-06-03
+Ultima actualizacion: 2026-06-07
 
 ## Regla principal de trabajo
 
@@ -20,6 +20,7 @@ No se deben crear nuevas carpetas `phase*` para cambios, correcciones o document
 - PHP local observado: `8.3.27`.
 - Composer local observado: `2.2.6`.
 - Frontend: Vue `3.5.30`, Vite `7.x`, Node Windows `v20.20.0`, npm `10.8.2`.
+- Rutas actuales: `php artisan route:list` registra 100 rutas en el corte 2026-06-07.
 - Produccion heredada del host: existe PHP `7.4.3`; la version nueva no debe exigir cambiar PHP global del servidor si Docker ya aisla el runtime.
 
 ## Politica de Git
@@ -45,7 +46,7 @@ No se deben crear nuevas carpetas `phase*` para cambios, correcciones o document
 - No ejecutar migraciones sobre la DB productiva.
 - No activar, duplicar ni modificar scheduler productivo sin solicitud explicita.
 - No usar credenciales productivas de Pagadetodo para pruebas automatizadas.
-- Si no hay sandbox oficial de Pagadetodo, mantener `PAGADETODO_MOCK=true` en ambientes de validacion.
+- Pagadetodo real debe validarse solo desde servidor/IP autorizado. En ambiente local mantener `PAGADETODO_MOCK=true` porque el proveedor restringe las llamadas por IP address de origen.
 
 ## Base de datos
 
@@ -71,6 +72,10 @@ Feature con SQLite y Pagadetodo mock desde Windows/WAMP:
 cd /D C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia
 set APP_ENV=testing&& set DB_CONNECTION=sqlite&& set DB_DATABASE=C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia\storage\phase34_validation.sqlite&& set PAGADETODO_MOCK=true&& C:\wamp64\bin\php\php8.3.0\php.exe scripts\local\prepare_phase33_browser_sqlite.php C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia\storage\phase34_validation.sqlite&& C:\wamp64\bin\php\php8.3.0\php.exe vendor\bin\phpunit --testsuite Feature
 ```
+
+Nota 2026-06-07: el carril Feature SQLite de `tests\Feature\Phase32`, `tests\Feature\Phase34` y `tests\Feature\UX` paso con WAMP PHP 8.3. El suite Feature completo fallo en este entorno porque varios smoke tests usan MySQL local y la cuenta `centro_user@localhost` no tiene acceso. No resolver ese bloqueo con credenciales productivas ni migraciones; preparar runner/dataset de testing o adaptar smoke a SQLite aislado.
+
+Nota 2026-06-08: el propietario confirmo que Pagadetodo ya fue probado exitosamente desde servidor en sandbox y productivo. No intentar reproducir esas llamadas desde local: Pagadetodo restringe por IP de origen.
 
 Frontend:
 
@@ -116,5 +121,5 @@ Los comandos exactos dependen del `docker compose` productivo real y deben docum
 3. Localizar ruta, controlador, componente Vue, tabla y documentacion antes de editar.
 4. Mantener cambios pequenos y verificables.
 5. Si cambia comportamiento visible, actualizar la documentacion del modulo afectado en la misma tarea.
-6. Separar carriles de riesgo: Pagadetodo sandbox, scheduler, npm audit completo, Docker productivo y cambios de UI estructural.
+6. Separar carriles de riesgo: Pagadetodo real en servidor/IP autorizado, scheduler, npm audit completo, Docker productivo y cambios de UI estructural.
 7. Reportar claramente que validaciones se ejecutaron y cuales no.
