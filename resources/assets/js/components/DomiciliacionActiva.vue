@@ -235,7 +235,7 @@ export default {
 
                 axios.put('/transaccion/rechazar', {id}).then(function(response) {
                     const respuesta = response.data;
-                    if (respuesta.error === '') {
+                    if (me.cancelacionExitosa(respuesta)) {
                         swal('Cancelación exitosa!', respuesta.msg, 'success');
                     } else {
                         swal('Error!', 'Error al realizar la cancelación. Error: ' + respuesta.error, 'error');
@@ -246,6 +246,20 @@ export default {
                     console.log(error);
                 });
             });
+        },
+        cancelacionExitosa(respuesta) {
+            if (!respuesta) {
+                return false;
+            }
+
+            if (respuesta.error === '') {
+                return true;
+            }
+
+            const mensaje = String(respuesta.msg || '').toLowerCase();
+            return mensaje.indexOf('cancelaci') !== -1
+                && mensaje.indexOf('realiz') !== -1
+                && mensaje.indexOf('xito') !== -1;
         },
         cargarDomiciliacion(id) {
             const me = this;

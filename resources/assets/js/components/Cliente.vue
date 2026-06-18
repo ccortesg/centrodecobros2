@@ -372,6 +372,8 @@
                 offset : 10,
                 criterio : 'nombre',
                 buscar : '',
+                estadoDefaultCliente: 'sonora',
+                ciudadDefaultCliente: 'hermosillo',
                 loading: false
             }
         },
@@ -461,6 +463,7 @@
                     //console.log(response);
                     var respuesta= response.data;
                     me.arrayCiudad = respuesta.ciudades;
+                    me.establecerUbicacionDefaultCliente();
                 })
                 .catch(function (error) {
                     console.log(error);
@@ -473,11 +476,44 @@
                     //console.log(response);
                     var respuesta= response.data;
                     me.arrayEstado = respuesta.estados;
+                    me.establecerUbicacionDefaultCliente();
                 })
                 .catch(function (error) {
                     console.log(error);
                 });
-            },            
+            },
+            normalizarUbicacion(valor){
+                return (valor || '').toString().trim().toLowerCase();
+            },
+            establecerUbicacionDefaultCliente(){
+                if (this.tipoAccion !== 1) return;
+                if (!this.arrayEstado.length || !this.arrayCiudad.length) return;
+                if (parseInt(this.idestado, 10) > 0 && parseInt(this.idciudad, 10) > 0) return;
+
+                let estadoDefault = this.arrayEstado.find(estado =>
+                    this.normalizarUbicacion(estado.nombre) === this.estadoDefaultCliente
+                );
+
+                if (!estadoDefault) return;
+
+                this.idestado = estadoDefault.id;
+
+                let ciudadDefault = this.arrayCiudad.find(ciudad => {
+                    let coincideCiudad = this.normalizarUbicacion(ciudad.nombre) === this.ciudadDefaultCliente;
+                    let coincideEstado = ciudad.idestado === undefined || ciudad.idestado === null ||
+                        parseInt(ciudad.idestado, 10) === parseInt(estadoDefault.id, 10);
+
+                    return coincideCiudad && coincideEstado;
+                });
+
+                if (ciudadDefault) {
+                    this.idciudad = ciudadDefault.id;
+                }
+            },
+            obtenerMensajeError(error, mensajeDefault){
+                let respuesta = error.response && error.response.data ? error.response.data : {};
+                return respuesta.msg || respuesta.message || mensajeDefault;
+            },
             selectFile(event) {
                 // `files` is always an array because the file input may be in multiple mode
                 this.archivo = event.target.files[0];
@@ -521,9 +557,10 @@
                     me.listarPersona(1,'','nombre');
                 }).catch(function (error) {
                     console.log(error);
+                    let mensaje = me.obtenerMensajeError(error, 'Error al realizar el registro.');
                         swal(
                         'Error!',
-                        'Error al realizar el registro.',
+                        mensaje,
                         'error'
                         )                      
                 }).finally(() => {
@@ -563,9 +600,10 @@
                     me.listarPersona(1,'','nombre');
                 }).catch(function (error) {
                     console.log(error);
+                    let mensaje = me.obtenerMensajeError(error, 'Error al actualizar el registro.');
                         swal(
                         'Error!',
-                        'Error al actualizar el registro.',
+                        mensaje,
                         'error'
                         )                      
                 }).finally(() => {
@@ -658,6 +696,7 @@
                 if (!this.nombre) this.errorMostrarMsjPersona.push("El nombre del cliente no puede estar vacío.");
                 if (!this.rfc) this.errorMostrarMsjPersona.push("El RFC del cliente no puede estar vacío.");
                 if (!this.razon_social) this.errorMostrarMsjPersona.push("La razón social del cliente no puede estar vacío.");
+                if (!this.idciudad || parseInt(this.idciudad, 10) <= 0) this.errorMostrarMsjPersona.push("Debe seleccionar una ciudad.");
 
                 //if (!this.banco) this.errorMostrarMsjPersona.push("El banco de la cuenta no puede estar vacío.");
                 //if (!this.cuenta) this.errorMostrarMsjPersona.push("La cuenta no puede estar vacía.");
@@ -739,7 +778,8 @@
                                 this.clabe = '';
                                 this.cuenta_sucursal = '';
                                 this.cuenta_ciudad = '';
-                                this.tipoAccion = 1;                                
+                                this.tipoAccion = 1;
+                                this.establecerUbicacionDefaultCliente();
                                 break;
                             }
                             case 'actualizar':

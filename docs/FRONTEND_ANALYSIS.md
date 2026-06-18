@@ -1,6 +1,6 @@
 # Analisis frontend
 
-Ultima actualizacion: 2026-06-07
+Ultima actualizacion: 2026-06-17
 
 ## Estructura actual
 
@@ -118,6 +118,7 @@ Los filtros de listados financieros deben mapearse a columnas reales, no a nombr
 - Acciones:
   - cancelar reutiliza `PUT /transaccion/rechazar`;
   - cargo manual reutiliza `POST /transaccionDom/registrar`.
+- La cancelacion debe mostrarse como exitosa cuando el endpoint responde HTTP 200 con `msg` exitoso; el backend normaliza a `error=""` si la cancelacion quedo persistida.
 
 ### Pagos Recibidos
 
@@ -132,7 +133,14 @@ Los filtros de listados financieros deben mapearse a columnas reales, no a nombr
   - `transaccionesDom.status='approved'` como canal `Cargo Recurrente`.
 - El listado usa `monto` normalizado desde backend: `respuestas.amount` no se divide, mientras `pagospei.monto`, `transacciones.Amount` y `transaccionesDom.Amount` se dividen entre 100 antes de responder.
 - La pantalla no muestra columna `Status` ni boton de actualizacion; el endpoint de status queda solo por compatibilidad.
-- Filtros visibles: texto por criterio y rango de fechas por fecha del pago.
+- Filtros visibles: texto por criterio en primer renglon y rango de fechas con `Buscar` en segundo renglon; ambos renglones ocupan media pantalla en desktop y ancho completo en movil.
+- El selector de cantidad de registros vive debajo del encabezado `Folio` y muestra solo cantidades.
+
+### Tabla compartida de generacion de ligas
+
+- `Transaccion.vue` recibe `idrol` desde `contenido.blade.php`.
+- Admin conserva la tabla completa.
+- Usuarios no admin no ven `Forma de Pago`, `Usuario` ni `Productivo` en el listado principal.
 
 ## Estados de domiciliacion
 
@@ -167,5 +175,5 @@ Para domiciliacion:
 - No se ejecuto `npm run production` en este corte porque no hubo cambios frontend y los assets compilados no se versionan.
 - En bash/WSL directo `node` no esta disponible; via Windows si responde `node v20.20.0` y `npm 10.8.2`.
 - `resources/assets/js/app.js` registra 22 componentes Vue actuales. No existe `resources/assets/js/components/ReporteTransacciones.vue`; los reportes reales registrados son `ReporteLigas.vue`, `ReporteLigasDom.vue`, `ReporteSpei.vue` y `ReporteCargosRecurrentes.vue`.
-- `route:list` vigente registra 100 rutas. Las pantallas nuevas de mayor riesgo frontend siguen siendo `DomiciliacionActiva.vue` y `PagoRecibido.vue` por ownership, filtros y datos financieros.
+- `route:list` vigente registra 101 rutas. Las pantallas nuevas de mayor riesgo frontend siguen siendo `DomiciliacionActiva.vue` y `PagoRecibido.vue` por ownership, filtros y datos financieros.
 - Los pendientes UX/UI de listados anchos y migracion responsive siguen abiertos salvo pilotos ya documentados; cualquier cambio visual debe incluir build y browser smoke admin/cliente.

@@ -1,6 +1,6 @@
 # Modulo: Clientes, personas, usuarios, roles y catalogos
 
-Ultima actualizacion: 2026-06-07
+Ultima actualizacion: 2026-06-09
 
 ## Proposito
 
@@ -28,6 +28,7 @@ Administrar identidades, datos de cliente, usuarios de acceso, roles y catalogos
 - `POST archivo/registrar`
 - `GET archivo/descargar`
 - `PUT archivo/eliminar`
+- `GET ciudad/selectCiudad`
 - `GET user`
 - `POST user/registrar`
 - `PUT user/actualizar`
@@ -46,7 +47,15 @@ Administrar identidades, datos de cliente, usuarios de acceso, roles y catalogos
 - `users.id` y `clientes.id` apuntan a `personas.id`.
 - `users.idrol` apunta a `roles.id`.
 - `clientes.idusuario` vincula cliente con usuario/propietario operativo.
+- `clientes.idciudad` apunta a `ciudades.id`; en datos historicos puede existir `idciudad=0`.
 - `archivos.idpersona` se usa en codigo como vinculo con `personas/clientes`, aunque el dump historico contiene inconsistencias.
+
+## Busqueda y ciudad de clientes
+
+- `GET cliente` lista clientes con `leftJoin` contra `ciudades` para que registros historicos/importados con `clientes.idciudad=0` sigan visibles en busqueda por nombre, razon social, RFC, email o telefono.
+- `POST cliente/registrar` y `PUT cliente/actualizar` rechazan `idciudad<=0` o ciudades inexistentes/inactivas con `422`, evitando crear nuevos clientes con ciudad invalida.
+- El alta en `Cliente.vue` selecciona por defecto estado `Sonora` y ciudad `Hermosillo` cuando ambos catálogos activos estan disponibles. Para soportarlo, `/ciudad/selectCiudad` expone `idestado` junto con `id` y `nombre`.
+- Correccion verificada contra el caso del dump `database/centrodecobros.sql`: `VILLEGAS JESUS` estaba en `clientes/personas`, pero no aparecia en Clientes por `clientes.idciudad=0` y un `join` obligatorio contra `ciudades`; el selector de generacion de ligas si lo mostraba porque no unia contra ciudad.
 
 ## Acceso por rol
 
@@ -69,6 +78,7 @@ Administrar identidades, datos de cliente, usuarios de acceso, roles y catalogos
 - Ownership y whitelists agregados en fases 31-32.
 - `UserController` ya no selecciona hash de password en listados y actualiza password de forma condicional.
 - Exportaciones criticas estan acotadas por propietario para rol cliente.
+- Clientes legacy con ciudad invalida quedan visibles para consulta; las nuevas altas/ediciones ya no permiten persistir `idciudad=0`.
 
 ## Pruebas recomendadas
 
@@ -86,6 +96,7 @@ Administrar identidades, datos de cliente, usuarios de acceso, roles y catalogos
 
 - Formalizar politicas por accion si aparecen nuevos roles.
 - Normalizar relaciones y FKs en una fase de DB controlada.
+- Depurar registros historicos con `clientes.idciudad=0` asignando ciudad real antes de habilitar FKs estrictas.
 - Agregar pruebas Feature especificas de archivos y usuarios.
 - Documentar mapa completo de columnas cuando exista dump autorizado actualizado.
 

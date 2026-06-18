@@ -81,7 +81,7 @@ class CiudadController extends Controller
     public function selectCiudad(Request $request){
         if (!$request->ajax()) return redirect('/');
         $ciudades = Ciudad::where('condicion','=','1')
-        ->select('id','nombre')->orderBy('nombre', 'asc')->get();
+        ->select('id','idestado','nombre')->orderBy('nombre', 'asc')->get();
         return ['ciudades' => $ciudades];
     }
 

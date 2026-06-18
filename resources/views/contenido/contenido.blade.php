@@ -8,7 +8,7 @@
             </template>
 
             <template v-if="menu==1">
-                <transaccion :tipo="1" :productivo="{{Auth::user()->productivo}}"></transaccion>
+                <transaccion :tipo="1" :productivo="{{Auth::user()->productivo}}" :idrol="{{Auth::user()->idrol}}"></transaccion>
             </template>
 
             <template v-if="menu==2">
@@ -53,7 +53,7 @@
             @endif
 
             <template v-if="menu==11">
-                <transaccion :tipo="2" :productivo="{{Auth::user()->productivo}}"></transaccion>
+                <transaccion :tipo="2" :productivo="{{Auth::user()->productivo}}" :idrol="{{Auth::user()->idrol}}"></transaccion>
             </template>
 
             <template v-if="menu==29">
@@ -69,7 +69,7 @@
             </template>
 
             <template v-if="menu==14">
-                <transaccion :tipo="3" :productivo="{{Auth::user()->productivo}}"></transaccion>
+                <transaccion :tipo="3" :productivo="{{Auth::user()->productivo}}" :idrol="{{Auth::user()->idrol}}"></transaccion>
             </template>
 
             <template v-if="menu==15">
@@ -109,7 +109,7 @@
             </template>
 
             <template v-if="menu==26">
-                <transaccion :tipo="4" :productivo="{{Auth::user()->productivo}}"></transaccion>
+                <transaccion :tipo="4" :productivo="{{Auth::user()->productivo}}" :idrol="{{Auth::user()->idrol}}"></transaccion>
             </template>
 
             <template v-if="menu==27">

@@ -63,11 +63,17 @@
     min-width: 8.5rem;
 }
 
+.cdc-header-select-heading {
+    min-width: 6rem;
+}
+
+.cdc-header-select-heading span,
 .cdc-status-filter-heading span {
     display: block;
     margin-bottom: .25rem;
 }
 
+.cdc-header-page-size,
 .cdc-status-filter-heading select,
 .cdc-inline-status-select {
     max-width: 8rem;

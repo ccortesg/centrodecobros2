@@ -334,8 +334,8 @@ trait UsesIsolatedCentroCobrosDatabase
             ['id' => 20, 'nombre' => 'Cliente B', 'tipo_documento' => 'CLIENTE', 'num_documento' => '20', 'email' => 'cliente-b@example.com', 'created_at' => now(), 'updated_at' => now()],
         ]);
 
-        DB::table('estados')->insert(['id' => 1, 'nombre' => 'Estado', 'condicion' => 1]);
-        DB::table('ciudades')->insert(['id' => 1, 'idestado' => 1, 'nombre' => 'Ciudad', 'condicion' => 1]);
+        DB::table('estados')->insert(['id' => 1, 'nombre' => 'Sonora', 'condicion' => 1]);
+        DB::table('ciudades')->insert(['id' => 1, 'idestado' => 1, 'nombre' => 'Hermosillo', 'condicion' => 1]);
 
         DB::table('clientes')->insert([
             ['id' => 10, 'idciudad' => 1, 'razon_social' => 'Cliente A SA', 'rfc' => 'A010101AAA', 'idusuario' => 2],

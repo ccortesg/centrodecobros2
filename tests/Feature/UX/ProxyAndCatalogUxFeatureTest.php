@@ -70,6 +70,18 @@ class ProxyAndCatalogUxFeatureTest extends TestCase
         }
     }
 
+    public function test_city_selector_exposes_state_id_for_client_default_location()
+    {
+        $this->actingAs($this->adminUser())
+            ->get('/ciudad/selectCiudad', $this->ajaxHeaders())
+            ->assertOk()
+            ->assertJsonFragment([
+                'id' => 1,
+                'idestado' => 1,
+                'nombre' => 'Hermosillo',
+            ]);
+    }
+
     public function test_catalog_filters_reject_invalid_criteria()
     {
         $this->actingAs($this->adminUser())

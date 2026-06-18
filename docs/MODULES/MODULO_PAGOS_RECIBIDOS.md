@@ -1,6 +1,6 @@
 # Modulo: Pagos Recibidos
 
-Ultima actualizacion: 2026-06-07
+Ultima actualizacion: 2026-06-17
 
 ## Proposito
 
@@ -47,12 +47,18 @@ Si no existe override, el status por defecto es `activo`; actualmente no se mues
 
 ## Campos visibles
 
-- Folio.
+- Folio, con selector de cantidad de registros integrado debajo del encabezado (`10`, `25`, `50`, `100`).
 - Fecha, mostrada como `dd-mm-yyyy` y hora debajo `hh:mm:ss`.
 - Cliente.
 - Referencia.
 - Monto.
 - Canal.
+
+## Filtros UI
+
+- El primer renglon contiene criterio y `Texto a buscar`.
+- El segundo renglon contiene `Desde`, `Hasta` y `Buscar`.
+- Ambos renglones usan media pantalla en desktop/tablet y ancho completo en pantallas chicas.
 
 ## Reglas de monto
 
@@ -102,7 +108,7 @@ Nota: la plataforma comparte `tipo=3` para pantallas de referencia SPEI/Pago en 
 
 ## Corte diagnostico 2026-06-07
 
-- `GET pagos-recibidos` y `PUT pagos-recibidos/status` cargan en el inventario vigente de 100 rutas.
+- `GET pagos-recibidos` y `PUT pagos-recibidos/status` cargan en el inventario vigente de 101 rutas.
 - El endpoint de status sigue disponible por compatibilidad, aunque la pantalla principal no lo expone.
 - La fuente unificada y ownership de admin/cliente estan cubiertos por el carril Feature aislado WAMP/SQLite verde.
 - La brecha funcional principal sigue siendo de negocio: diferenciar con precision historica `Caja` vs `SPEI` cuando ambos comparten `tipo=3`.

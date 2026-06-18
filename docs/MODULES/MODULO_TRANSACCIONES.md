@@ -1,6 +1,6 @@
 # Modulo: Transacciones, ligas, caja, terminal y SPEI
 
-Ultima actualizacion: 2026-06-07
+Ultima actualizacion: 2026-06-17
 
 ## Proposito
 
@@ -115,6 +115,7 @@ Reglas especificas para `tipo=2` domiciliacion:
 
 - Admin: operacion completa.
 - Cliente: acceso a registros propios por allowlist y ownership.
+- En la tabla principal compartida `Transaccion.vue`, el rol se recibe desde `contenido.blade.php`; usuarios no admin no ven columnas administrativas `Forma de Pago`, `Usuario` ni `Productivo`.
 - API externa: autenticacion legacy por payload.
 
 ## Exportacion actual
@@ -188,7 +189,7 @@ Reglas por renglon:
 
 ## Corte diagnostico 2026-06-07
 
-- `php artisan route:list` registra 100 rutas; las rutas de transaccion, reportes, importacion, domiciliacion activa y pagos recibidos estan presentes.
+- `php artisan route:list` registra 101 rutas; las rutas de transaccion, reportes, importacion, domiciliacion activa y pagos recibidos estan presentes.
 - `ReporteTransacciones.vue` no existe en el filesystem actual; los reportes de ingreso se soportan por los componentes listados en esta ficha.
 - Feature aislado WAMP/SQLite de `Phase32`, `Phase34` y `UX` paso con 52 tests y 170 assertions; el Feature completo fallo por credenciales MySQL locales, no por este modulo aislado.
 - Addendum 2026-06-08: el propietario confirmo pruebas exitosas de Pagadetodo desde servidor en sandbox y productivo; no se puede reproducir desde local por restriccion de IP de origen.

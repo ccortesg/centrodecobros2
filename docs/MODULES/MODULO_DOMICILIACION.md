@@ -1,6 +1,6 @@
 # Modulo: Domiciliacion y cargos recurrentes
 
-Ultima actualizacion: 2026-06-07
+Ultima actualizacion: 2026-06-17
 
 ## Proposito
 
@@ -49,7 +49,7 @@ Gestionar generacion de ligas de domiciliacion, cargos recurrentes, cancelacione
 - `Domiciliación Activa` lista domiciliaciones tipo `2`, productivas, con respuesta aprobada y `condicion` `Activo` o `Cancelado`.
 - Desde `Domiciliación Activa`, el cargo manual reutiliza `POST transaccionDom/registrar`; cuando el cargo manual queda aprobado, avanza `ProximoCargo` con la frecuencia configurada de la domiciliacion.
 - Desde `Domiciliación Activa`, la accion de calendario permite actualizar manualmente `ProximoCargo` con `PUT transaccion/proximo-cargo`.
-- La cancelacion desde `Domiciliación Activa` reutiliza `PUT transaccion/rechazar`.
+- La cancelacion desde `Domiciliación Activa` reutiliza `PUT transaccion/rechazar`; si la cancelacion queda persistida, el endpoint interno devuelve `error=""` aunque Pagadetodo haya entregado un mensaje tecnico en una excepcion controlada.
 
 ## Tablas involucradas
 
@@ -114,6 +114,7 @@ Campos de control agregados a `transacciones`:
 - Smoke UI admin/cliente para listados y reportes.
 - Scheduler solo en ambiente controlado, nunca contra produccion sin autorizacion.
 - Browser QA para `Domiciliación Activa`: filtros, total de registros, cancelar y cargo manual con Pagadetodo mock local o servidor/IP autorizado.
+- Al probar cancelacion, validar que falta de token aprobado responda 422 controlado y no cambie `transacciones.condicion`.
 
 ## Pendientes y mejoras
 

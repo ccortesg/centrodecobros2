@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 use App\Cliente;
+use App\Ciudad;
 use App\Persona;
 use App\User;
  
@@ -26,6 +27,20 @@ class ClienteController extends Controller
         return null;
     }
 
+    private function validarCiudadCliente(Request $request)
+    {
+        $idciudad = (int) $request->idciudad;
+
+        if ($idciudad <= 0 || !Ciudad::where('id', '=', $idciudad)->where('condicion', '=', 1)->exists()) {
+            return response()->json([
+                'status' => 'error',
+                'msg' => 'Debe seleccionar una ciudad valida.',
+            ], 422);
+        }
+
+        return null;
+    }
+	
     public function index(Request $request)
     {
         if (!$request->ajax()) return redirect('/');
@@ -37,7 +52,7 @@ class ClienteController extends Controller
         $atributos = [];
         
         $query = Cliente::join('personas','clientes.id','=','personas.id')
-        ->join('ciudades','clientes.idciudad','=','ciudades.id')
+        ->leftJoin('ciudades','clientes.idciudad','=','ciudades.id')
         ->select('personas.id','personas.nombre','personas.tipo_documento',
         'personas.num_documento','personas.direccion','personas.telefono',
         'personas.email','clientes.contacto','clientes.telefono_contacto',
@@ -107,6 +122,10 @@ class ClienteController extends Controller
     public function store(Request $request)
     {
         if (!$request->ajax()) return redirect('/');
+
+        if ($respuesta = $this->validarCiudadCliente($request)) {
+            return $respuesta;
+        }
          
         try{
             DB::beginTransaction();
@@ -171,7 +190,12 @@ class ClienteController extends Controller
                 DB::rollBack();
                 return $this->respuestaNoAutorizado($request);
             }
- 
+
+            if ($respuesta = $this->validarCiudadCliente($request)) {
+                DB::rollBack();
+                return $respuesta;
+            }
+	 
             $persona = Persona::findOrFail($cliente->id);
  
             $persona->nombre = $request->nombre;

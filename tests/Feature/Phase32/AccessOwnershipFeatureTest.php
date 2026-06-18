@@ -3,6 +3,7 @@
 namespace Tests\Feature\Phase32;
 
 use App\Http\Middleware\Administrador;
+use Illuminate\Support\Facades\DB;
 use Tests\Support\UsesIsolatedCentroCobrosDatabase;
 use Tests\TestCase;
 
@@ -42,6 +43,67 @@ class AccessOwnershipFeatureTest extends TestCase
 
         $response->assertJsonFragment(['razon_social' => 'Cliente A SA']);
         $response->assertJsonMissing(['razon_social' => 'Cliente B SA']);
+    }
+
+    public function test_clients_with_legacy_invalid_city_are_still_searchable_by_name()
+    {
+        DB::table('personas')->insert([
+            'id' => 30,
+            'nombre' => 'VILLEGAS JESUS',
+            'tipo_documento' => 'CLIENTE',
+            'num_documento' => '30',
+            'email' => 'villegas@example.com',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('clientes')->insert([
+            'id' => 30,
+            'idciudad' => 0,
+            'razon_social' => 'VILLEGAS JESUS',
+            'rfc' => 'XAXX010101000',
+            'idusuario' => 2,
+        ]);
+
+        $response = $this->actingAs($this->clientAUser())
+            ->get('/cliente?offset=10&buscar=VILLEGAS&criterio=nombre', $this->ajaxHeaders())
+            ->assertOk();
+
+        $response->assertJsonFragment(['razon_social' => 'VILLEGAS JESUS']);
+    }
+
+    public function test_client_registration_rejects_empty_city()
+    {
+        $this->actingAs($this->clientAUser())
+            ->post('/cliente/registrar', [
+                'nombre' => 'Nuevo Cliente',
+                'tipo_documento' => 'CLIENTE',
+                'idciudad' => 0,
+                'rfc' => 'NUE010101AAA',
+                'razon_social' => 'Nuevo Cliente SA',
+            ], $this->ajaxHeaders())
+            ->assertStatus(422)
+            ->assertJson(['status' => 'error']);
+
+        $this->assertDatabaseMissing('clientes', ['razon_social' => 'Nuevo Cliente SA']);
+    }
+
+    public function test_client_update_rejects_empty_city()
+    {
+        $this->actingAs($this->clientAUser())
+            ->put('/cliente/actualizar', [
+                'id' => 10,
+                'nombre' => 'Cliente A',
+                'tipo_documento' => 'CLIENTE',
+                'num_documento' => '10',
+                'idciudad' => 0,
+                'rfc' => 'A010101AAA',
+                'razon_social' => 'Cliente A SA',
+            ], $this->ajaxHeaders())
+            ->assertStatus(422)
+            ->assertJson(['status' => 'error']);
+
+        $this->assertDatabaseHas('clientes', ['id' => 10, 'idciudad' => 1]);
     }
 
     public function test_client_cannot_update_another_clients_customer()

@@ -12,15 +12,7 @@
                 </div>
                 <div class="card-body">
                     <div class="form-group row cdc-list-toolbar">
-                        <div class="col-xl-2 col-lg-2 col-md-3 col-sm-12">
-                            <select class="form-control" v-model="offset" @change="listarPagos(1,buscar,criterio)">
-                                <option value="10">10 registros</option>
-                                <option value="25">25 registros</option>
-                                <option value="50">50 registros</option>
-                                <option value="100">100 registros</option>
-                            </select>
-                        </div>
-                        <div class="col-xl-5 col-lg-6 col-md-9 col-sm-12">
+                        <div class="col-lg-6 col-md-6 col-sm-12 col-12">
                             <div class="input-group">
                                 <select class="form-control col-lg-3 col-md-4 col-sm-12" v-model="criterio">
                                     <option value="folio">Folio</option>
@@ -31,7 +23,9 @@
                                 <input type="text" v-model="buscar" @keyup.enter="listarPagos(1,buscar,criterio)" class="form-control" placeholder="Texto a buscar">
                             </div>
                         </div>
-                        <div class="col-xl-5 col-lg-12 col-md-12 col-sm-12">
+                    </div>
+                    <div class="form-group row cdc-list-toolbar">
+                        <div class="col-lg-6 col-md-6 col-sm-12 col-12">
                             <div class="input-group">
                                 <span class="input-group-addon">Desde</span>
                                 <input type="date" v-model="fechaInicio" class="form-control" @change="listarPagos(1,buscar,criterio)">
@@ -48,7 +42,15 @@
                         <table class="table table-bordered table-striped table-sm cdc-responsive-table">
                             <thead>
                                 <tr>
-                                    <th class="text-center">Folio</th>
+                                    <th class="text-center cdc-header-select-heading">
+                                        <span>Folio</span>
+                                        <select class="form-control form-control-sm cdc-header-page-size" v-model="offset" @change="listarPagos(1,buscar,criterio)">
+                                            <option value="10">10</option>
+                                            <option value="25">25</option>
+                                            <option value="50">50</option>
+                                            <option value="100">100</option>
+                                        </select>
+                                    </th>
                                     <th class="text-center">Fecha</th>
                                     <th class="text-center">Cliente</th>
                                     <th class="text-center">Referencia</th>

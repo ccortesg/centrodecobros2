@@ -2211,12 +2211,21 @@ class TransaccionController extends Controller
             return $this->respuestaNoAutorizado($request);
         }
 
+        $msg = "La cancelaciÃ³n se realizÃ³ con Ã©xito.";
+
         if($transaccion->tipo == 2) {
             $respuesta = Respuesta::where([
                 ['idtransaccion', '=', $request->id],
                 ['status','LIKE','approved']])
                 ->first();
-                    
+
+            if($respuesta == null || trim((string) $respuesta->number_tkn) === '') {
+                return response()->json([
+                    'error' => 'La respuesta aprobada no pudo ser identificada para cancelar la domiciliacion.',
+                    'msg' => 'No se pudo cancelar la domiciliacion.'
+                ], 422);
+            }
+
             $Token = $respuesta->number_tkn;        
     
             $max = 0;
@@ -2247,27 +2256,37 @@ class TransaccionController extends Controller
                 "Tkn_reference" => str_pad($max, 15, '0', STR_PAD_LEFT),  
             );
     
-            $error = "";
-            $response = "";
+            $errorRemoto = "";
+            $response = null;
             $response_body = "";
-            $response_decode = "";
+            $response_decode = null;
     
             try{        
-                $client = new Client();
-                $response =  $client->request('POST', $this->urlDomCancel, [RequestOptions::JSON => $params]);            
+                $response = $this->postJsonControlado($this->urlDomCancel, $params);
             } catch (RequestException $e){            
-                //$response  = Psr7\Message::toString($e->getRequest());
-                //$response = Psr7\Message::toString($e->getResponse());
                 $response  = $e->getResponse();
-                $response_body = (string) $response->getBody();
-                $response_decode = json_decode($response_body);
-                $error = $response_decode->message;
+                if($response != null) {
+                    $response_body = (string) $response->getBody();
+                    $response_decode = json_decode($response_body);
+                    $errorRemoto = $response_decode->message ?? $response_decode->Message ?? $e->getMessage();
+                } else {
+                    $errorRemoto = $e->getMessage();
+                }
+            } catch (Exception $e){
+                $errorRemoto = $e->getMessage();
             }
     
-            if($response_decode == "") {
+            if($response_decode == null && $response != null) {
                 $response_body = (string) $response->getBody();
                 $response_decode = json_decode($response_body);
-            }        
+            }
+
+            if($response_decode == null) {
+                return response()->json([
+                    'error' => $errorRemoto ?: 'No se recibio una respuesta valida de Pagadetodo.',
+                    'msg' => 'No se pudo cancelar la domiciliacion.'
+                ], 422);
+            }
     
             try{            
                 DB::beginTransaction();                
@@ -2284,15 +2303,26 @@ class TransaccionController extends Controller
                 $cancelaciondom->Token = $Token;
                 $cancelaciondom->Tkn_reference = str_pad($max, 15, '0', STR_PAD_LEFT);
                 $cancelaciondom->response = $response_body;
-                $cancelaciondom->code = $response_decode->code;
-                $cancelaciondom->message = $response_decode->message;
+                $cancelaciondom->code = $response_decode->code ?? $response_decode->Code ?? null;
+                $cancelaciondom->message = $response_decode->message ?? $response_decode->Message ?? null;
                 $cancelaciondom->idusuario =  \Auth::user()->id;
                 $cancelaciondom->productivo = \Auth::user()->productivo;
                 $cancelaciondom->save();        
                 DB::commit();
             } catch (Exception $e){
                 DB::rollBack();
-                $error = $e->getMessage();
+                return response()->json([
+                    'error' => $e->getMessage(),
+                    'msg' => 'No se pudo guardar la cancelacion.'
+                ], 500);
+            }
+
+            if($errorRemoto !== '') {
+                Log::warning('Pagadetodo devolvio error tecnico despues de persistir cancelacion de domiciliacion.', [
+                    'transaccion_id' => $transaccion->id,
+                    'tipo' => $transaccion->tipo,
+                    'error' => $errorRemoto,
+                ]);
             }
         } else if($transaccion->tipo == 4) {
 
@@ -2326,27 +2356,37 @@ class TransaccionController extends Controller
                 "Reference" => $Reference
             );
     
-            $error = "";
-            $response = "";
+            $errorRemoto = "";
+            $response = null;
             $response_body = "";
-            $response_decode = "";
+            $response_decode = null;
     
             try{        
-                $client = new Client();
-                $response =  $client->request('POST', $this->urlLectorCancel, [RequestOptions::JSON => $params]);            
+                $response = $this->postJsonControlado($this->urlLectorCancel, $params);
             } catch (RequestException $e){            
-                //$response  = Psr7\Message::toString($e->getRequest());
-                //$response = Psr7\Message::toString($e->getResponse());
                 $response  = $e->getResponse();
-                $response_body = (string) $response->getBody();
-                $response_decode = json_decode($response_body);
-                $error = $response_decode->message;
+                if($response != null) {
+                    $response_body = (string) $response->getBody();
+                    $response_decode = json_decode($response_body);
+                    $errorRemoto = $response_decode->message ?? $response_decode->Message ?? $e->getMessage();
+                } else {
+                    $errorRemoto = $e->getMessage();
+                }
+            } catch (Exception $e){
+                $errorRemoto = $e->getMessage();
             }
     
-            if($response_decode == "") {
+            if($response_decode == null && $response != null) {
                 $response_body = (string) $response->getBody();
                 $response_decode = json_decode($response_body);
-            }        
+            }
+
+            if($response_decode == null) {
+                return response()->json([
+                    'error' => $errorRemoto ?: 'No se recibio una respuesta valida de Pagadetodo.',
+                    'msg' => 'No se pudo cancelar la liga de terminal.'
+                ], 422);
+            }
     
             try{            
                 DB::beginTransaction();                
@@ -2362,23 +2402,39 @@ class TransaccionController extends Controller
                 $cancelacionlector->BusinessID = $BusinessID;
                 $cancelacionlector->Reference = $Reference;
                 $cancelacionlector->response = $response_body;
-                $cancelacionlector->code = $response_decode->code;
-                $cancelacionlector->message = $response_decode->message;
-                $cancelacionlector->responseReference = $response_decode->reference;
+                $cancelacionlector->code = $response_decode->code ?? $response_decode->Code ?? null;
+                $cancelacionlector->message = $response_decode->message ?? $response_decode->Message ?? null;
+                $cancelacionlector->responseReference = $response_decode->reference ?? $response_decode->Reference ?? null;
                 $cancelacionlector->idusuario =  \Auth::user()->id;
                 $cancelacionlector->productivo = \Auth::user()->productivo;
                 $cancelacionlector->save();
                 DB::commit();
             } catch (Exception $e){
                 DB::rollBack();
-                $error = $e->getMessage();
+                return response()->json([
+                    'error' => $e->getMessage(),
+                    'msg' => 'No se pudo guardar la cancelacion.'
+                ], 500);
             }
+
+            if($errorRemoto !== '') {
+                Log::warning('Pagadetodo devolvio error tecnico despues de persistir cancelacion de terminal.', [
+                    'transaccion_id' => $transaccion->id,
+                    'tipo' => $transaccion->tipo,
+                    'error' => $errorRemoto,
+                ]);
+            }
+        } else {
+            return response()->json([
+                'error' => 'El tipo de transaccion no permite cancelacion.',
+                'msg' => 'No se pudo cancelar la transaccion.'
+            ], 422);
         }
 
-        return [                
-            'error' => $error,
-            'msg' => "La cancelaciÃ³n se realizÃ³ con Ã©xito."
-        ];
+        return response()->json([
+            'error' => '',
+            'msg' => $msg
+        ]);
 
     }
 

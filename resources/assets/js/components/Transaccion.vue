@@ -71,7 +71,7 @@
                                     <th class="text-center">Folio</th>
                                     <th class="text-center">Fecha</th>
                                     <th class="text-center">Cliente</th>
-                                    <template v-if="tipo==1 || tipo==2">
+                                    <template v-if="esAdmin && (tipo==1 || tipo==2)">
                                         <th class="text-center">Forma de Pago</th>
                                     </template>
                                     <th class="text-center cdc-column-description">Descripción</th>
@@ -82,7 +82,7 @@
                                         <th class="text-center">URL</th>
                                     </template>
                                     <th class="text-center">Respuesta</th>                                    
-                                    <th class="text-center">Usuario</th>
+                                    <th v-if="esAdmin" class="text-center">Usuario</th>
                                     <template v-if="(tipo==2 || tipo==3)">
                                         <template v-if="tipo==2">
                                             <th class="text-center">Frecuencia</th>
@@ -100,7 +100,7 @@
                                             </select>
                                         </th>
                                     </template>
-                                    <th class="text-center">Productivo</th>
+                                    <th v-if="esAdmin" class="text-center">Productivo</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -125,7 +125,7 @@
                                         </span>
                                     </td>
                                     <td v-text="transaccion.razon_social" class="text-center"></td>
-                                    <template v-if="tipo==1 || tipo==2">
+                                    <template v-if="esAdmin && (tipo==1 || tipo==2)">
                                         <td class="text-center">
                                             <template v-if="transaccion.PaymentTypes=='401'">
                                                 Visa y Mastercard
@@ -171,7 +171,7 @@
                                           <i class="fa fa-folder-open"></i>
                                         </button> &nbsp; 
                                     </td>                                                                        
-                                    <td v-text="transaccion.usuario" class="text-center"></td>
+                                    <td v-if="esAdmin" v-text="transaccion.usuario" class="text-center"></td>
                                     <template v-if="(tipo==2 || tipo==3)">
                                         <template v-if="tipo==2">
                                             <td class="text-center">
@@ -219,7 +219,7 @@
                                             </div>                                        
                                         </td>
                                     </template>
-                                    <td>
+                                    <td v-if="esAdmin">
                                         <div v-if="transaccion.productivo==1">
                                             <span class="badge badge-success">Si</span>
                                         </div>
@@ -500,7 +500,7 @@
 <script>
     
     export default {
-        props: ['tipo','productivo'],
+        props: ['tipo','productivo','idrol'],
         data (){
             return {                
                 transaccion_id: 0,
@@ -571,11 +571,28 @@
             pagesNumber: function() {
                 return this.$paginationPages(this.pagination);
             },
+            esAdmin: function() {
+                return parseInt(this.idrol, 10) === 1;
+            },
             textoBotonImportarSecundario: function(){
                 return this.importando ? 'Cancelar' : 'Cerrar';
             }
         },
         methods : {
+            cancelacionExitosa(respuesta) {
+                if (!respuesta) {
+                    return false;
+                }
+
+                if (respuesta.error === '') {
+                    return true;
+                }
+
+                const mensaje = String(respuesta.msg || '').toLowerCase();
+                return mensaje.indexOf('cancelaci') !== -1
+                    && mensaje.indexOf('realiz') !== -1
+                    && mensaje.indexOf('xito') !== -1;
+            },
             listarTransaccion (page,buscar,criterio){
                 let me=this;
                 var url= '/transaccion?page=' + page + '&buscar='+ encodeURIComponent(buscar || '') + '&criterio='+ encodeURIComponent(criterio || 'Reference') + '&offset='+ me.offset + '&tipo='+ me.tipo + '&status='+ me.status;
@@ -971,11 +988,11 @@
                         var error = respuesta.error;
                         var mensaje = respuesta.msg;
 
-                        if(error == ''){
+                        if(me.cancelacionExitosa(respuesta)){
                             swal(
-                            'Cancelación exitosa!',
-                            mensaje,
-                            'success'
+                                'Cancelación exitosa!',
+                                mensaje,
+                                'success'
                             ) 
                         } else {
                             swal(

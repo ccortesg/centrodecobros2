@@ -143,6 +143,41 @@ class DomiciliacionAndPaymentsFeatureTest extends TestCase
         $response->assertJsonMissing(['ClientReference' => 'DOM-B']);
     }
 
+    public function test_client_can_cancel_own_active_domiciliation_and_get_success_without_error()
+    {
+        DB::table('transacciones')->where('id', 200)->update(['condicion' => 1]);
+
+        $this->actingAs($this->clientAUser())
+            ->put('/transaccion/rechazar', ['id' => 200], $this->ajaxHeaders())
+            ->assertOk()
+            ->assertJson([
+                'error' => '',
+            ]);
+
+        $this->assertSame(2, (int) DB::table('transacciones')->where('id', 200)->value('condicion'));
+        $this->assertDatabaseHas('cancelacionesDom', [
+            'Token' => 'TOKEN-A',
+            'idusuario' => 2,
+            'productivo' => 1,
+        ]);
+    }
+
+    public function test_cannot_cancel_active_domiciliation_without_approved_token()
+    {
+        DB::table('transacciones')->where('id', 200)->update(['condicion' => 1]);
+        DB::table('respuestas')->where('idtransaccion', 200)->update(['number_tkn' => '']);
+
+        $this->actingAs($this->clientAUser())
+            ->put('/transaccion/rechazar', ['id' => 200], $this->ajaxHeaders())
+            ->assertStatus(422)
+            ->assertJson([
+                'error' => 'La respuesta aprobada no pudo ser identificada para cancelar la domiciliacion.',
+            ]);
+
+        $this->assertSame(1, (int) DB::table('transacciones')->where('id', 200)->value('condicion'));
+        $this->assertSame(0, DB::table('cancelacionesDom')->count());
+    }
+
     public function test_client_can_access_received_payments_scoped_to_own_records()
     {
         $response = $this->actingAs($this->clientAUser())
