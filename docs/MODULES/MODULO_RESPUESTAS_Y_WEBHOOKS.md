@@ -1,6 +1,6 @@
 # Modulo: Respuestas y webhooks
 
-Ultima actualizacion: 2026-06-07
+Ultima actualizacion: 2026-06-18
 
 ## Proposito
 
@@ -40,6 +40,18 @@ Recibir, validar y persistir respuestas del proveedor para conciliacion, trazabi
 - Marcado de bandera `enviada`.
 - Respuestas controladas ante payload incompleto o duplicado.
 
+## Filtros de busqueda
+
+En `Respuesta.vue`, el select usa campos distintos al listado de transacciones:
+
+- `Ref. Cliente`: `transacciones.ClientReference`.
+- `Ref. Transacción`: `transacciones.Reference`.
+- `Ref. Respuesta`: `respuestas.reference`.
+- `Cliente`: `clientes.razon_social`.
+- El filtro de status usa `respuestas.status`.
+
+La relacion entre tablas es `respuestas.idtransaccion = transacciones.id`. No confundir `respuestas.reference` con `transacciones.responseReference`: suelen coincidir en flujos normales, pero pueden divergir en datos historicos o registros desnormalizados.
+
 ## Acceso por rol
 
 - Admin: listado y administracion completa.
@@ -72,6 +84,7 @@ Recibir, validar y persistir respuestas del proveedor para conciliacion, trazabi
   - duplicado exacto;
   - referencia inexistente;
   - rol cliente en listado/exportacion.
+  - filtro `Ref. Respuesta` buscando por `respuestas.reference`.
 
 ## Pendientes y mejoras
 

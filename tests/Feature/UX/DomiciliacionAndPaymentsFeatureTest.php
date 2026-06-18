@@ -133,6 +133,23 @@ class DomiciliacionAndPaymentsFeatureTest extends TestCase
             ->assertStatus(422);
     }
 
+    public function test_pagos_recibidos_export_uses_search_and_date_filters()
+    {
+        DB::table('respuestas')->update(['fecha' => '2026-05-01 10:00:00']);
+        DB::table('pagospei')->update(['fecha' => '2026-05-01 10:00:00']);
+        DB::table('transaccionesDom')->update(['fecha' => '2026-05-01 10:00:00']);
+        DB::table('respuestas')->where('id', 1)->update(['fecha' => '2026-06-03 12:00:00']);
+
+        $response = $this->actingAs($this->adminUser())
+            ->get('/pagos-recibidos/exportar?buscar=Cliente%20A&criterio=cliente&fechaInicio=2026-06-03&fechaFin=2026-06-03', $this->ajaxHeaders())
+            ->assertOk();
+
+        $content = $response->streamedContent();
+
+        $this->assertStringContainsString('Cliente A SA', $content);
+        $this->assertStringNotContainsString('Cliente B SA', $content);
+    }
+
     public function test_client_can_access_active_domiciliations_scoped_to_own_records()
     {
         $response = $this->actingAs($this->clientAUser())
@@ -141,6 +158,21 @@ class DomiciliacionAndPaymentsFeatureTest extends TestCase
 
         $response->assertJsonFragment(['ClientReference' => 'DOM-A']);
         $response->assertJsonMissing(['ClientReference' => 'DOM-B']);
+    }
+
+    public function test_domiciliacion_activa_export_uses_same_filters()
+    {
+        DB::table('transacciones')->where('id', 200)->update(['condicion' => 1, 'productivo' => 1]);
+        DB::table('transacciones')->where('id', 201)->update(['condicion' => 2, 'productivo' => 1]);
+
+        $response = $this->actingAs($this->adminUser())
+            ->get('/domiciliacion-activa/exportar?buscar=DOM-A&criterio=ClientReference&status=1', $this->ajaxHeaders())
+            ->assertOk();
+
+        $content = $response->streamedContent();
+
+        $this->assertStringContainsString('DOM-A', $content);
+        $this->assertStringNotContainsString('DOM-B', $content);
     }
 
     public function test_client_can_cancel_own_active_domiciliation_and_get_success_without_error()

@@ -24,7 +24,7 @@
                                     <select class="form-control col-lg-3 col-md-3 col-sm-4" v-model="criterio">
                                       <option value="ClientReference">Ref. Cliente</option>
                                       <option value="Reference">Ref. Transacción</option>
-                                      <option value="responseReference">Ref. Respuesta</option>
+                                      <option value="reference">Ref. Respuesta</option>
                                       <option value="cliente_nombre">Cliente</option>
                                     </select>
                                     <input type="text" v-model="buscar" @keyup.enter="listarRespuesta(1,buscar,criterio)" class="form-control" placeholder="Texto a buscar">

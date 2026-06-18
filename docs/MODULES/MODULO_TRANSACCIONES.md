@@ -1,6 +1,6 @@
 # Modulo: Transacciones, ligas, caja, terminal y SPEI
 
-Ultima actualizacion: 2026-06-17
+Ultima actualizacion: 2026-06-18
 
 ## Proposito
 
@@ -43,6 +43,7 @@ Generar referencias/ligas y registrar estado operativo de cobros por distintos t
 - `GET transaccion/exportarTransacciones`
 - `GET transaccion/selectDomiciliacion`
 - `GET domiciliacion-activa`
+- `GET domiciliacion-activa/exportar`
 
 ## Importacion masiva
 
@@ -121,8 +122,22 @@ Reglas especificas para `tipo=2` domiciliacion:
 ## Exportacion actual
 
 - `GET transaccion/exportar` descarga CSV (`transacciones.csv`) por streaming para evitar agotamiento de memoria.
+- Si recibe `buscar`, `criterio` y `status`, aplica los mismos filtros del listado principal.
 - `GET transaccion/exportarTransacciones` se mantiene para exportacion filtrada de reportes.
 - Bitacoras de importacion masiva siguen en `xlsx` por volumen y uso diferente.
+
+## Filtros de busqueda
+
+En `Transaccion.vue`, los modulos de generacion de liga usan el mismo select:
+
+- `Ref. Cliente`: `transacciones.ClientReference`.
+- `Ref. Transacción`: `transacciones.Reference`.
+- `Ref. Respuesta`: busqueda primaria en `transacciones.responseReference`; tambien consulta `respuestas.reference` por relacion `respuestas.idtransaccion = transacciones.id` para cubrir datos historicos o desnormalizados.
+- `CLABE`: solo para `tipo=3`, filtra `transacciones.Clabe`.
+- `Descripción`: `transacciones.Description`.
+- `Cliente`: `clientes.razon_social`.
+
+`Ref. Respuesta` no debe apuntar a `respuestas.reference` como campo principal en transacciones, pero si debe encontrar la transaccion cuando la respuesta relacionada conserva la referencia y el campo denormalizado de transacciones no coincide.
 
 ## Deteccion de cliente duplicado en APIs
 
@@ -189,7 +204,7 @@ Reglas por renglon:
 
 ## Corte diagnostico 2026-06-07
 
-- `php artisan route:list` registra 101 rutas; las rutas de transaccion, reportes, importacion, domiciliacion activa y pagos recibidos estan presentes.
+- `php artisan route:list` registra 103 rutas; las rutas de transaccion, reportes, importacion, domiciliacion activa y pagos recibidos estan presentes.
 - `ReporteTransacciones.vue` no existe en el filesystem actual; los reportes de ingreso se soportan por los componentes listados en esta ficha.
 - Feature aislado WAMP/SQLite de `Phase32`, `Phase34` y `UX` paso con 52 tests y 170 assertions; el Feature completo fallo por credenciales MySQL locales, no por este modulo aislado.
 - Addendum 2026-06-08: el propietario confirmo pruebas exitosas de Pagadetodo desde servidor en sandbox y productivo; no se puede reproducir desde local por restriccion de IP de origen.

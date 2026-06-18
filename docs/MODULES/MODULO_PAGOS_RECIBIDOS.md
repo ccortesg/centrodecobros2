@@ -1,6 +1,6 @@
 # Modulo: Pagos Recibidos
 
-Ultima actualizacion: 2026-06-17
+Ultima actualizacion: 2026-06-18
 
 ## Proposito
 
@@ -18,6 +18,7 @@ Concentrar en una sola bitacora los pagos recibidos por los canales principales 
 ## Rutas web
 
 - `GET pagos-recibidos`
+- `GET pagos-recibidos/exportar`
 - `PUT pagos-recibidos/status` existe por compatibilidad, pero la pantalla principal ya no muestra ni opera status.
 
 ## Menu
@@ -60,6 +61,12 @@ Si no existe override, el status por defecto es `activo`; actualmente no se mues
 - El segundo renglon contiene `Desde`, `Hasta` y `Buscar`.
 - Ambos renglones usan media pantalla en desktop/tablet y ancho completo en pantallas chicas.
 
+## Exportacion
+
+- El boton `Exportar` descarga `pagos_recibidos.csv`.
+- El endpoint reutiliza la misma consulta unificada del listado y respeta filtros de texto, criterio, rango de fechas, status heredado y ownership.
+- La exportacion incluye las tres fuentes actuales: `respuestas`, `pagospei` y `transaccionesDom`.
+
 ## Reglas de monto
 
 El backend entrega el campo `monto` ya normalizado para presentacion:
@@ -97,18 +104,18 @@ Nota: la plataforma comparte `tipo=3` para pantallas de referencia SPEI/Pago en 
 ## Pruebas recomendadas
 
 - Feature SQLite para listado, cargos recurrentes, montos por fuente y rango de fechas.
+- Feature SQLite para exportacion filtrada y ownership.
 - Smoke browser autenticado de filtros, paginacion y rango de fechas.
 - Validar que el listado no altere `respuestas`, `pagospei` ni `transaccionesDom`.
 
 ## Pendientes y mejoras
 
 - Confirmar regla final para diferenciar `Caja` y `SPEI` cuando ambos nacen desde referencias tipo `3`.
-- Agregar exportacion si negocio la requiere.
 - Agregar filtros por canal si negocio lo requiere.
 
 ## Corte diagnostico 2026-06-07
 
-- `GET pagos-recibidos` y `PUT pagos-recibidos/status` cargan en el inventario vigente de 101 rutas.
+- `GET pagos-recibidos`, `GET pagos-recibidos/exportar` y `PUT pagos-recibidos/status` cargan en el inventario vigente de 103 rutas.
 - El endpoint de status sigue disponible por compatibilidad, aunque la pantalla principal no lo expone.
 - La fuente unificada y ownership de admin/cliente estan cubiertos por el carril Feature aislado WAMP/SQLite verde.
 - La brecha funcional principal sigue siendo de negocio: diferenciar con precision historica `Caja` vs `SPEI` cuando ambos comparten `tipo=3`.

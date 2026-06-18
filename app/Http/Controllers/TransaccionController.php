@@ -217,9 +217,99 @@ class TransaccionController extends Controller
         ];
     }
 
+    private function baseDomiciliacionActivaQuery()
+    {
+        $query = Transaccion::leftJoin('clientes', 'clientes.id', '=', 'transacciones.idcliente')
+            ->leftJoin('users', 'users.id', '=', 'transacciones.idusuario')
+            ->select(
+                'transacciones.id',
+                'transacciones.folio',
+                'transacciones.fecha',
+                'transacciones.PaymentTypes',
+                'transacciones.Description',
+                'transacciones.Amount',
+                'transacciones.Reference',
+                'transacciones.ClientReference',
+                'transacciones.idusuario',
+                'transacciones.idcliente',
+                'clientes.razon_social',
+                'users.usuario',
+                'transacciones.frecuencia',
+                'transacciones.ProximoCargo',
+                'transacciones.ProximoCargoBase',
+                'transacciones.intentos',
+                'transacciones.condicion',
+                'transacciones.productivo'
+            )
+            ->where('transacciones.tipo', '=', 2)
+            ->where('transacciones.productivo', '=', 1)
+            ->whereIn('transacciones.condicion', [1, 2])
+            ->whereExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('respuestas')
+                    ->whereRaw('respuestas.idtransaccion = transacciones.id')
+                    ->where('respuestas.status', '=', 'approved');
+            });
+
+        $this->aplicarScopePropietario($query, 'transacciones');
+
+        return $query;
+    }
+
     private function statusDomiciliacionActivaValido($status)
     {
         return in_array((string) $status, ['1', '2', '99'], true);
+    }
+
+    private function aplicarFiltroReferenciaRespuestaTransaccion($query, $buscar)
+    {
+        $query->where(function ($query) use ($buscar) {
+            $query->where('transacciones.responseReference', 'like', '%' . $buscar . '%')
+                ->orWhereExists(function ($subQuery) use ($buscar) {
+                    $subQuery->select(DB::raw(1))
+                        ->from('respuestas')
+                        ->whereRaw('respuestas.idtransaccion = transacciones.id')
+                        ->where('respuestas.reference', 'like', '%' . $buscar . '%');
+                });
+        });
+
+        return $query;
+    }
+
+    private function aplicarFiltrosDomiciliacionActiva($query, $buscar, $criterio, $status)
+    {
+        if ($buscar !== '') {
+            if ($criterio === 'cliente_nombre') {
+                $query->where('clientes.razon_social', 'like', '%' . $buscar . '%');
+            } else {
+                $query->where('transacciones.' . $criterio, 'like', '%' . $buscar . '%');
+            }
+        }
+
+        if ((string) $status !== '99') {
+            $query->where('transacciones.condicion', '=', (int) $status);
+        }
+
+        return $query;
+    }
+
+    private function validarFiltrosDomiciliacionActiva($buscar, $criterio, $status)
+    {
+        if ($buscar !== '' && !$this->criterioPermitido($criterio, $this->criteriosDomiciliacionActivaPermitidos())) {
+            return response()->json([
+                'status' => 'error',
+                'msg' => 'Criterio de búsqueda no permitido.',
+            ], 422);
+        }
+
+        if (!$this->statusDomiciliacionActivaValido($status)) {
+            return response()->json([
+                'status' => 'error',
+                'msg' => 'Status no permitido.',
+            ], 422);
+        }
+
+        return null;
     }
 
     private function normalizarTelefonoCliente($telefono)
@@ -343,6 +433,8 @@ class TransaccionController extends Controller
 
             if($criterio=='cliente_nombre'){
                 $query->where('clientes.razon_social', 'like', '%'. $buscar . '%');
+            } else if($criterio=='responseReference') {
+                $this->aplicarFiltroReferenciaRespuestaTransaccion($query, $buscar);
             } else {
                 $query->where('transacciones.'.$criterio, 'like', '%'. $buscar . '%');
             }            
@@ -383,65 +475,16 @@ class TransaccionController extends Controller
         $offset = $this->offsetPaginacion($request->offset ?? 10);
         $status = $request->status ?? 99;
 
-        $query = Transaccion::leftJoin('clientes', 'clientes.id', '=', 'transacciones.idcliente')
-            ->leftJoin('users', 'users.id', '=', 'transacciones.idusuario')
-            ->select(
-                'transacciones.id',
-                'transacciones.folio',
-                'transacciones.fecha',
-                'transacciones.PaymentTypes',
-                'transacciones.Description',
-                'transacciones.Amount',
-                'transacciones.Reference',
-                'transacciones.ClientReference',
-                'transacciones.idusuario',
-                'transacciones.idcliente',
-                'clientes.razon_social',
-                'users.usuario',
-                'transacciones.frecuencia',
-                'transacciones.ProximoCargo',
-                'transacciones.ProximoCargoBase',
-                'transacciones.intentos',
-                'transacciones.condicion',
-                'transacciones.productivo'
-            )
-            ->where('transacciones.tipo', '=', 2)
-            ->where('transacciones.productivo', '=', 1)
-            ->whereIn('transacciones.condicion', [1, 2])
-            ->whereExists(function ($query) {
-                $query->select(DB::raw(1))
-                    ->from('respuestas')
-                    ->whereRaw('respuestas.idtransaccion = transacciones.id')
-                    ->where('respuestas.status', '=', 'approved');
-            });
-
-        $this->aplicarScopePropietario($query, 'transacciones');
-
-        if ($buscar !== '') {
-            if (!$this->criterioPermitido($criterio, $this->criteriosDomiciliacionActivaPermitidos())) {
-                return response()->json([
-                    'status' => 'error',
-                    'msg' => 'Criterio de búsqueda no permitido.',
-                ], 422);
-            }
-
-            if ($criterio === 'cliente_nombre') {
-                $query->where('clientes.razon_social', 'like', '%' . $buscar . '%');
-            } else {
-                $query->where('transacciones.' . $criterio, 'like', '%' . $buscar . '%');
-            }
+        if ($validacion = $this->validarFiltrosDomiciliacionActiva($buscar, $criterio, $status)) {
+            return $validacion;
         }
 
-        if (!$this->statusDomiciliacionActivaValido($status)) {
-            return response()->json([
-                'status' => 'error',
-                'msg' => 'Status no permitido.',
-            ], 422);
-        }
-
-        if ((string) $status !== '99') {
-            $query->where('transacciones.condicion', '=', (int) $status);
-        }
+        $query = $this->aplicarFiltrosDomiciliacionActiva(
+            $this->baseDomiciliacionActivaQuery(),
+            $buscar,
+            $criterio,
+            $status
+        );
 
         $domiciliaciones = $query->orderBy('transacciones.id', 'desc')->paginate($offset);
 
@@ -3931,6 +3974,24 @@ class TransaccionController extends Controller
         if (!$request->ajax()) return redirect('/');
 
         $tipo = (int) $request->tipo;
+        $buscar = $request->buscar ?? '';
+        $criterio = $request->criterio ?? 'Reference';
+        $status = $request->status ?? 99;
+
+        if ($buscar !== '' && !$this->criterioPermitido($criterio, $this->criteriosTransaccionPermitidos())) {
+            return response()->json([
+                'status' => 'error',
+                'msg' => 'Criterio de búsqueda no permitido.',
+            ], 422);
+        }
+
+        if (!$this->condicionTransaccionValida($status)) {
+            return response()->json([
+                'status' => 'error',
+                'msg' => 'Status no permitido.',
+            ], 422);
+        }
+
         $query = Transaccion::leftjoin('clientes', 'clientes.id', 'transacciones.idcliente')
             ->leftjoin('users', 'users.id', 'transacciones.idusuario')
             ->select(
@@ -3957,6 +4018,20 @@ class TransaccionController extends Controller
             ->orderBy('transacciones.id', 'desc');
 
         $this->aplicarScopePropietario($query, 'transacciones');
+
+        if ($buscar !== '') {
+            if ($criterio === 'cliente_nombre') {
+                $query->where('clientes.razon_social', 'like', '%' . $buscar . '%');
+            } else if ($criterio === 'responseReference') {
+                $this->aplicarFiltroReferenciaRespuestaTransaccion($query, $buscar);
+            } else {
+                $query->where('transacciones.' . $criterio, 'like', '%' . $buscar . '%');
+            }
+        }
+
+        if ((string) $status !== '99') {
+            $query->where('transacciones.condicion', '=', (int) $status);
+        }
 
         $headings = [
             'Folio',
@@ -4015,6 +4090,75 @@ class TransaccionController extends Controller
 
             fclose($handle);
         }, 'transacciones.csv', [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
+    public function exportarDomiciliacionActiva(Request $request)
+    {
+        if (!$request->ajax()) return redirect('/');
+
+        $buscar = $request->buscar ?? '';
+        $criterio = $request->criterio ?? 'ClientReference';
+        $status = $request->status ?? 99;
+
+        if ($validacion = $this->validarFiltrosDomiciliacionActiva($buscar, $criterio, $status)) {
+            return $validacion;
+        }
+
+        $query = $this->aplicarFiltrosDomiciliacionActiva(
+            $this->baseDomiciliacionActivaQuery(),
+            $buscar,
+            $criterio,
+            $status
+        )->orderBy('transacciones.id', 'desc');
+
+        $headings = [
+            'Folio',
+            'Fecha',
+            'Forma de Pago',
+            'Descripcion',
+            'Referencia Transaccion',
+            'Referencia Cliente',
+            'Monto',
+            'Cliente',
+            'Usuario',
+            'Frecuencia',
+            'Proximo Cargo',
+            'Status',
+            'Productivo',
+        ];
+
+        return response()->streamDownload(function () use ($query, $headings) {
+            $handle = fopen('php://output', 'w');
+
+            if ($handle === false) {
+                throw new Exception('No fue posible abrir el stream de salida para la exportacion.');
+            }
+
+            fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
+            fputcsv($handle, $headings);
+
+            foreach ($query->cursor() as $domiciliacion) {
+                fputcsv($handle, [
+                    $domiciliacion->folio,
+                    $domiciliacion->fecha,
+                    $domiciliacion->PaymentTypes,
+                    $domiciliacion->Description,
+                    $domiciliacion->Reference,
+                    $domiciliacion->ClientReference,
+                    $domiciliacion->Amount,
+                    $domiciliacion->razon_social,
+                    $domiciliacion->usuario,
+                    $domiciliacion->frecuencia,
+                    $domiciliacion->ProximoCargo,
+                    $domiciliacion->condicion,
+                    $domiciliacion->productivo,
+                ]);
+            }
+
+            fclose($handle);
+        }, 'domiciliaciones_activas.csv', [
             'Content-Type' => 'text/csv; charset=UTF-8',
         ]);
     }

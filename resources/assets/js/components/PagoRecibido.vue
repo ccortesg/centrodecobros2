@@ -5,11 +5,14 @@
         </ol>
         <div class="container-fluid">
             <div class="loader" v-if="loading"></div>
-            <div class="card">
-                <div class="card-header">
-                    <i class="fa fa-money"></i>
-                    Pagos Recibidos
-                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fa fa-money"></i>
+                        Pagos Recibidos
+                        <button type="button" @click="descargarExportar()" class="btn btn-success btn-sm">
+                            <i class="fa fa-cloud-download"></i>&nbsp;Exportar
+                        </button> &nbsp;
+                    </div>
                 <div class="card-body">
                     <div class="form-group row cdc-list-toolbar">
                         <div class="col-lg-6 col-md-6 col-sm-12 col-12">
@@ -163,6 +166,31 @@ export default {
 
             this.pagination.current_page = page;
             this.listarPagos(page, buscar, criterio);
+        },
+        descargarExportar() {
+            const me = this;
+
+            axios({
+                url: '/pagos-recibidos/exportar?buscar=' + encodeURIComponent(me.buscar || '')
+                    + '&criterio=' + encodeURIComponent(me.criterio || 'cliente')
+                    + '&fechaInicio=' + encodeURIComponent(me.fechaInicio || '')
+                    + '&fechaFin=' + encodeURIComponent(me.fechaFin || ''),
+                method: 'GET',
+                responseType: 'blob',
+            }).then(function(response) {
+                const fileURL = window.URL.createObjectURL(new Blob([response.data]));
+                const fileLink = document.createElement('a');
+
+                fileLink.href = fileURL;
+                fileLink.setAttribute('download', 'pagos_recibidos.csv');
+                document.body.appendChild(fileLink);
+
+                fileLink.click();
+                fileLink.remove();
+            }).catch(function(error) {
+                swal('Error!', 'Error al descargar el archivo.', 'error');
+                console.log(error);
+            });
         },
         canalLabel(canal) {
             if (canal === 'Domiciliacion') {

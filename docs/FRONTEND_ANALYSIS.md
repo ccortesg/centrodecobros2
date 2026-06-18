@@ -175,5 +175,6 @@ Para domiciliacion:
 - No se ejecuto `npm run production` en este corte porque no hubo cambios frontend y los assets compilados no se versionan.
 - En bash/WSL directo `node` no esta disponible; via Windows si responde `node v20.20.0` y `npm 10.8.2`.
 - `resources/assets/js/app.js` registra 22 componentes Vue actuales. No existe `resources/assets/js/components/ReporteTransacciones.vue`; los reportes reales registrados son `ReporteLigas.vue`, `ReporteLigasDom.vue`, `ReporteSpei.vue` y `ReporteCargosRecurrentes.vue`.
-- `route:list` vigente registra 101 rutas. Las pantallas nuevas de mayor riesgo frontend siguen siendo `DomiciliacionActiva.vue` y `PagoRecibido.vue` por ownership, filtros y datos financieros.
+- `route:list` vigente registra 103 rutas. Las pantallas nuevas de mayor riesgo frontend siguen siendo `DomiciliacionActiva.vue` y `PagoRecibido.vue` por ownership, filtros, exportacion y datos financieros.
+- Addendum 2026-06-18: `DomiciliacionActiva.vue` y `PagoRecibido.vue` incorporan boton `Exportar`; `Respuesta.vue` usa `respuestas.reference` para la opcion visible `Ref. Respuesta`; `Transaccion.vue` conserva `transacciones.responseReference` como criterio principal y exporta con filtros actuales cuando se envian.
 - Los pendientes UX/UI de listados anchos y migracion responsive siguen abiertos salvo pilotos ya documentados; cualquier cambio visual debe incluir build y browser smoke admin/cliente.

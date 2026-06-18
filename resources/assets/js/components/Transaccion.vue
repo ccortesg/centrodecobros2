@@ -674,8 +674,11 @@
                 let me = this;
 
                 axios({
-                    url: '/transaccion/exportar?tipo='+ me.tipo,
-                    meth: 'GET',
+                    url: '/transaccion/exportar?tipo='+ me.tipo
+                        + '&buscar=' + encodeURIComponent(me.buscar || '')
+                        + '&criterio=' + encodeURIComponent(me.criterio || 'Reference')
+                        + '&status=' + me.status,
+                    method: 'GET',
                     responseType: 'blob'
                     }).then(function (response) {                    
                         var fileURL = window.URL.createObjectURL(new Blob([response.data]));

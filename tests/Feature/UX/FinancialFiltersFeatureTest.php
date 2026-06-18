@@ -125,6 +125,25 @@ class FinancialFiltersFeatureTest extends TestCase
             ->assertStatus(422);
     }
 
+    public function test_transaccion_ref_respuesta_filter_finds_related_respuesta_reference()
+    {
+        DB::table('transacciones')->where('id', 100)->update([
+            'responseReference' => 'TX-REFERENCE-ONLY',
+        ]);
+        DB::table('respuestas')->where('id', 1)->update([
+            'reference' => 'RESPUESTA-REAL-100',
+        ]);
+
+        $response = $this->actingAs($this->adminUser())
+            ->get('/transaccion?tipo=1&offset=10&buscar=RESPUESTA-REAL-100&criterio=responseReference&status=99', $this->ajaxHeaders())
+            ->assertOk();
+
+        $response->assertJsonFragment([
+            'id' => 100,
+            'responseReference' => 'TX-REFERENCE-ONLY',
+        ]);
+    }
+
     public function test_pagospei_filters_by_condicion_and_enviada()
     {
         $response = $this->actingAs($this->adminUser())
@@ -163,6 +182,25 @@ class FinancialFiltersFeatureTest extends TestCase
         foreach ($response->json('respuestas.data') as $respuesta) {
             $this->assertSame('denied', $respuesta['status']);
         }
+    }
+
+    public function test_respuesta_ref_respuesta_filter_uses_respuestas_reference_column()
+    {
+        DB::table('transacciones')->where('id', 100)->update([
+            'responseReference' => 'TX-REFERENCE-ONLY',
+        ]);
+        DB::table('respuestas')->where('id', 1)->update([
+            'reference' => 'RESPUESTA-REAL-100',
+        ]);
+
+        $response = $this->actingAs($this->adminUser())
+            ->get('/respuesta?tipo=1&offset=10&buscar=RESPUESTA-REAL-100&criterio=reference&status=99', $this->ajaxHeaders())
+            ->assertOk();
+
+        $response->assertJsonFragment([
+            'id' => 1,
+            'reference' => 'RESPUESTA-REAL-100',
+        ]);
     }
 
     public function test_transaccion_dom_filters_by_existing_status_column()

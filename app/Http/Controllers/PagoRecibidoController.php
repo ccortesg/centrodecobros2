@@ -147,17 +147,8 @@ class PagoRecibidoController extends Controller
             ]);
     }
 
-    public function index(Request $request)
+    private function validarFiltrosPagosRecibidos($buscar, $criterio, $status, $fechaInicio, $fechaFin)
     {
-        if (!$request->ajax()) return redirect('/');
-
-        $buscar = $request->buscar ?? '';
-        $criterio = $request->criterio ?? 'cliente';
-        $offset = $this->offsetPaginacion($request->offset ?? 10);
-        $status = $request->status ?? '99';
-        $fechaInicio = $request->fechaInicio ?? '';
-        $fechaFin = $request->fechaFin ?? '';
-
         if (!$this->statusPermitido($status)) {
             return response()->json([
                 'status' => 'error',
@@ -172,21 +163,11 @@ class PagoRecibidoController extends Controller
             ], 422);
         }
 
-        $query = $this->buildPagosRecibidosQuery();
-
-        if ($buscar !== '') {
-            if (!$this->criterioPermitido($criterio, $this->criteriosPermitidos())) {
-                return response()->json([
-                    'status' => 'error',
-                    'msg' => 'Criterio de búsqueda no permitido.',
-                ], 422);
-            }
-
-            $query->where('fuente.' . $criterio, 'like', '%' . $buscar . '%');
-        }
-
-        if ((string) $status !== '99') {
-            $query->whereRaw("COALESCE(ajuste.status, 'activo') = ?", [$status]);
+        if ($buscar !== '' && !$this->criterioPermitido($criterio, $this->criteriosPermitidos())) {
+            return response()->json([
+                'status' => 'error',
+                'msg' => 'Criterio de búsqueda no permitido.',
+            ], 422);
         }
 
         if ($fechaInicio !== '' && $fechaFin !== '') {
@@ -199,13 +180,57 @@ class PagoRecibidoController extends Controller
                     'msg' => 'Rango de fechas no permitido.',
                 ], 422);
             }
+        }
 
+        return null;
+    }
+
+    private function aplicarFiltrosPagosRecibidos($query, $buscar, $criterio, $status, $fechaInicio, $fechaFin)
+    {
+        if ($buscar !== '') {
+            $query->where('fuente.' . $criterio, 'like', '%' . $buscar . '%');
+        }
+
+        if ((string) $status !== '99') {
+            $query->whereRaw("COALESCE(ajuste.status, 'activo') = ?", [$status]);
+        }
+
+        if ($fechaInicio !== '' && $fechaFin !== '') {
+            $inicio = Carbon::createFromFormat('Y-m-d', $fechaInicio)->startOfDay();
+            $fin = Carbon::createFromFormat('Y-m-d', $fechaFin)->endOfDay();
             $query->whereBetween('fuente.fecha', [$inicio, $fin]);
         } elseif ($fechaInicio !== '') {
             $query->where('fuente.fecha', '>=', Carbon::createFromFormat('Y-m-d', $fechaInicio)->startOfDay());
         } elseif ($fechaFin !== '') {
             $query->where('fuente.fecha', '<=', Carbon::createFromFormat('Y-m-d', $fechaFin)->endOfDay());
         }
+
+        return $query;
+    }
+
+    public function index(Request $request)
+    {
+        if (!$request->ajax()) return redirect('/');
+
+        $buscar = $request->buscar ?? '';
+        $criterio = $request->criterio ?? 'cliente';
+        $offset = $this->offsetPaginacion($request->offset ?? 10);
+        $status = $request->status ?? '99';
+        $fechaInicio = $request->fechaInicio ?? '';
+        $fechaFin = $request->fechaFin ?? '';
+
+        if ($validacion = $this->validarFiltrosPagosRecibidos($buscar, $criterio, $status, $fechaInicio, $fechaFin)) {
+            return $validacion;
+        }
+
+        $query = $this->aplicarFiltrosPagosRecibidos(
+            $this->buildPagosRecibidosQuery(),
+            $buscar,
+            $criterio,
+            $status,
+            $fechaInicio,
+            $fechaFin
+        );
 
         $pagos = $query
             ->orderBy('fuente.fecha', 'desc')
@@ -223,6 +248,75 @@ class PagoRecibidoController extends Controller
             ],
             'pagos' => $pagos,
         ];
+    }
+
+    public function exportar(Request $request)
+    {
+        if (!$request->ajax()) return redirect('/');
+
+        $buscar = $request->buscar ?? '';
+        $criterio = $request->criterio ?? 'cliente';
+        $status = $request->status ?? '99';
+        $fechaInicio = $request->fechaInicio ?? '';
+        $fechaFin = $request->fechaFin ?? '';
+
+        if ($validacion = $this->validarFiltrosPagosRecibidos($buscar, $criterio, $status, $fechaInicio, $fechaFin)) {
+            return $validacion;
+        }
+
+        $query = $this->aplicarFiltrosPagosRecibidos(
+            $this->buildPagosRecibidosQuery(),
+            $buscar,
+            $criterio,
+            $status,
+            $fechaInicio,
+            $fechaFin
+        )
+            ->orderBy('fuente.fecha', 'desc')
+            ->orderBy('fuente.source_id', 'desc');
+
+        $headings = [
+            'Fuente',
+            'ID Fuente',
+            'Folio',
+            'Fecha',
+            'Cliente',
+            'Referencia',
+            'Monto',
+            'Canal',
+            'Status',
+            'Productivo',
+        ];
+
+        return response()->streamDownload(function () use ($query, $headings) {
+            $handle = fopen('php://output', 'w');
+
+            if ($handle === false) {
+                throw new \Exception('No fue posible abrir el stream de salida para la exportacion.');
+            }
+
+            fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
+            fputcsv($handle, $headings);
+
+            foreach ($query->cursor() as $pago) {
+                fputcsv($handle, [
+                    $pago->source_type,
+                    $pago->source_id,
+                    $pago->folio,
+                    $pago->fecha,
+                    $pago->cliente,
+                    $pago->referencia,
+                    $pago->monto,
+                    $pago->canal,
+                    $pago->status,
+                    $pago->productivo,
+                ]);
+            }
+
+            fclose($handle);
+        }, 'pagos_recibidos.csv', [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
     }
 
     public function actualizarStatus(Request $request)

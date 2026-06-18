@@ -5,11 +5,14 @@
         </ol>
         <div class="container-fluid">
             <div class="loader" v-if="loading"></div>
-            <div class="card">
-                <div class="card-header">
-                    <i class="fa fa-credit-card"></i>
-                    Domiciliación Activa
-                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fa fa-credit-card"></i>
+                        Domiciliación Activa
+                        <button type="button" @click="descargarExportar()" class="btn btn-success btn-sm">
+                            <i class="fa fa-cloud-download"></i>&nbsp;Exportar
+                        </button> &nbsp;
+                    </div>
                 <div class="card-body">
                     <div class="form-group row cdc-list-toolbar">
                         <div class="col-xl-7 col-lg-9 col-md-12 col-sm-12">
@@ -213,6 +216,30 @@ export default {
 
             this.pagination.current_page = page;
             this.listarDomiciliaciones(page, buscar, criterio);
+        },
+        descargarExportar() {
+            const me = this;
+
+            axios({
+                url: '/domiciliacion-activa/exportar?buscar=' + encodeURIComponent(me.buscar || '')
+                    + '&criterio=' + encodeURIComponent(me.criterio || 'ClientReference')
+                    + '&status=' + me.status,
+                method: 'GET',
+                responseType: 'blob',
+            }).then(function(response) {
+                const fileURL = window.URL.createObjectURL(new Blob([response.data]));
+                const fileLink = document.createElement('a');
+
+                fileLink.href = fileURL;
+                fileLink.setAttribute('download', 'domiciliaciones_activas.csv');
+                document.body.appendChild(fileLink);
+
+                fileLink.click();
+                fileLink.remove();
+            }).catch(function(error) {
+                swal('Error!', 'Error al descargar el archivo.', 'error');
+                console.log(error);
+            });
         },
         cancelarDomiciliacion(id) {
             const me = this;

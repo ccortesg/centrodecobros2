@@ -1,6 +1,6 @@
 # Modulo: Domiciliacion y cargos recurrentes
 
-Ultima actualizacion: 2026-06-17
+Ultima actualizacion: 2026-06-18
 
 ## Proposito
 
@@ -28,6 +28,7 @@ Gestionar generacion de ligas de domiciliacion, cargos recurrentes, cancelacione
 - `POST transaccion/registrarDom`
 - `GET transaccion/selectDomiciliacion`
 - `GET domiciliacion-activa`
+- `GET domiciliacion-activa/exportar`
 
 ## Rutas API legacy sin prefijo `/api`
 
@@ -50,6 +51,7 @@ Gestionar generacion de ligas de domiciliacion, cargos recurrentes, cancelacione
 - Desde `Domiciliación Activa`, el cargo manual reutiliza `POST transaccionDom/registrar`; cuando el cargo manual queda aprobado, avanza `ProximoCargo` con la frecuencia configurada de la domiciliacion.
 - Desde `Domiciliación Activa`, la accion de calendario permite actualizar manualmente `ProximoCargo` con `PUT transaccion/proximo-cargo`.
 - La cancelacion desde `Domiciliación Activa` reutiliza `PUT transaccion/rechazar`; si la cancelacion queda persistida, el endpoint interno devuelve `error=""` aunque Pagadetodo haya entregado un mensaje tecnico en una excepcion controlada.
+- La exportacion de `Domiciliación Activa` descarga `domiciliaciones_activas.csv` y reutiliza los filtros del listado: texto, criterio, status, ownership, productivo y existencia de respuesta aprobada.
 
 ## Tablas involucradas
 
@@ -115,6 +117,7 @@ Campos de control agregados a `transacciones`:
 - Scheduler solo en ambiente controlado, nunca contra produccion sin autorizacion.
 - Browser QA para `Domiciliación Activa`: filtros, total de registros, cancelar y cargo manual con Pagadetodo mock local o servidor/IP autorizado.
 - Al probar cancelacion, validar que falta de token aprobado responda 422 controlado y no cambie `transacciones.condicion`.
+- Validar exportacion CSV con filtro admin/cliente y confirmar que no incluya domiciliaciones ajenas ni sin respuesta aprobada.
 
 ## Pendientes y mejoras
 
