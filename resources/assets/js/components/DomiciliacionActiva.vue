@@ -39,7 +39,7 @@
                                         <select v-model="offset" @change="listarDomiciliaciones(1,buscar,criterio)">
                                             <option value="10">10</option>
                                             <option value="25">25</option>
-                                            <option value="50">50</option>
+                                            <option value="50" selected>50</option>
                                             <option value="100">100</option>
                                         </select>
                                     </th>
@@ -171,7 +171,7 @@ export default {
                 from: 0,
                 to: 0,
             },
-            offset: 10,
+            offset: 50,
             status: 99,
             criterio: 'ClientReference',
             buscar: '',

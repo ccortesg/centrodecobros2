@@ -37,6 +37,9 @@
                                 <button type="button" @click="listarPagos(1,buscar,criterio)" class="btn btn-primary">
                                     <i class="fa fa-search"></i> Buscar
                                 </button>
+                                <button type="button" @click="limpiarFiltros()" class="btn btn-secondary">
+                                    <i class="fa fa-eraser"></i> Limpiar
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -50,7 +53,7 @@
                                         <select class="form-control form-control-sm cdc-header-page-size" v-model="offset" @change="listarPagos(1,buscar,criterio)">
                                             <option value="10">10</option>
                                             <option value="25">25</option>
-                                            <option value="50">50</option>
+                                            <option value="50" selected>50</option>
                                             <option value="100">100</option>
                                         </select>
                                     </th>
@@ -124,7 +127,7 @@ export default {
                 from: 0,
                 to: 0,
             },
-            offset: 10,
+            offset: 50,
             criterio: 'cliente',
             buscar: '',
             fechaInicio: '',
@@ -141,6 +144,16 @@ export default {
         },
     },
     methods: {
+        formatearFechaInput(date) {
+            return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+        },
+        establecerRangoFechasDefault() {
+            const fechaFin = new Date();
+            const fechaInicio = new Date();
+            fechaInicio.setDate(fechaFin.getDate() - 30);
+            this.fechaInicio = this.formatearFechaInput(fechaInicio);
+            this.fechaFin = this.formatearFechaInput(fechaFin);
+        },
         listarPagos(page, buscar, criterio) {
             const me = this;
             const url = '/pagos-recibidos?page=' + page
@@ -166,6 +179,12 @@ export default {
 
             this.pagination.current_page = page;
             this.listarPagos(page, buscar, criterio);
+        },
+        limpiarFiltros() {
+            this.buscar = '';
+            this.fechaInicio = '';
+            this.fechaFin = '';
+            this.listarPagos(1, this.buscar, this.criterio);
         },
         descargarExportar() {
             const me = this;
@@ -201,6 +220,7 @@ export default {
         },
     },
     mounted() {
+        this.establecerRangoFechasDefault();
         this.listarPagos(1, this.buscar, this.criterio);
     },
 };

@@ -214,7 +214,7 @@ class PagoRecibidoController extends Controller
 
         $buscar = $request->buscar ?? '';
         $criterio = $request->criterio ?? 'cliente';
-        $offset = $this->offsetPaginacion($request->offset ?? 10);
+        $offset = $this->offsetPaginacion($request->offset ?? 50);
         $status = $request->status ?? '99';
         $fechaInicio = $request->fechaInicio ?? '';
         $fechaFin = $request->fechaFin ?? '';

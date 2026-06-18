@@ -144,6 +144,23 @@ class FinancialFiltersFeatureTest extends TestCase
         ]);
     }
 
+    public function test_transaccion_filters_by_creation_date_range()
+    {
+        DB::table('transacciones')->whereIn('id', [100, 101])->update(['fecha' => '2026-05-01 10:00:00']);
+        DB::table('transacciones')->where('id', 100)->update(['fecha' => '2026-06-03 12:00:00']);
+
+        $response = $this->actingAs($this->adminUser())
+            ->get('/transaccion?tipo=1&offset=50&buscar=&criterio=Reference&status=99&fechaInicio=2026-06-03&fechaFin=2026-06-03', $this->ajaxHeaders())
+            ->assertOk();
+
+        $response->assertJsonFragment(['id' => 100]);
+        $response->assertJsonMissing(['id' => 101]);
+
+        $this->actingAs($this->adminUser())
+            ->get('/transaccion?tipo=1&offset=50&buscar=&criterio=Reference&status=99&fechaInicio=2026-06-04&fechaFin=2026-06-03', $this->ajaxHeaders())
+            ->assertStatus(422);
+    }
+
     public function test_pagospei_filters_by_condicion_and_enviada()
     {
         $response = $this->actingAs($this->adminUser())
@@ -203,6 +220,19 @@ class FinancialFiltersFeatureTest extends TestCase
         ]);
     }
 
+    public function test_respuesta_filters_by_response_date_range()
+    {
+        DB::table('respuestas')->whereIn('id', [1, 2])->update(['fecha' => '2026-05-01 10:00:00']);
+        DB::table('respuestas')->where('id', 1)->update(['fecha' => '2026-06-03 12:00:00']);
+
+        $response = $this->actingAs($this->adminUser())
+            ->get('/respuesta?tipo=1&offset=50&buscar=&criterio=reference&status=99&fechaInicio=2026-06-03&fechaFin=2026-06-03', $this->ajaxHeaders())
+            ->assertOk();
+
+        $response->assertJsonFragment(['id' => 1]);
+        $response->assertJsonMissing(['id' => 2]);
+    }
+
     public function test_transaccion_dom_filters_by_existing_status_column()
     {
         $response = $this->actingAs($this->adminUser())
@@ -214,5 +244,19 @@ class FinancialFiltersFeatureTest extends TestCase
         foreach ($response->json('transaccionesDom.data') as $transaccionDom) {
             $this->assertSame('denied', $transaccionDom['status']);
         }
+    }
+
+    public function test_transaccion_dom_filters_by_charge_date_range()
+    {
+        DB::table('transaccionesDom')->update(['fecha' => '2026-05-01 10:00:00']);
+        DB::table('transaccionesDom')->where('id', 1)->update(['fecha' => '2026-06-03 12:00:00']);
+
+        $response = $this->actingAs($this->adminUser())
+            ->get('/transaccionDom?offset=50&buscar=&criterio=Reference&status=99&fechaInicio=2026-06-03&fechaFin=2026-06-03', $this->ajaxHeaders())
+            ->assertOk();
+
+        $response->assertJsonFragment(['id' => 1]);
+        $response->assertJsonMissing(['id' => 2]);
+        $response->assertJsonMissing(['id' => 10]);
     }
 }

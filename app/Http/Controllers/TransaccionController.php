@@ -404,9 +404,15 @@ class TransaccionController extends Controller
         
         $buscar = $request->buscar ?? '';
         $criterio = $request->criterio ?? '';
-        $offset =  $this->offsetPaginacion($request->offset ?? 10);
+        $offset =  $this->offsetPaginacion($request->offset ?? 50);
         $tipo =  $request->tipo ?? 1;
         $status =  $request->status ?? 99;
+        $fechaInicio = $request->fechaInicio ?? '';
+        $fechaFin = $request->fechaFin ?? '';
+
+        if ($validacionFechas = $this->validarRangoFechasListado($fechaInicio, $fechaFin)) {
+            return $validacionFechas;
+        }
 
         $query = Transaccion::leftjoin('clientes','clientes.id','transacciones.idcliente')
             ->leftjoin('users','users.id','transacciones.idusuario')
@@ -450,6 +456,8 @@ class TransaccionController extends Controller
         if((string) $status !== '99') {
             $query->where('transacciones.condicion', '=', (int) $status);
         }
+
+        $this->aplicarRangoFechasListado($query, 'transacciones.fecha', $fechaInicio, $fechaFin);
         
         $transacciones = $query->orderBy('transacciones.id', 'desc')->paginate($offset);
 
@@ -472,7 +480,7 @@ class TransaccionController extends Controller
 
         $buscar = $request->buscar ?? '';
         $criterio = $request->criterio ?? 'ClientReference';
-        $offset = $this->offsetPaginacion($request->offset ?? 10);
+        $offset = $this->offsetPaginacion($request->offset ?? 50);
         $status = $request->status ?? 99;
 
         if ($validacion = $this->validarFiltrosDomiciliacionActiva($buscar, $criterio, $status)) {
@@ -3977,12 +3985,18 @@ class TransaccionController extends Controller
         $buscar = $request->buscar ?? '';
         $criterio = $request->criterio ?? 'Reference';
         $status = $request->status ?? 99;
+        $fechaInicio = $request->fechaInicio ?? '';
+        $fechaFin = $request->fechaFin ?? '';
 
         if ($buscar !== '' && !$this->criterioPermitido($criterio, $this->criteriosTransaccionPermitidos())) {
             return response()->json([
                 'status' => 'error',
                 'msg' => 'Criterio de búsqueda no permitido.',
             ], 422);
+        }
+
+        if ($validacionFechas = $this->validarRangoFechasListado($fechaInicio, $fechaFin)) {
+            return $validacionFechas;
         }
 
         if (!$this->condicionTransaccionValida($status)) {
@@ -4032,6 +4046,8 @@ class TransaccionController extends Controller
         if ((string) $status !== '99') {
             $query->where('transacciones.condicion', '=', (int) $status);
         }
+
+        $this->aplicarRangoFechasListado($query, 'transacciones.fecha', $fechaInicio, $fechaFin);
 
         $headings = [
             'Folio',

@@ -19,7 +19,7 @@
                     </div>
                     <div class="card-body">
                         <div class="form-group row cdc-list-toolbar">
-                            <div class="col-xl-6 col-lg-8 col-md-10 col-sm-12">
+                            <div class="col-lg-6 col-md-6 col-sm-12 col-12">
                                 <div class="input-group">
                                     <select class="form-control col-lg-3 col-md-3 col-sm-4" v-model="criterio">
                                         <option value="ClientReference">Referencia</option>
@@ -27,7 +27,18 @@
                                       <option value="cliente_nombre">Cliente</option>
                                     </select>
                                     <input type="text" v-model="buscar" @keyup.enter="listarTransaccionDom(1,buscar,criterio)" class="form-control" placeholder="Texto a buscar">
-                                    <button type="submit" @click="listarTransaccionDom(1,buscar,criterio)" class="btn btn-primary"><i class="fa fa-search"></i> Buscar</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group row cdc-list-toolbar">
+                            <div class="col-lg-6 col-md-6 col-sm-12 col-12">
+                                <div class="input-group">
+                                    <span class="input-group-addon">Desde</span>
+                                    <input type="date" v-model="fechaInicio" class="form-control" @change="listarTransaccionDom(1,buscar,criterio)">
+                                    <span class="input-group-addon">Hasta</span>
+                                    <input type="date" v-model="fechaFin" class="form-control" @change="listarTransaccionDom(1,buscar,criterio)">
+                                    <button type="button" @click="listarTransaccionDom(1,buscar,criterio)" class="btn btn-primary"><i class="fa fa-search"></i> Buscar</button>
+                                    <button type="button" @click="limpiarFiltros()" class="btn btn-secondary"><i class="fa fa-eraser"></i> Limpiar</button>
                                 </div>
                             </div>
                         </div>
@@ -37,9 +48,9 @@
                                 <tr>
                                     <th class="text-center">Opciones
                                         <select v-model="offset" @change="listarTransaccionDom(1,buscar,criterio)">
-                                            <option value="10" selected>10</option>
+                                            <option value="10">10</option>
                                             <option value="25">25</option>
-                                            <option value="50">50</option>
+                                            <option value="50" selected>50</option>
                                             <option value="100">100</option>
                                         </select>
                                     </th>
@@ -53,8 +64,8 @@
                                     <th class="text-center">Time</th>
                                     <th class="text-center">Date</th>
                                     <th class="text-center">NB Company</th>
-                                    <th class="text-center">Code</th>
-                                    <th class="text-center">Message</th>
+                                    <th v-if="esAdmin" class="text-center">Code</th>
+                                    <th v-if="esAdmin" class="text-center">Message</th>
                                     <th class="text-center">Status
                                         <select v-model="filtroStatus" @change="listarTransaccionDom(1,buscar,criterio)">
                                             <option value="99" selected>Todos</option>
@@ -63,7 +74,7 @@
                                             <option value="error">Error</option>
                                         </select>
                                     </th>
-                                    <th class="text-center">Productivo</th>
+                                    <th v-if="esAdmin" class="text-center">Productivo</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -91,10 +102,10 @@
                                     <td v-text="transaccionDom.time" class="text-center"></td>                       
                                     <td class="text-center">{{ $formatDateMx(transaccionDom.date) }}</td>
                                     <td v-text="transaccionDom.nb_company" class="text-center"></td>
-                                    <td v-text="transaccionDom.code" class="text-center"></td>
-                                    <td v-text="transaccionDom.message" class="text-center"></td>
+                                    <td v-if="esAdmin" v-text="transaccionDom.code" class="text-center"></td>
+                                    <td v-if="esAdmin" v-text="transaccionDom.message" class="text-center"></td>
                                     <td v-text="transaccionDom.status" class="text-center"></td>
-                                    <td>
+                                    <td v-if="esAdmin">
                                         <div v-if="transaccionDom.productivo==1">
                                             <span class="badge badge-success">Si</span>
                                         </div>
@@ -307,7 +318,7 @@
 <script>
     
     export default {
-        props: ['tipo','productivo'],
+        props: ['tipo','productivo','idrol'],
         data (){
             return {                
                 transacciondom_id: 0,
@@ -350,10 +361,12 @@
                     'from' : 0,
                     'to' : 0,
                 },
-                offset : 10,
+                offset : 50,
                 filtroStatus : 99,
                 criterio : 'Reference',
                 buscar : '',
+                fechaInicio: '',
+                fechaFin: '',
                 loading: false
             }
         },
@@ -363,12 +376,33 @@
             },
             pagesNumber: function() {
                 return this.$paginationPages(this.pagination);
+            },
+            esAdmin: function() {
+                return parseInt(this.idrol, 10) === 1;
             }
         },
         methods : {
+            formatearFechaInput(date) {
+                return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+            },
+            establecerRangoFechasDefault() {
+                var fechaFin = new Date();
+                var fechaInicio = new Date();
+                fechaInicio.setDate(fechaFin.getDate() - 30);
+                this.fechaInicio = this.formatearFechaInput(fechaInicio);
+                this.fechaFin = this.formatearFechaInput(fechaFin);
+            },
+            limpiarFiltros() {
+                this.buscar = '';
+                this.fechaInicio = '';
+                this.fechaFin = '';
+                this.listarTransaccionDom(1, this.buscar, this.criterio);
+            },
             listarTransaccionDom (page,buscar,criterio){
                 let me=this;
-                var url= '/transaccionDom?page=' + page + '&buscar='+ encodeURIComponent(buscar || '') + '&criterio='+ encodeURIComponent(criterio || 'Reference') + '&offset='+ me.offset + '&status='+ me.filtroStatus;
+                var url= '/transaccionDom?page=' + page + '&buscar='+ encodeURIComponent(buscar || '') + '&criterio='+ encodeURIComponent(criterio || 'Reference') + '&offset='+ me.offset + '&status='+ me.filtroStatus
+                    + '&fechaInicio=' + encodeURIComponent(me.fechaInicio || '')
+                    + '&fechaFin=' + encodeURIComponent(me.fechaFin || '');
                 axios.get(url).then(function (response) {
                     var transaccionDom= response.data;
                     me.arrayTransaccionDom = transaccionDom.transaccionesDom.data;
@@ -382,8 +416,12 @@
                 let me = this;
 
                 axios({
-                    url: '/transaccionDom/exportar',
-                    meth: 'GET',
+                    url: '/transaccionDom/exportar?buscar=' + encodeURIComponent(me.buscar || '')
+                        + '&criterio=' + encodeURIComponent(me.criterio || 'Reference')
+                        + '&status=' + me.filtroStatus
+                        + '&fechaInicio=' + encodeURIComponent(me.fechaInicio || '')
+                        + '&fechaFin=' + encodeURIComponent(me.fechaFin || ''),
+                    method: 'GET',
                     responseType: 'blob'
                     }).then(function (response) {                    
                         var fileURL = window.URL.createObjectURL(new Blob([response.data]));
@@ -705,6 +743,7 @@
             }            
         },
         mounted() {
+            this.establecerRangoFechasDefault();
             this.listarTransaccionDom(1,this.buscar,this.criterio);
         }
     }

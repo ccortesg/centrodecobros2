@@ -65,7 +65,7 @@
             </template>
 
             <template v-if="menu==13">
-                <transacciondom :productivo="{{Auth::user()->productivo}}"></transacciondom>
+                <transacciondom :productivo="{{Auth::user()->productivo}}" :idrol="{{Auth::user()->idrol}}"></transacciondom>
             </template>
 
             <template v-if="menu==14">

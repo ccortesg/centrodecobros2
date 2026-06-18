@@ -60,6 +60,9 @@ Si no existe override, el status por defecto es `activo`; actualmente no se mues
 - El primer renglon contiene criterio y `Texto a buscar`.
 - El segundo renglon contiene `Desde`, `Hasta` y `Buscar`.
 - Ambos renglones usan media pantalla en desktop/tablet y ancho completo en pantallas chicas.
+- Al entrar al modulo, `Desde` se inicializa con la fecha de hace 30 dias y `Hasta` con la fecha actual.
+- `Limpiar` borra `Texto a buscar`, `Desde` y `Hasta`.
+- El selector de cantidad inicia en `50` registros.
 
 ## Exportacion
 

@@ -140,6 +140,12 @@ class RespuestaController extends Controller
         $offset = $this->offsetPaginacion($request->offset);
         $tipo = $request->tipo;
         $status = $request->status ?? 99;
+        $fechaInicio = $request->fechaInicio ?? '';
+        $fechaFin = $request->fechaFin ?? '';
+
+        if ($validacionFechas = $this->validarRangoFechasListado($fechaInicio, $fechaFin)) {
+            return $validacionFechas;
+        }
 
         $query = Respuesta::leftjoin('transacciones', 'transacciones.id','respuestas.idtransaccion')
         ->leftjoin('clientes', 'clientes.id','transacciones.idcliente')
@@ -183,6 +189,8 @@ class RespuestaController extends Controller
         if ((string) $status !== '99') {
             $query->where('respuestas.status', '=', $status);
         }
+
+        $this->aplicarRangoFechasListado($query, 'respuestas.fecha', $fechaInicio, $fechaFin);
 
         $respuestas = $query->orderBy('respuestas.id', 'desc')->paginate($offset);
 
@@ -540,7 +548,32 @@ class RespuestaController extends Controller
     public function exportar(Request $request)
     {
         if (!$request->ajax()) return redirect('/');
-        $respuestaExport = new RespuestaExport();        
+        $buscar = $request->buscar ?? '';
+        $criterio = $request->criterio ?? 'Reference';
+        $tipo = $request->tipo ?? null;
+        $status = $request->status ?? 99;
+        $fechaInicio = $request->fechaInicio ?? '';
+        $fechaFin = $request->fechaFin ?? '';
+
+        if ($buscar !== '' && !$this->criterioPermitido($criterio, $this->criteriosRespuestaPermitidos())) {
+            return response()->json([
+                'status' => 'error',
+                'msg' => 'Criterio de búsqueda no permitido.',
+            ], 422);
+        }
+
+        if (!$this->statusRespuestaValido($status)) {
+            return response()->json([
+                'status' => 'error',
+                'msg' => 'Status no permitido.',
+            ], 422);
+        }
+
+        if ($validacionFechas = $this->validarRangoFechasListado($fechaInicio, $fechaFin)) {
+            return $validacionFechas;
+        }
+
+        $respuestaExport = new RespuestaExport($tipo, $buscar, $criterio, $status, $fechaInicio, $fechaFin);
         return Excel::download($respuestaExport, 'respuestas.xlsx');
     }
 }

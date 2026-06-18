@@ -71,7 +71,7 @@ class Controller extends BaseController
         return in_array($criterio, $permitidos, true);
     }
 
-    protected function offsetPaginacion($offset, $default = 10, $max = 100)
+    protected function offsetPaginacion($offset, $default = 50, $max = 100)
     {
         $offset = (int) $offset;
         if ($offset <= 0) {
@@ -79,6 +79,65 @@ class Controller extends BaseController
         }
 
         return min($offset, $max);
+    }
+
+    protected function fechaListadoValida($fecha)
+    {
+        if ($fecha === null || $fecha === '') {
+            return true;
+        }
+
+        try {
+            $parsed = \Carbon\Carbon::createFromFormat('Y-m-d', $fecha);
+        } catch (\Exception $e) {
+            return false;
+        }
+
+        return $parsed && $parsed->format('Y-m-d') === $fecha;
+    }
+
+    protected function validarRangoFechasListado($fechaInicio, $fechaFin)
+    {
+        if (!$this->fechaListadoValida($fechaInicio) || !$this->fechaListadoValida($fechaFin)) {
+            return response()->json([
+                'status' => 'error',
+                'msg' => 'Rango de fechas no permitido.',
+            ], 422);
+        }
+
+        if ($fechaInicio !== '' && $fechaFin !== '') {
+            $inicio = \Carbon\Carbon::createFromFormat('Y-m-d', $fechaInicio)->startOfDay();
+            $fin = \Carbon\Carbon::createFromFormat('Y-m-d', $fechaFin)->endOfDay();
+
+            if ($inicio->gt($fin)) {
+                return response()->json([
+                    'status' => 'error',
+                    'msg' => 'Rango de fechas no permitido.',
+                ], 422);
+            }
+        }
+
+        return null;
+    }
+
+    protected function aplicarRangoFechasListado($query, $column, $fechaInicio, $fechaFin)
+    {
+        if ($fechaInicio !== '' && $fechaFin !== '') {
+            return $query->whereBetween($column, [
+                \Carbon\Carbon::createFromFormat('Y-m-d', $fechaInicio)->startOfDay(),
+                \Carbon\Carbon::createFromFormat('Y-m-d', $fechaFin)->endOfDay(),
+            ]);
+        }
+
+        if ($fechaInicio !== '') {
+            return $query->where($column, '>=', \Carbon\Carbon::createFromFormat('Y-m-d', $fechaInicio)->startOfDay());
+        }
+
+        if ($fechaFin !== '') {
+            return $query->where($column, '<=', \Carbon\Carbon::createFromFormat('Y-m-d', $fechaFin)->endOfDay());
+        }
+
+        return $query;
     }
 
     protected function postJsonControlado($url, array $params)

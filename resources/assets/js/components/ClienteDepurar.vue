@@ -51,9 +51,9 @@
                             <tr>
                                 <th style="width: 50px;">Sel.
                                     <select v-model="offset" @change="listarClientes(1)">
-                                        <option value="10" selected>10</option>
+                                        <option value="10">10</option>
                                         <option value="25">25</option>
-                                        <option value="50">50</option>
+                                        <option value="50" selected>50</option>
                                         <option value="100">100</option>
                                     </select>
                                 </th>
@@ -107,7 +107,7 @@ export default {
             loading: false,
             idusuario: 0,
             buscar: '',
-            offset: 10,
+            offset: 50,
             arrayUsuarios: [],
             arrayClientes: [],
             selectedIds: [],

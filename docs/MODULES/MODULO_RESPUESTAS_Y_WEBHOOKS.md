@@ -52,6 +52,13 @@ En `Respuesta.vue`, el select usa campos distintos al listado de transacciones:
 
 La relacion entre tablas es `respuestas.idtransaccion = transacciones.id`. No confundir `respuestas.reference` con `transacciones.responseReference`: suelen coincidir en flujos normales, pero pueden divergir en datos historicos o registros desnormalizados.
 
+Filtro de fechas:
+
+- `Desde` y `Hasta` filtran `respuestas.fecha`.
+- Al entrar al modulo, el frontend usa el rango de los ultimos 30 dias, con la fecha actual como `Hasta`.
+- `Limpiar` borra `Texto a buscar`, `Desde` y `Hasta`.
+- El selector de cantidad inicia en `50` registros.
+
 ## Acceso por rol
 
 - Admin: listado y administracion completa.

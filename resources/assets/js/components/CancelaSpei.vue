@@ -37,9 +37,9 @@
                                 <tr>
                                     <th class="text-center">Opciones
                                         <select v-model="offset" @change="listarCancelaSpei(1,buscar,criterio)">
-                                            <option value="10" selected>10</option>
+                                            <option value="10">10</option>
                                             <option value="25">25</option>
-                                            <option value="50">50</option>
+                                            <option value="50" selected>50</option>
                                             <option value="100">100</option>
                                         </select>
                                     </th>
@@ -233,7 +233,7 @@
                     'from' : 0,
                     'to' : 0,
                 },
-                offset : 10,
+                offset : 50,
                 filtroEnviada : 99,
                 criterio : 'clabe',
                 buscar : '',

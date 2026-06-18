@@ -139,6 +139,13 @@ En `Transaccion.vue`, los modulos de generacion de liga usan el mismo select:
 
 `Ref. Respuesta` no debe apuntar a `respuestas.reference` como campo principal en transacciones, pero si debe encontrar la transaccion cuando la respuesta relacionada conserva la referencia y el campo denormalizado de transacciones no coincide.
 
+Filtro de fechas:
+
+- `Desde` y `Hasta` filtran `transacciones.fecha`.
+- Al entrar al modulo, el frontend inicializa `Desde` con la fecha de hace 30 dias y `Hasta` con la fecha actual.
+- `Limpiar` borra `Texto a buscar`, `Desde` y `Hasta`; no cambia criterio, status ni tipo.
+- El selector de cantidad inicia en `50` registros.
+
 ## Deteccion de cliente duplicado en APIs
 
 Aplica en `storeAPI`, `storeDomAPI` y `storeSpeiAPI`:

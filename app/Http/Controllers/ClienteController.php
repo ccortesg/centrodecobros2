@@ -250,8 +250,8 @@ class ClienteController extends Controller
 
         $idusuario = (int) $request->idusuario;
         $buscar = trim((string) $request->buscar);
-        $offset = (int) ($request->offset ?: 10);
-        $offset = $offset > 0 ? $offset : 10;
+        $offset = (int) ($request->offset ?: 50);
+        $offset = $offset > 0 ? $offset : 50;
 
         if ($idusuario <= 0 || !User::where('id', $idusuario)->exists()) {
             return [
@@ -508,8 +508,8 @@ class ClienteController extends Controller
 
         $idusuario = (int) $request->idusuario;
         $buscar = trim((string) $request->buscar);
-        $offset = (int) ($request->offset ?: 10);
-        $offset = $offset > 0 ? $offset : 10;
+        $offset = (int) ($request->offset ?: 50);
+        $offset = $offset > 0 ? $offset : 50;
 
         if ($idusuario <= 0 || !User::where('id', $idusuario)->exists()) {
             return [

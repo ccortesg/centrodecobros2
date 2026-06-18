@@ -37,7 +37,7 @@
                     </div>
                     <div class="card-body">
                         <div class="form-group row cdc-list-toolbar">
-                            <div class="col-xl-6 col-lg-8 col-md-10 col-sm-12">
+                            <div class="col-lg-6 col-md-6 col-sm-12 col-12">
                                 <div class="input-group">
                                     <select class="form-control col-lg-3 col-md-3 col-sm-4" v-model="criterio">
                                       <option value="ClientReference">Ref. Cliente</option>
@@ -52,7 +52,18 @@
                                       <option value="cliente_nombre">Cliente</option>
                                     </select>
                                     <input type="text" v-model="buscar" @keyup.enter="listarTransaccion(1,buscar,criterio)" class="form-control" placeholder="Texto a buscar">
-                                    <button type="submit" @click="listarTransaccion(1,buscar,criterio)" class="btn btn-primary"><i class="fa fa-search"></i> Buscar</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group row cdc-list-toolbar">
+                            <div class="col-lg-6 col-md-6 col-sm-12 col-12">
+                                <div class="input-group">
+                                    <span class="input-group-addon">Desde</span>
+                                    <input type="date" v-model="fechaInicio" class="form-control" @change="listarTransaccion(1,buscar,criterio)">
+                                    <span class="input-group-addon">Hasta</span>
+                                    <input type="date" v-model="fechaFin" class="form-control" @change="listarTransaccion(1,buscar,criterio)">
+                                    <button type="button" @click="listarTransaccion(1,buscar,criterio)" class="btn btn-primary"><i class="fa fa-search"></i> Buscar</button>
+                                    <button type="button" @click="limpiarFiltros()" class="btn btn-secondary"><i class="fa fa-eraser"></i> Limpiar</button>
                                 </div>
                             </div>
                         </div>
@@ -62,9 +73,9 @@
                                 <tr>
                                     <th class="text-center cdc-sticky-col">Opciones
                                         <select v-model="offset" @change="listarTransaccion(1,buscar,criterio)">
-                                            <option value="10" selected>10</option>
+                                            <option value="10">10</option>
                                             <option value="25">25</option>
-                                            <option value="50">50</option>
+                                            <option value="50" selected>50</option>
                                             <option value="100">100</option>
                                         </select>
                                     </th>
@@ -539,10 +550,12 @@
                     'from' : 0,
                     'to' : 0,
                 },
-                offset : 10,
+                offset : 50,
                 status: 99,
                 criterio : 'Reference',
                 buscar : '',
+                fechaInicio: '',
+                fechaFin: '',
                 loading: false,
                 modalImportar: 0,
                 importArchivo: null,
@@ -579,6 +592,22 @@
             }
         },
         methods : {
+            formatearFechaInput(date) {
+                return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+            },
+            establecerRangoFechasDefault() {
+                var fechaFin = new Date();
+                var fechaInicio = new Date();
+                fechaInicio.setDate(fechaFin.getDate() - 30);
+                this.fechaInicio = this.formatearFechaInput(fechaInicio);
+                this.fechaFin = this.formatearFechaInput(fechaFin);
+            },
+            limpiarFiltros() {
+                this.buscar = '';
+                this.fechaInicio = '';
+                this.fechaFin = '';
+                this.listarTransaccion(1, this.buscar, this.criterio);
+            },
             cancelacionExitosa(respuesta) {
                 if (!respuesta) {
                     return false;
@@ -595,7 +624,9 @@
             },
             listarTransaccion (page,buscar,criterio){
                 let me=this;
-                var url= '/transaccion?page=' + page + '&buscar='+ encodeURIComponent(buscar || '') + '&criterio='+ encodeURIComponent(criterio || 'Reference') + '&offset='+ me.offset + '&tipo='+ me.tipo + '&status='+ me.status;
+                var url= '/transaccion?page=' + page + '&buscar='+ encodeURIComponent(buscar || '') + '&criterio='+ encodeURIComponent(criterio || 'Reference') + '&offset='+ me.offset + '&tipo='+ me.tipo + '&status='+ me.status
+                    + '&fechaInicio=' + encodeURIComponent(me.fechaInicio || '')
+                    + '&fechaFin=' + encodeURIComponent(me.fechaFin || '');
                 axios.get(url).then(function (response) {
                     var respuesta= response.data;
                     me.arrayTransaccion = respuesta.transacciones.data;
@@ -677,7 +708,9 @@
                     url: '/transaccion/exportar?tipo='+ me.tipo
                         + '&buscar=' + encodeURIComponent(me.buscar || '')
                         + '&criterio=' + encodeURIComponent(me.criterio || 'Reference')
-                        + '&status=' + me.status,
+                        + '&status=' + me.status
+                        + '&fechaInicio=' + encodeURIComponent(me.fechaInicio || '')
+                        + '&fechaFin=' + encodeURIComponent(me.fechaFin || ''),
                     method: 'GET',
                     responseType: 'blob'
                     }).then(function (response) {                    
@@ -1157,6 +1190,7 @@
             }
         },
         mounted() {
+            this.establecerRangoFechasDefault();
             this.listarTransaccion(1,this.buscar,this.criterio);
         }
     }

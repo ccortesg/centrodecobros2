@@ -227,6 +227,12 @@ class TransaccionDomController extends Controller
         $offset =  $this->offsetPaginacion($request->offset);
         $tipo =  $request->tipo;
         $status = $request->status ?? 99;
+        $fechaInicio = $request->fechaInicio ?? '';
+        $fechaFin = $request->fechaFin ?? '';
+
+        if ($validacionFechas = $this->validarRangoFechasListado($fechaInicio, $fechaFin)) {
+            return $validacionFechas;
+        }
 
         $query = TransaccionDom::leftjoin('clientes','clientes.id','transaccionesDom.idcliente')
             ->leftjoin('transacciones','transacciones.id','transaccionesDom.idtransaccion')
@@ -268,6 +274,8 @@ class TransaccionDomController extends Controller
         if ((string) $status !== '99') {
             $query->where('transaccionesDom.status', '=', $status);
         }
+
+        $this->aplicarRangoFechasListado($query, 'transaccionesDom.fecha', $fechaInicio, $fechaFin);
         
         $transaccionesDom = $query->orderBy('transaccionesDom.id', 'desc')->paginate($offset);
 
@@ -1020,7 +1028,31 @@ class TransaccionDomController extends Controller
     public function exportar(Request $request)
     {
         if (!$request->ajax()) return redirect('/');
-        $transaccionDomExport = new TransaccionDomExport();        
+        $buscar = $request->buscar ?? '';
+        $criterio = $request->criterio ?? 'Reference';
+        $status = $request->status ?? 99;
+        $fechaInicio = $request->fechaInicio ?? '';
+        $fechaFin = $request->fechaFin ?? '';
+
+        if ($buscar !== '' && !$this->criterioPermitido($criterio, $this->criteriosTransaccionDomPermitidos())) {
+            return response()->json([
+                'status' => 'error',
+                'msg' => 'Criterio de búsqueda no permitido.',
+            ], 422);
+        }
+
+        if (!$this->statusTransaccionDomValido($status)) {
+            return response()->json([
+                'status' => 'error',
+                'msg' => 'Status no permitido.',
+            ], 422);
+        }
+
+        if ($validacionFechas = $this->validarRangoFechasListado($fechaInicio, $fechaFin)) {
+            return $validacionFechas;
+        }
+
+        $transaccionDomExport = new TransaccionDomExport($buscar, $criterio, $status, $fechaInicio, $fechaFin);
         return Excel::download($transaccionDomExport, 'transaccionesdom.xlsx');
     }
 

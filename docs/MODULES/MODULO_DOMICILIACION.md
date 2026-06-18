@@ -53,6 +53,15 @@ Gestionar generacion de ligas de domiciliacion, cargos recurrentes, cancelacione
 - La cancelacion desde `Domiciliación Activa` reutiliza `PUT transaccion/rechazar`; si la cancelacion queda persistida, el endpoint interno devuelve `error=""` aunque Pagadetodo haya entregado un mensaje tecnico en una excepcion controlada.
 - La exportacion de `Domiciliación Activa` descarga `domiciliaciones_activas.csv` y reutiliza los filtros del listado: texto, criterio, status, ownership, productivo y existencia de respuesta aprobada.
 
+## Cargos Recurrentes listado
+
+- `TransaccionDom.vue` lista intentos/cargos recurrentes desde `transaccionesDom`.
+- `Desde` y `Hasta` filtran `transaccionesDom.fecha`.
+- Al entrar al modulo, el frontend usa el rango de los ultimos 30 dias, con la fecha actual como `Hasta`.
+- `Limpiar` borra `Texto a buscar`, `Desde` y `Hasta`.
+- El selector de cantidad inicia en `50` registros.
+- Usuarios no admin no ven las columnas administrativas `Code`, `Message` ni `Productivo`; el backend conserva ownership/productivo.
+
 ## Tablas involucradas
 
 - `transacciones`
