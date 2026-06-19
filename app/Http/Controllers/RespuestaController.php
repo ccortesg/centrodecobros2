@@ -393,11 +393,11 @@ class RespuestaController extends Controller
 
         try{
             DB::beginTransaction();
-            $duplicada = $this->respuestaWebhookDuplicada($idtransaccion, $date_response["reference"]);
+            /*$duplicada = $this->respuestaWebhookDuplicada($idtransaccion, $date_response["reference"]);
             if ($duplicada !== null) {
                 DB::commit();
                 return 'success';
-            }
+            }*/
 
             $respuesta = new Respuesta();
             $mytime= Carbon::now('America/Hermosillo');
