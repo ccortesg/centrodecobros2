@@ -39,6 +39,8 @@ class Administrador
 
         $allowed = [
             'GET' => [
+                'estado/selectEstado',
+                'ciudad/selectCiudad',
                 'cliente',
                 'cliente/selectCliente',
                 'cliente/exportar',

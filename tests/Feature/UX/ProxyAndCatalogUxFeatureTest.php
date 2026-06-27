@@ -82,6 +82,26 @@ class ProxyAndCatalogUxFeatureTest extends TestCase
             ]);
     }
 
+    public function test_client_role_can_read_location_selectors_for_customer_modal()
+    {
+        $this->actingAs($this->clientAUser())
+            ->get('/estado/selectEstado', $this->ajaxHeaders())
+            ->assertOk()
+            ->assertJsonFragment([
+                'id' => 1,
+                'nombre' => 'Sonora',
+            ]);
+
+        $this->actingAs($this->clientAUser())
+            ->get('/ciudad/selectCiudad', $this->ajaxHeaders())
+            ->assertOk()
+            ->assertJsonFragment([
+                'id' => 1,
+                'idestado' => 1,
+                'nombre' => 'Hermosillo',
+            ]);
+    }
+
     public function test_catalog_filters_reject_invalid_criteria()
     {
         $this->actingAs($this->adminUser())

@@ -38,6 +38,15 @@ class AdministradorMiddlewareTest extends TestCase
         $this->assertSame(200, $response->getStatusCode());
     }
 
+    public function test_client_role_can_read_catalog_selectors_needed_by_customer_modal()
+    {
+        $estado = $this->middlewareResponse('GET', '/estado/selectEstado', 2);
+        $ciudad = $this->middlewareResponse('GET', '/ciudad/selectCiudad', 2);
+
+        $this->assertSame(200, $estado->getStatusCode());
+        $this->assertSame(200, $ciudad->getStatusCode());
+    }
+
     public function test_client_role_cannot_access_user_administration()
     {
         $response = $this->middlewareResponse('GET', '/user', 2);
