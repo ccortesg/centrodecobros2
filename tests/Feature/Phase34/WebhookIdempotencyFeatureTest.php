@@ -47,6 +47,61 @@ class WebhookIdempotencyFeatureTest extends TestCase
         ]);
     }
 
+    public function test_liga_webhook_marks_unique_payment_link_as_paid_when_approved()
+    {
+        DB::table('transacciones')->where('id', 100)->update([
+            'responseReference' => 'RESP-LIGA-UNICA-PAGADA',
+            'condicion' => 1,
+        ]);
+
+        $this->postJson('/Service/EntregarPagoLiga', [
+            'reference' => 'RESP-LIGA-UNICA-PAGADA',
+            'response' => 'approved',
+            'amount' => 10000,
+        ])
+            ->assertOk()
+            ->assertSee('success', false);
+
+        $this->assertSame(3, (int) DB::table('transacciones')->where('id', 100)->value('condicion'));
+    }
+
+    public function test_liga_webhook_keeps_domiciliation_active_when_approved_with_token()
+    {
+        DB::table('transacciones')->where('id', 200)->update([
+            'responseReference' => 'RESP-DOM-WEBHOOK-TOKEN',
+            'condicion' => 0,
+        ]);
+
+        $this->postJson('/Service/EntregarPagoLiga', [
+            'reference' => 'RESP-DOM-WEBHOOK-TOKEN',
+            'response' => 'approved',
+            'amount' => 10000,
+            'number_tkn' => 'TOKEN-WEBHOOK',
+        ])
+            ->assertOk()
+            ->assertSee('success', false);
+
+        $this->assertSame(1, (int) DB::table('transacciones')->where('id', 200)->value('condicion'));
+    }
+
+    public function test_liga_webhook_marks_domiciliation_as_error_when_approved_without_token()
+    {
+        DB::table('transacciones')->where('id', 201)->update([
+            'responseReference' => 'RESP-DOM-WEBHOOK-SIN-TOKEN',
+            'condicion' => 0,
+        ]);
+
+        $this->postJson('/Service/EntregarPagoLiga', [
+            'reference' => 'RESP-DOM-WEBHOOK-SIN-TOKEN',
+            'response' => 'approved',
+            'amount' => 10000,
+        ])
+            ->assertOk()
+            ->assertSee('success', false);
+
+        $this->assertSame(5, (int) DB::table('transacciones')->where('id', 201)->value('condicion'));
+    }
+
     public function test_liga_webhook_is_idempotent_for_duplicate_reference()
     {
         $count = DB::table('respuestas')
@@ -114,6 +169,50 @@ class WebhookIdempotencyFeatureTest extends TestCase
             ->assertSee('error', false);
     }
 
+    public function test_lector_webhook_marks_terminal_payment_link_as_paid_when_approved()
+    {
+        DB::table('transacciones')->insert([
+            'id' => 400,
+            'folio' => 400,
+            'fecha' => now(),
+            'User' => 'mock',
+            'Password' => 'mock',
+            'IntegrationID' => '117',
+            'BusinessID' => '000031',
+            'PaymentTypes' => '0',
+            'IdReference' => '0000000400',
+            'Description' => 'Terminal webhook',
+            'Amount' => 10000,
+            'Reference' => '000000000000400',
+            'ExpirationDate' => now()->addDay()->toDateString(),
+            'ClientReference' => 'LECTOR-WEBHOOK',
+            'response' => '{}',
+            'code' => 'success',
+            'message' => 'ok',
+            'responseReference' => 'RESP-LECTOR-PAGADO',
+            'referenceEmisor' => 'EMISOR-400',
+            'idusuario' => 2,
+            'idcliente' => 10,
+            'tipo' => 4,
+            'condicion' => 1,
+            'productivo' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->postJson('/Service/EntregarPagoLector', [
+            'reference' => 'RESP-LECTOR-PAGADO',
+            'response' => 'approved',
+            'amount' => 10000,
+            'folio' => 'LECTOR-FOLIO-PAGADO',
+            'auth' => 'LECTOR-AUTH-PAGADO',
+        ])
+            ->assertOk()
+            ->assertSee('success', false);
+
+        $this->assertSame(3, (int) DB::table('transacciones')->where('id', 400)->value('condicion'));
+    }
+
     public function test_consulta_clabe_empty_reference_returns_controlled_error()
     {
         $this->getJson('/Service/ConsultaClabe')
@@ -163,6 +262,28 @@ class WebhookIdempotencyFeatureTest extends TestCase
             ]);
 
         $this->assertSame(1, DB::table('pagospei')->where('transaccion', 'PAY-A')->count());
+    }
+
+    public function test_pago_clabe_success_marks_spei_transaction_as_paid()
+    {
+        DB::table('transacciones')->where('id', 300)->update([
+            'condicion' => 1,
+            'Clabe' => '012345678901234567',
+        ]);
+
+        $this->postJson('/Service/PagoClabe', [
+            'clabe' => '012345678901234567',
+            'monto' => 10000,
+            'fecha' => now()->toDateString(),
+            'transaccion' => 'PAY-SPEI-PAGADO',
+        ])
+            ->assertOk()
+            ->assertJson([
+                'codigo' => '0',
+                'mensaje' => 'OperaciÃ³n exitosa',
+            ]);
+
+        $this->assertSame(3, (int) DB::table('transacciones')->where('id', 300)->value('condicion'));
     }
 
     public function test_cancela_clabe_rejects_payload_without_required_schema()

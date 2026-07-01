@@ -1,6 +1,6 @@
 # Modulo: SPEI
 
-Ultima actualizacion: 2026-06-07
+Ultima actualizacion: 2026-07-01
 
 ## Proposito
 
@@ -52,8 +52,9 @@ Gestionar generacion de CLABE/referencia SPEI, consulta de estado, registro de p
 
 ## Estado Fase 34
 
+- `GenerarSpei` / `POST transaccion/registrarSpei`: si Pagadetodo no entrega `Clabe` o devuelve error operativo, la transaccion `tipo=3` se guarda con `transacciones.condicion=5` (`Error`).
 - `Service/ConsultaClabe`: maneja referencia vacia o no encontrada y persiste respuesta controlada `codigo=50` cuando aplica.
-- `Service/PagoClabe`: valida `clabe`, `monto`, `fecha`, `transaccion`; rechaza monto no numerico y deduplica por `transaccion`.
+- `Service/PagoClabe`: valida `clabe`, `monto`, `fecha`, `transaccion`; rechaza monto no numerico, deduplica por `transaccion` y, cuando el pago es exitoso (`codigo='0'`), actualiza la transaccion `tipo=3` a `condicion=3` (`Pagado`).
 - `Service/CancelaClabe`: valida `clabe`, `fecha`, `monto`, `transaccion`, `autorizacion`; deduplica por `transaccion + autorizacion` y maneja pago asociado inexistente.
 - `storeSpeiAPI` requiere correo (`Email` o `email`) para continuar.
 

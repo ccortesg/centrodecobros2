@@ -94,23 +94,16 @@
                                     </template>
                                     <th class="text-center">Respuesta</th>                                    
                                     <th v-if="esAdmin" class="text-center">Usuario</th>
-                                    <template v-if="(tipo==2 || tipo==3)">
-                                        <template v-if="tipo==2">
-                                            <th class="text-center">Frecuencia</th>
-                                        </template>
-                                        <th class="text-center cdc-status-filter-heading">
-                                            <span>Status</span>
-                                            <select v-model="status" @change="listarTransaccion(1,buscar,criterio)">
-                                                <option value="99" selected>Todos</option>
-                                                <option value="0">Pendiente</option>
-                                                <option value="1">Activo</option>
-                                                <option value="2">Cancelado</option>
-                                                <option value="3">Pagado</option>
-                                                <option value="4">Vencido</option>
-                                                <option value="5">Error</option>
-                                            </select>
-                                        </th>
+                                    <template v-if="tipo==2">
+                                        <th class="text-center">Frecuencia</th>
                                     </template>
+                                    <th class="text-center cdc-status-filter-heading">
+                                        <span>Status</span>
+                                        <select v-model="status" @change="listarTransaccion(1,buscar,criterio)">
+                                            <option value="99" selected>Todos</option>
+                                            <option v-for="opcion in opcionesStatus" :key="opcion.value" :value="opcion.value">{{ opcion.label }}</option>
+                                        </select>
+                                    </th>
                                     <th v-if="esAdmin" class="text-center">Productivo</th>
                                 </tr>
                             </thead>
@@ -183,53 +176,51 @@
                                         </button> &nbsp; 
                                     </td>                                                                        
                                     <td v-if="esAdmin" v-text="transaccion.usuario" class="text-center"></td>
-                                    <template v-if="(tipo==2 || tipo==3)">
-                                        <template v-if="tipo==2">
-                                            <td class="text-center">
-                                                <template v-if="transaccion.frecuencia=='1'">
-                                                    Semanal
-                                                </template>
-                                                <template v-else-if="transaccion.frecuencia=='2'">
-                                                    Mensual
-                                                </template>
-                                                <template v-else-if="transaccion.frecuencia=='3'">
-                                                    Bimestral
-                                                </template>
-                                                <template v-else-if="transaccion.frecuencia=='4'">
-                                                    Semestral
-                                                </template> 
-                                                <template v-else-if="transaccion.frecuencia=='5'">
-                                                    Anual
-                                                </template>                                         
-                                                <template v-else>
-                                                    NA
-                                                </template>
-                                            </td>
-                                        </template>
+                                    <template v-if="tipo==2">
                                         <td class="text-center">
-                                            <div v-if="(transaccion.condicion==1)">
-                                                <span class="badge badge-success">Activo</span>
-                                            </div>
-                                            <div v-else-if="(transaccion.condicion==2)">
-                                                <span class="badge badge-danger">Cancelado</span>
-                                            </div>
-                                            <div v-else-if="(transaccion.condicion==3)">
-                                                <span class="badge badge-success">Pagado</span>
-                                            </div>
-                                            <div v-else-if="(transaccion.condicion==4)">
-                                                <span class="badge badge-warning">Vencido</span>
-                                            </div>
-                                            <div v-else-if="(transaccion.condicion==5)">
-                                                <span class="badge badge-danger">Error</span>
-                                            </div>
-                                            <div v-else-if="(transaccion.condicion==0)">
-                                                <span class="badge badge-warning">Pendiente</span>
-                                            </div>                                            
-                                            <div v-else>
-                                                <span class="badge badge-warning">Desconocido</span>
-                                            </div>                                        
+                                            <template v-if="transaccion.frecuencia=='1'">
+                                                Semanal
+                                            </template>
+                                            <template v-else-if="transaccion.frecuencia=='2'">
+                                                Mensual
+                                            </template>
+                                            <template v-else-if="transaccion.frecuencia=='3'">
+                                                Bimestral
+                                            </template>
+                                            <template v-else-if="transaccion.frecuencia=='4'">
+                                                Semestral
+                                            </template>
+                                            <template v-else-if="transaccion.frecuencia=='5'">
+                                                Anual
+                                            </template>
+                                            <template v-else>
+                                                NA
+                                            </template>
                                         </td>
                                     </template>
+                                    <td class="text-center">
+                                        <div v-if="(transaccion.condicion==1)">
+                                            <span class="badge badge-success">Activo</span>
+                                        </div>
+                                        <div v-else-if="(transaccion.condicion==2)">
+                                            <span class="badge badge-danger">Cancelado</span>
+                                        </div>
+                                        <div v-else-if="(transaccion.condicion==3)">
+                                            <span class="badge badge-success">Pagado</span>
+                                        </div>
+                                        <div v-else-if="(transaccion.condicion==4)">
+                                            <span class="badge badge-warning">Vencido</span>
+                                        </div>
+                                        <div v-else-if="(transaccion.condicion==5)">
+                                            <span class="badge badge-danger">Error</span>
+                                        </div>
+                                        <div v-else-if="(transaccion.condicion==0)">
+                                            <span class="badge badge-warning">Pendiente</span>
+                                        </div>
+                                        <div v-else>
+                                            <span class="badge badge-warning">Desconocido</span>
+                                        </div>
+                                    </td>
                                     <td v-if="esAdmin">
                                         <div v-if="transaccion.productivo==1">
                                             <span class="badge badge-success">Si</span>
@@ -586,6 +577,24 @@
             },
             esAdmin: function() {
                 return parseInt(this.idrol, 10) === 1;
+            },
+            opcionesStatus: function() {
+                if (parseInt(this.tipo, 10) === 2) {
+                    return [
+                        { value: '0', label: 'Pendiente' },
+                        { value: '1', label: 'Activo' },
+                        { value: '2', label: 'Cancelado' },
+                        { value: '4', label: 'Vencido' },
+                        { value: '5', label: 'Error' }
+                    ];
+                }
+
+                return [
+                    { value: '1', label: 'Activo' },
+                    { value: '3', label: 'Pagado' },
+                    { value: '4', label: 'Vencido' },
+                    { value: '5', label: 'Error' }
+                ];
             },
             textoBotonImportarSecundario: function(){
                 return this.importando ? 'Cancelar' : 'Cerrar';

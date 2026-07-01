@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\UX;
 
+use App\Http\Controllers\TransaccionController;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\UsesIsolatedCentroCobrosDatabase;
 use Tests\TestCase;
@@ -125,6 +126,21 @@ class FinancialFiltersFeatureTest extends TestCase
             ->assertStatus(422);
     }
 
+    public function test_transaccion_status_filter_rejects_status_not_allowed_for_type()
+    {
+        $this->actingAs($this->adminUser())
+            ->get('/transaccion?tipo=1&offset=10&buscar=&criterio=Reference&status=0', $this->ajaxHeaders())
+            ->assertStatus(422);
+
+        $this->actingAs($this->adminUser())
+            ->get('/transaccion?tipo=2&offset=10&buscar=&criterio=Reference&status=3', $this->ajaxHeaders())
+            ->assertStatus(422);
+
+        $this->actingAs($this->adminUser())
+            ->get('/transaccion?tipo=4&offset=10&buscar=&criterio=Reference&status=2', $this->ajaxHeaders())
+            ->assertStatus(422);
+    }
+
     public function test_transaccion_ref_respuesta_filter_finds_related_respuesta_reference()
     {
         DB::table('transacciones')->where('id', 100)->update([
@@ -186,6 +202,67 @@ class FinancialFiltersFeatureTest extends TestCase
         foreach ($response->json('cancelaspei.data') as $cancelacion) {
             $this->assertSame(1, (int) $cancelacion['enviada']);
         }
+    }
+
+    public function test_revisar_status_marks_expired_active_links_spei_and_terminal_as_expired()
+    {
+        $expired = now()->subDay()->toDateString();
+
+        DB::table('transacciones')->where('id', 100)->update([
+            'tipo' => 1,
+            'condicion' => 1,
+            'ExpirationDate' => $expired,
+        ]);
+        DB::table('transacciones')->where('id', 200)->update([
+            'tipo' => 2,
+            'condicion' => 0,
+            'ExpirationDate' => $expired,
+        ]);
+        DB::table('respuestas')->where('idtransaccion', 200)->delete();
+        DB::table('transacciones')->where('id', 300)->update([
+            'tipo' => 3,
+            'condicion' => 1,
+            'ExpirationDate' => $expired,
+        ]);
+        DB::table('transacciones')->where('id', 101)->update([
+            'tipo' => 4,
+            'condicion' => 1,
+            'ExpirationDate' => $expired,
+        ]);
+
+        app(TransaccionController::class)->revisarStatus();
+
+        $this->assertSame(4, (int) DB::table('transacciones')->where('id', 100)->value('condicion'));
+        $this->assertSame(4, (int) DB::table('transacciones')->where('id', 200)->value('condicion'));
+        $this->assertSame(4, (int) DB::table('transacciones')->where('id', 300)->value('condicion'));
+        $this->assertSame(4, (int) DB::table('transacciones')->where('id', 101)->value('condicion'));
+    }
+
+    public function test_revisar_status_does_not_expire_paid_cancelled_or_error_transactions()
+    {
+        $expired = now()->subDay()->toDateString();
+
+        DB::table('transacciones')->where('id', 100)->update([
+            'tipo' => 1,
+            'condicion' => 3,
+            'ExpirationDate' => $expired,
+        ]);
+        DB::table('transacciones')->where('id', 200)->update([
+            'tipo' => 2,
+            'condicion' => 2,
+            'ExpirationDate' => $expired,
+        ]);
+        DB::table('transacciones')->where('id', 300)->update([
+            'tipo' => 3,
+            'condicion' => 5,
+            'ExpirationDate' => $expired,
+        ]);
+
+        app(TransaccionController::class)->revisarStatus();
+
+        $this->assertSame(3, (int) DB::table('transacciones')->where('id', 100)->value('condicion'));
+        $this->assertSame(2, (int) DB::table('transacciones')->where('id', 200)->value('condicion'));
+        $this->assertSame(5, (int) DB::table('transacciones')->where('id', 300)->value('condicion'));
     }
 
     public function test_respuesta_filters_by_existing_status_column()

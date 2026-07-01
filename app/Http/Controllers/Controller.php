@@ -153,7 +153,20 @@ class Controller extends BaseController
 
     private function pagadetodoMockPayload($url, array $params)
     {
+        $mockScenario = (string) ($params['Description'] ?? '');
+
         if (strpos($url, 'GenerarClabeIndi') !== false) {
+            if ($mockScenario === 'MOCK_MISSING_CLABE') {
+                return [
+                    'Error' => null,
+                    'Message' => 'MOCK SPEI sin CLABE',
+                    'Folio' => 'MOCK-FOLIO',
+                    'Account' => $params['Account'] ?? 'MOCK-ACCOUNT',
+                    'Date' => now()->toDateString(),
+                    'Clabe' => '',
+                ];
+            }
+
             return [
                 'Error' => null,
                 'Message' => 'MOCK SPEI generado',
@@ -165,6 +178,16 @@ class Controller extends BaseController
         }
 
         if (strpos($url, 'GenerarPagoLectorIndi') !== false) {
+            if ($mockScenario === 'MOCK_MISSING_LECTOR_REFERENCE') {
+                return [
+                    'code' => 'success',
+                    'message' => 'MOCK lector sin referencia',
+                    'codeQR' => '',
+                    'reference' => '',
+                    'referenceEmisor' => 'MOCK-EMISOR',
+                ];
+            }
+
             return [
                 'code' => 'success',
                 'message' => 'MOCK lector generado',
@@ -210,6 +233,26 @@ class Controller extends BaseController
                 'code' => 'success',
                 'message' => 'MOCK cancelacion registrada',
                 'reference' => $params['Tkn_reference'] ?? 'MOCK-REFERENCE',
+            ];
+        }
+
+        if ($mockScenario === 'MOCK_LIGA_ERROR') {
+            return [
+                'code' => 'error',
+                'message' => 'MOCK liga con error',
+                'url' => '',
+                'reference' => $params['Reference'] ?? 'MOCK-REFERENCE',
+                'referenceEmisor' => 'MOCK-EMISOR',
+            ];
+        }
+
+        if ($mockScenario === 'MOCK_MISSING_URL') {
+            return [
+                'code' => 'success',
+                'message' => 'MOCK liga sin URL',
+                'url' => '',
+                'reference' => $params['Reference'] ?? 'MOCK-REFERENCE',
+                'referenceEmisor' => 'MOCK-EMISOR',
             ];
         }
 

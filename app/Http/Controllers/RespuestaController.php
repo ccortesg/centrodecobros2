@@ -79,9 +79,19 @@ class RespuestaController extends Controller
             ->first();
     }
 
-    private function actualizarStatusDomiciliacionPorRespuesta($transaccion, Respuesta $respuesta)
+    private function sincronizarStatusTransaccionPorRespuesta($transaccion, Respuesta $respuesta)
     {
-        if ($transaccion === null || (int) $transaccion->tipo !== 2 || $respuesta->status !== 'approved') {
+        if ($transaccion === null || $respuesta->status !== 'approved') {
+            return;
+        }
+
+        if (in_array((int) $transaccion->tipo, [1, 4], true)) {
+            $transaccion->condicion = 3;
+            $transaccion->save();
+            return;
+        }
+
+        if ((int) $transaccion->tipo !== 2) {
             return;
         }
 
@@ -264,11 +274,12 @@ class RespuestaController extends Controller
 
         try{
             DB::beginTransaction();
-            /*$duplicada = $this->respuestaWebhookDuplicada($idtransaccion, $date_response["reference"]);
+            $duplicada = $this->respuestaWebhookDuplicada($idtransaccion, $date_response["reference"]);
             if ($duplicada !== null) {
+                $this->sincronizarStatusTransaccionPorRespuesta($transaccion, $duplicada);
                 DB::commit();
                 return 'success';
-            }*/
+            }
 
             $respuesta = new Respuesta();
             $mytime= Carbon::now('America/Hermosillo');
@@ -300,7 +311,7 @@ class RespuestaController extends Controller
             $respuesta->cc_mask = $this->valorWebhook($date_response, 'cc_mask');
             $respuesta->response = $data;
             $respuesta->save();
-            $this->actualizarStatusDomiciliacionPorRespuesta($transaccion, $respuesta);
+            $this->sincronizarStatusTransaccionPorRespuesta($transaccion, $respuesta);
             DB::commit();
         } catch (Exception $e){
             DB::rollBack();
@@ -393,11 +404,12 @@ class RespuestaController extends Controller
 
         try{
             DB::beginTransaction();
-            /*$duplicada = $this->respuestaWebhookDuplicada($idtransaccion, $date_response["reference"]);
+            $duplicada = $this->respuestaWebhookDuplicada($idtransaccion, $date_response["reference"]);
             if ($duplicada !== null) {
+                $this->sincronizarStatusTransaccionPorRespuesta($transaccion, $duplicada);
                 DB::commit();
                 return 'success';
-            }*/
+            }
 
             $respuesta = new Respuesta();
             $mytime= Carbon::now('America/Hermosillo');
@@ -422,7 +434,8 @@ class RespuestaController extends Controller
             $respuesta->cc_expyear = $this->valorWebhook($date_response, 'ccExpYear');
             $respuesta->amount = $date_response["amount"];
             $respuesta->response = $data;
-            $respuesta->save();            
+            $respuesta->save();
+            $this->sincronizarStatusTransaccionPorRespuesta($transaccion, $respuesta);
             DB::commit();
         } catch (Exception $e){
             DB::rollBack();
@@ -577,4 +590,3 @@ class RespuestaController extends Controller
         return Excel::download($respuestaExport, 'respuestas.xlsx');
     }
 }
-

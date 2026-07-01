@@ -1,6 +1,6 @@
 # Modulo: Transacciones, ligas, caja, terminal y SPEI
 
-Ultima actualizacion: 2026-06-18
+Ultima actualizacion: 2026-07-01
 
 ## Proposito
 
@@ -105,6 +105,40 @@ Reglas especificas para `tipo=2` domiciliacion:
 - `intentos` cuenta cargos recurrentes fallidos y se reinicia a `0` con cargo aprobado.
 - `ProximoCargoBase` conserva la primera fecha de proximo cargo como ancla/auditoria.
 
+Reglas de error/pago vigentes desde 2026-07-01:
+
+- `tipo=1` y `tipo=2`: si la generacion Pagadetodo responde `code='error'` o no entrega `url`, la transaccion se guarda con `condicion=5`.
+- `tipo=4`: si la generacion terminal responde `code='error'`, no entrega `codeQR` o no entrega `responseReference`, la transaccion se guarda con `condicion=5`.
+- `tipo=1`: al recibir `Service/EntregarPagoLiga` con `response='approved'`, la transaccion cambia a `Pagado=3`.
+- `tipo=4`: al recibir `Service/EntregarPagoLector` con `response='approved'`, la transaccion cambia a `Pagado=3`.
+- `revisarStatus()` marca vencidas las transacciones `tipo=1`, `tipo=3` y `tipo=4` con `condicion=1` cuando `ExpirationDate` ya paso; para `tipo=2` conserva la regla de `condicion=0`.
+
+Queries de regularizacion historica, para ejecucion controlada por operacion:
+
+```sql
+UPDATE transacciones t
+SET t.condicion = 3
+WHERE t.tipo = 1
+  AND EXISTS (
+    SELECT 1
+    FROM respuestas r
+    WHERE r.idtransaccion = t.id
+      AND r.status = 'approved'
+  );
+```
+
+```sql
+UPDATE transacciones t
+SET t.condicion = 3
+WHERE t.tipo = 3
+  AND EXISTS (
+    SELECT 1
+    FROM pagospei p
+    WHERE p.idtransaccion = t.id
+      AND p.codigo IN ('0', '00')
+  );
+```
+
 ## Integracion Pagadetodo
 
 - Credenciales, IDs y endpoints estan externalizados en `config/services.php`.
@@ -145,6 +179,7 @@ Filtro de fechas:
 - Al entrar al modulo, el frontend inicializa `Desde` con la fecha de hace 30 dias y `Hasta` con la fecha actual.
 - `Limpiar` borra `Texto a buscar`, `Desde` y `Hasta`; no cambia criterio, status ni tipo.
 - El selector de cantidad inicia en `50` registros.
+- El filtro `Status` de `Transaccion.vue` se muestra para los tipos `1`, `2`, `3` y `4`. `tipo=2` permite Pendiente/Activo/Cancelado/Vencido/Error; los demas tipos permiten Activo/Pagado/Vencido/Error.
 
 ## Deteccion de cliente duplicado en APIs
 

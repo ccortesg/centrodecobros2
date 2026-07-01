@@ -203,6 +203,71 @@ class TransaccionController extends Controller
         return in_array((string) $status, ['0', '1', '2', '3', '4', '5', '99'], true);
     }
 
+    private function condicionesPermitidasPorTipo($tipo)
+    {
+        if ((int) $tipo === 2) {
+            return ['0', '1', '2', '4', '5', '99'];
+        }
+
+        return ['1', '3', '4', '5', '99'];
+    }
+
+    private function condicionTransaccionValidaPorTipo($status, $tipo)
+    {
+        return in_array((string) $status, $this->condicionesPermitidasPorTipo($tipo), true);
+    }
+
+    private function valorRespuestaServicio($responseDecode, $field, $default = '')
+    {
+        if (is_object($responseDecode) && property_exists($responseDecode, $field)) {
+            return $responseDecode->{$field};
+        }
+
+        if (is_array($responseDecode) && array_key_exists($field, $responseDecode)) {
+            return $responseDecode[$field];
+        }
+
+        return $default;
+    }
+
+    private function respuestaLigaValida($tipo, $responseDecode)
+    {
+        $code = strtolower(trim((string) $this->valorRespuestaServicio($responseDecode, 'code')));
+        if ($code === 'error') {
+            return false;
+        }
+
+        if ((int) $tipo === 4) {
+            return trim((string) $this->valorRespuestaServicio($responseDecode, 'codeQR')) !== ''
+                && trim((string) $this->valorRespuestaServicio($responseDecode, 'reference')) !== '';
+        }
+
+        return trim((string) $this->valorRespuestaServicio($responseDecode, 'url')) !== '';
+    }
+
+    private function respuestaSpeiValida($responseDecode)
+    {
+        $error = $this->valorRespuestaServicio($responseDecode, 'Error', null);
+        if ($error !== null && trim((string) $error) !== '') {
+            return false;
+        }
+
+        return trim((string) $this->valorRespuestaServicio($responseDecode, 'Clabe')) !== '';
+    }
+
+    private function condicionGeneracionLiga($tipo, $responseDecode)
+    {
+        if ((int) $tipo === 2) {
+            return $this->respuestaLigaValida($tipo, $responseDecode) ? 0 : 5;
+        }
+
+        if ((int) $tipo === 3) {
+            return $this->respuestaSpeiValida($responseDecode) ? 1 : 5;
+        }
+
+        return $this->respuestaLigaValida($tipo, $responseDecode) ? 1 : 5;
+    }
+
     private function criteriosDomiciliacionActivaPermitidos()
     {
         return [
@@ -446,7 +511,7 @@ class TransaccionController extends Controller
             }            
         }
 
-        if (!$this->condicionTransaccionValida($status)) {
+        if (!$this->condicionTransaccionValidaPorTipo($status, $tipo)) {
             return response()->json([
                 'status' => 'error',
                 'msg' => 'Status no permitido.',
@@ -760,15 +825,16 @@ class TransaccionController extends Controller
             $transaccion->ExpirationDate = $request->ExpirationDate;
             $transaccion->ClientReference = $request->ClientReference;
             $transaccion->response = $response_body;
-            $transaccion->url = $response_decode->url;
-            $transaccion->code = $response_decode->code;
-            $transaccion->message = $response_decode->message;
-            $transaccion->responseReference = $response_decode->reference;
-            $transaccion->referenceEmisor = $response_decode->referenceEmisor;            
+            $transaccion->url = $this->valorRespuestaServicio($response_decode, 'url');
+            $transaccion->code = $this->valorRespuestaServicio($response_decode, 'code');
+            $transaccion->message = $this->valorRespuestaServicio($response_decode, 'message');
+            $transaccion->responseReference = $this->valorRespuestaServicio($response_decode, 'reference');
+            $transaccion->referenceEmisor = $this->valorRespuestaServicio($response_decode, 'referenceEmisor');
             $transaccion->idcliente = $request->idcliente;
             $transaccion->tipo = $request->tipo;
             $transaccion->idusuario =  \Auth::user()->id;
             $transaccion->productivo = \Auth::user()->productivo;
+            $transaccion->condicion = $this->condicionGeneracionLiga($request->tipo, $response_decode);
             $transaccion->save();
             
             DB::commit();
@@ -981,14 +1047,15 @@ class TransaccionController extends Controller
             $transaccion->ExpirationDate = $request->ExpirationDate;
             $transaccion->ClientReference = $request->Reference;
             $transaccion->response = $response_body;
-            $transaccion->url = $response_decode->url;
-            $transaccion->code = $response_decode->code;
-            $transaccion->message = $response_decode->message;
-            $transaccion->responseReference = $response_decode->reference;
-            $transaccion->referenceEmisor = $response_decode->referenceEmisor;
+            $transaccion->url = $this->valorRespuestaServicio($response_decode, 'url');
+            $transaccion->code = $this->valorRespuestaServicio($response_decode, 'code');
+            $transaccion->message = $this->valorRespuestaServicio($response_decode, 'message');
+            $transaccion->responseReference = $this->valorRespuestaServicio($response_decode, 'reference');
+            $transaccion->referenceEmisor = $this->valorRespuestaServicio($response_decode, 'referenceEmisor');
             $transaccion->tipo = 1;
             $transaccion->idusuario =  $usuario->id;
             $transaccion->productivo = $usuario->productivo;
+            $transaccion->condicion = $this->condicionGeneracionLiga(1, $response_decode);
             if($cliente_id > 0){
                 $transaccion->idcliente = $cliente_id;
             }
@@ -1013,11 +1080,11 @@ class TransaccionController extends Controller
         }
 
         return response()->json([
-            'code' => $response_decode->code,
-            'message' => $response_decode->message,
-            'url' => $response_decode->url,
-            'reference' => $response_decode->reference,
-            'referenceEmisor' => $response_decode->referenceEmisor
+            'code' => $this->valorRespuestaServicio($response_decode, 'code'),
+            'message' => $this->valorRespuestaServicio($response_decode, 'message'),
+            'url' => $this->valorRespuestaServicio($response_decode, 'url'),
+            'reference' => $this->valorRespuestaServicio($response_decode, 'reference'),
+            'referenceEmisor' => $this->valorRespuestaServicio($response_decode, 'referenceEmisor')
         ], 200);
     }
 
@@ -1144,18 +1211,18 @@ class TransaccionController extends Controller
             $transaccion->ExpirationDate = $request->ExpirationDate;
             $transaccion->ClientReference = $request->ClientReference;
             $transaccion->response = $response_body;
-            $transaccion->url = $response_decode->url;
-            $transaccion->code = $response_decode->code;
-            $transaccion->message = $response_decode->message;
-            $transaccion->responseReference = $response_decode->reference;
-            $transaccion->referenceEmisor = $response_decode->referenceEmisor;
+            $transaccion->url = $this->valorRespuestaServicio($response_decode, 'url');
+            $transaccion->code = $this->valorRespuestaServicio($response_decode, 'code');
+            $transaccion->message = $this->valorRespuestaServicio($response_decode, 'message');
+            $transaccion->responseReference = $this->valorRespuestaServicio($response_decode, 'reference');
+            $transaccion->referenceEmisor = $this->valorRespuestaServicio($response_decode, 'referenceEmisor');
             $transaccion->idcliente = $request->idcliente;
             $transaccion->tipo = $request->tipo;
             $transaccion->frecuencia = $request->frecuencia;
             $transaccion->ProximoCargo = $request->ProximoCargo;
             $transaccion->ProximoCargoBase = $request->ProximoCargo;
             $transaccion->intentos = 0;
-            $transaccion->condicion = 0;
+            $transaccion->condicion = $this->condicionGeneracionLiga($request->tipo, $response_decode);
             $transaccion->idusuario =  \Auth::user()->id;
             $transaccion->productivo = \Auth::user()->productivo;
             $transaccion->save();            
@@ -1455,17 +1522,17 @@ class TransaccionController extends Controller
              $transaccion->ExpirationDate = $request->ExpirationDate;
              $transaccion->ClientReference = $data['Reference'];
              $transaccion->response = $response_body;
-             $transaccion->url = $response_decode->url;
-             $transaccion->code = $response_decode->code;
-             $transaccion->message = $response_decode->message;
-             $transaccion->responseReference = $response_decode->reference;
-             $transaccion->referenceEmisor = $response_decode->referenceEmisor;
+             $transaccion->url = $this->valorRespuestaServicio($response_decode, 'url');
+             $transaccion->code = $this->valorRespuestaServicio($response_decode, 'code');
+             $transaccion->message = $this->valorRespuestaServicio($response_decode, 'message');
+             $transaccion->responseReference = $this->valorRespuestaServicio($response_decode, 'reference');
+             $transaccion->referenceEmisor = $this->valorRespuestaServicio($response_decode, 'referenceEmisor');
              $transaccion->tipo = 2;
              $transaccion->frecuencia = $Frecuencia;
              $transaccion->ProximoCargo = $ProximoCargo;
              $transaccion->ProximoCargoBase = $ProximoCargo;
              $transaccion->intentos = 0;
-             $transaccion->condicion = 0;
+             $transaccion->condicion = $this->condicionGeneracionLiga(2, $response_decode);
              $transaccion->idusuario =  $usuario->id;
              $transaccion->productivo = $usuario->productivo;
              //Si el objecto $cliente se creo correctamente se asigna el id del cliente a la variable $transaccion->idcliente
@@ -1492,11 +1559,11 @@ class TransaccionController extends Controller
          }
  
          return response()->json([
-             'code' => $response_decode->code,
-             'message' => $response_decode->message,
-             'url' => $response_decode->url,
-             'reference' => $response_decode->reference,
-             'referenceEmisor' => $response_decode->referenceEmisor
+             'code' => $this->valorRespuestaServicio($response_decode, 'code'),
+             'message' => $this->valorRespuestaServicio($response_decode, 'message'),
+             'url' => $this->valorRespuestaServicio($response_decode, 'url'),
+             'reference' => $this->valorRespuestaServicio($response_decode, 'reference'),
+             'referenceEmisor' => $this->valorRespuestaServicio($response_decode, 'referenceEmisor')
          ], 200);
      }
 
@@ -1600,16 +1667,17 @@ class TransaccionController extends Controller
             $transaccion->ExpirationDate = $request->ExpirationDate;
             $transaccion->ClientReference = $request->ClientReference;
             $transaccion->response = $response_body;
-            $transaccion->message = $response_decode->Message;
-            $transaccion->responseReference = $response_decode->Folio;
-            $transaccion->referenceEmisor = $response_decode->Account;
-            $transaccion->Error = $response_decode->Error;
-            $transaccion->Date = $response_decode->Date;
-            $transaccion->Clabe = $response_decode->Clabe;
+            $transaccion->message = $this->valorRespuestaServicio($response_decode, 'Message');
+            $transaccion->responseReference = $this->valorRespuestaServicio($response_decode, 'Folio');
+            $transaccion->referenceEmisor = $this->valorRespuestaServicio($response_decode, 'Account');
+            $transaccion->Error = $this->valorRespuestaServicio($response_decode, 'Error', null);
+            $transaccion->Date = $this->valorRespuestaServicio($response_decode, 'Date');
+            $transaccion->Clabe = $this->valorRespuestaServicio($response_decode, 'Clabe');
             $transaccion->idcliente = $request->idcliente;
             $transaccion->tipo = $request->tipo;
             $transaccion->idusuario =  \Auth::user()->id;
             $transaccion->productivo = \Auth::user()->productivo;
+            $transaccion->condicion = $this->condicionGeneracionLiga($request->tipo, $response_decode);
             $transaccion->save();
             DB::commit();
         } catch (Exception $e){
@@ -1617,9 +1685,9 @@ class TransaccionController extends Controller
             $error = $e->getMessage();
         }
 
-        if($response_decode->Error != null) {
-            $error_code = $response_decode->Error;
-            $error = $response_decode->Message;
+        if($this->valorRespuestaServicio($response_decode, 'Error', null) != null) {
+            $error_code = $this->valorRespuestaServicio($response_decode, 'Error');
+            $error = $this->valorRespuestaServicio($response_decode, 'Message');
          }
 
         return [
@@ -1775,15 +1843,16 @@ class TransaccionController extends Controller
              //$transaccion->ExpirationDate = '2023-04-01';
              $transaccion->ClientReference = $request->Reference;
              $transaccion->response = $response_body;
-             $transaccion->message = $response_decode->Message;
-             $transaccion->responseReference = $response_decode->Folio;
-             $transaccion->referenceEmisor = $response_decode->Account;
-             $transaccion->Error = $response_decode->Error;
-             $transaccion->Date = $response_decode->Date;
-             $transaccion->Clabe = $response_decode->Clabe;
+             $transaccion->message = $this->valorRespuestaServicio($response_decode, 'Message');
+             $transaccion->responseReference = $this->valorRespuestaServicio($response_decode, 'Folio');
+             $transaccion->referenceEmisor = $this->valorRespuestaServicio($response_decode, 'Account');
+             $transaccion->Error = $this->valorRespuestaServicio($response_decode, 'Error', null);
+             $transaccion->Date = $this->valorRespuestaServicio($response_decode, 'Date');
+             $transaccion->Clabe = $this->valorRespuestaServicio($response_decode, 'Clabe');
              $transaccion->tipo = 3;
              $transaccion->idusuario =  $usuario->id;
              $transaccion->productivo = $usuario->productivo;
+             $transaccion->condicion = $this->condicionGeneracionLiga(3, $response_decode);
              if($cliente_id > 0){
                 $transaccion->idcliente = $cliente_id;
              }
@@ -1796,9 +1865,9 @@ class TransaccionController extends Controller
              $error_code = "50";
          }
 
-         if($response_decode->Error != null) {
-            $error_code = $response_decode->Error;
-            $error = $response_decode->Message;
+         if($this->valorRespuestaServicio($response_decode, 'Error', null) != null) {
+            $error_code = $this->valorRespuestaServicio($response_decode, 'Error');
+            $error = $this->valorRespuestaServicio($response_decode, 'Message');
          }
  
          if($error != ""){
@@ -1806,17 +1875,17 @@ class TransaccionController extends Controller
                  'code' => $error_code,
                  'message' => $error,
                  'clabe' => '',
-                 'reference' => $response_decode->Folio,
-                 'referenceEmisor' => $response_decode->Account
+                 'reference' => $this->valorRespuestaServicio($response_decode, 'Folio'),
+                 'referenceEmisor' => $this->valorRespuestaServicio($response_decode, 'Account')
              ], 400);
          }
  
          return response()->json([
              'code' => 'success',
-             'message' => $response_decode->Message,
-             'clabe' => $response_decode->Clabe,
-             'reference' => $response_decode->Folio,
-             'referenceEmisor' => $response_decode->Account
+             'message' => $this->valorRespuestaServicio($response_decode, 'Message'),
+             'clabe' => $this->valorRespuestaServicio($response_decode, 'Clabe'),
+             'reference' => $this->valorRespuestaServicio($response_decode, 'Folio'),
+             'referenceEmisor' => $this->valorRespuestaServicio($response_decode, 'Account')
          ], 200);
      }
 
@@ -1898,14 +1967,15 @@ class TransaccionController extends Controller
             $transaccion->ExpirationDate = $request->ExpirationDate;
             $transaccion->ClientReference = $request->ClientReference;
             $transaccion->response = $response_body;
-            $transaccion->url = $response_decode->url;
-            $transaccion->code = $response_decode->code;
-            $transaccion->message = $response_decode->message;
-            $transaccion->responseReference = $response_decode->reference;
-            $transaccion->referenceEmisor = $response_decode->referenceEmisor;            
+            $transaccion->url = $this->valorRespuestaServicio($response_decode, 'url');
+            $transaccion->code = $this->valorRespuestaServicio($response_decode, 'code');
+            $transaccion->message = $this->valorRespuestaServicio($response_decode, 'message');
+            $transaccion->responseReference = $this->valorRespuestaServicio($response_decode, 'reference');
+            $transaccion->referenceEmisor = $this->valorRespuestaServicio($response_decode, 'referenceEmisor');
             $transaccion->idcliente = 1;
             $transaccion->tipo = 1;
             $transaccion->idusuario = 1;
+            $transaccion->condicion = $this->condicionGeneracionLiga(1, $response_decode);
             $transaccion->save();
             DB::commit();
         } catch (Exception $e){
@@ -1919,7 +1989,7 @@ class TransaccionController extends Controller
             ->withErrors(['transaccion' => trans('auth.failed')])
             ->withInput(request(['transaccion']));
          }else{
-            if($response_decode->code == "success") {
+            if($this->valorRespuestaServicio($response_decode, 'code') == "success") {
                 return redirect()->back()
                 ->with('message', 'Su registro se ha realizado con Ã©xito con refencia '.$transaccion->Reference.'.');
             }            
@@ -2025,15 +2095,16 @@ class TransaccionController extends Controller
             $transaccion->Reference = str_pad($max, 15, '0', STR_PAD_LEFT);
             $transaccion->ClientReference = $request->ClientReference;
             $transaccion->response = $response_body;
-            $transaccion->codeQR = $response_decode->codeQR;
-            $transaccion->code = $response_decode->code;
-            $transaccion->message = $response_decode->message;
-            $transaccion->responseReference = $response_decode->reference;
-            $transaccion->referenceEmisor = $response_decode->referenceEmisor;            
+            $transaccion->codeQR = $this->valorRespuestaServicio($response_decode, 'codeQR');
+            $transaccion->code = $this->valorRespuestaServicio($response_decode, 'code');
+            $transaccion->message = $this->valorRespuestaServicio($response_decode, 'message');
+            $transaccion->responseReference = $this->valorRespuestaServicio($response_decode, 'reference');
+            $transaccion->referenceEmisor = $this->valorRespuestaServicio($response_decode, 'referenceEmisor');
             $transaccion->idcliente = $request->idcliente;
             $transaccion->tipo = $request->tipo;
             $transaccion->idusuario =  \Auth::user()->id;
             $transaccion->productivo = \Auth::user()->productivo;
+            $transaccion->condicion = $this->condicionGeneracionLiga($request->tipo, $response_decode);
             $transaccion->save();
             
             DB::commit();
@@ -2161,14 +2232,15 @@ class TransaccionController extends Controller
             $transaccion->Reference = str_pad($max, 15, '0', STR_PAD_LEFT);            
             $transaccion->ClientReference = $request->Reference;
             $transaccion->response = $response_body;
-            $transaccion->codeQR = $response_decode->codeQR;
-            $transaccion->code = $response_decode->code;
-            $transaccion->message = $response_decode->message;
-            $transaccion->responseReference = $response_decode->reference;
-            $transaccion->referenceEmisor = $response_decode->referenceEmisor;
+            $transaccion->codeQR = $this->valorRespuestaServicio($response_decode, 'codeQR');
+            $transaccion->code = $this->valorRespuestaServicio($response_decode, 'code');
+            $transaccion->message = $this->valorRespuestaServicio($response_decode, 'message');
+            $transaccion->responseReference = $this->valorRespuestaServicio($response_decode, 'reference');
+            $transaccion->referenceEmisor = $this->valorRespuestaServicio($response_decode, 'referenceEmisor');
             $transaccion->tipo = 4;
             $transaccion->idusuario =  $usuario->id;
             $transaccion->productivo = $usuario->productivo;
+            $transaccion->condicion = $this->condicionGeneracionLiga(4, $response_decode);
             $transaccion->save();
             DB::commit();
         } catch (Exception $e){
@@ -2189,11 +2261,11 @@ class TransaccionController extends Controller
         }
 
         return response()->json([
-            'code' => $response_decode->code,
-            'message' => $response_decode->message,
-            'codeQR' => $response_decode->reference,
-            'reference' => $response_decode->reference,
-            'referenceEmisor' => $response_decode->referenceEmisor
+            'code' => $this->valorRespuestaServicio($response_decode, 'code'),
+            'message' => $this->valorRespuestaServicio($response_decode, 'message'),
+            'codeQR' => $this->valorRespuestaServicio($response_decode, 'reference'),
+            'reference' => $this->valorRespuestaServicio($response_decode, 'reference'),
+            'referenceEmisor' => $this->valorRespuestaServicio($response_decode, 'referenceEmisor')
         ], 200);
     }
 
@@ -3083,6 +3155,11 @@ class TransaccionController extends Controller
     private function sincronizarStatusDomiciliaciones()
     {
         $hoy = Carbon::now('America/Hermosillo')->toDateString();
+
+        Transaccion::whereIn('tipo', [1, 3, 4])
+            ->where('condicion', '=', 1)
+            ->whereDate('ExpirationDate', '<', $hoy)
+            ->update(['condicion' => 4]);
 
         Transaccion::where('tipo', '=', 2)
             ->where('condicion', '=', 0)
@@ -3999,7 +4076,7 @@ class TransaccionController extends Controller
             return $validacionFechas;
         }
 
-        if (!$this->condicionTransaccionValida($status)) {
+        if (!$this->condicionTransaccionValidaPorTipo($status, $tipo)) {
             return response()->json([
                 'status' => 'error',
                 'msg' => 'Status no permitido.',
