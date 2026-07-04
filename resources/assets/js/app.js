@@ -28,6 +28,7 @@ import PagoSpei from './components/PagoSpei.vue';
 import CancelaSpei from './components/CancelaSpei.vue';
 import ReporteSpei from './components/ReporteSpei.vue';
 import PagoRecibido from './components/PagoRecibido.vue';
+import IntegrationAudit from './components/IntegrationAudit.vue';
 
 const jQuery = window.jQuery || window.$ || importedJQuery;
 const $ = jQuery;
@@ -62,7 +63,8 @@ const components = {
     pagospei: PagoSpei,
     cancelaspei: CancelaSpei,
     reportespei: ReporteSpei,
-    pagorecibido: PagoRecibido
+    pagorecibido: PagoRecibido,
+    integrationaudit: IntegrationAudit
 };
 
 let sessionExpiredModalVisible = false;
@@ -126,6 +128,38 @@ if (window.axios && window.swal) {
         return Promise.reject(error);
     });
 }
+
+let lastModuleActivityMenu = null;
+let lastModuleActivityAt = 0;
+
+function recordModuleActivity(menu) {
+    const normalizedMenu = Number(menu);
+
+    if (!Number.isFinite(normalizedMenu) || !window.axios) {
+        return;
+    }
+
+    const now = Date.now();
+
+    if (lastModuleActivityMenu === normalizedMenu && now - lastModuleActivityAt < 1500) {
+        return;
+    }
+
+    lastModuleActivityMenu = normalizedMenu;
+    lastModuleActivityAt = now;
+
+    window.axios.post('/user-activity/module', {
+        menu: normalizedMenu
+    }).catch(() => {});
+}
+
+document.addEventListener('centrodecobros:menu-changed', event => {
+    recordModuleActivity(event.detail?.menu);
+});
+
+document.addEventListener('centrodecobros:app-mounted', event => {
+    recordModuleActivity(event.detail?.menu);
+});
 
 const shellHeader = initAuthenticatedShellHeader();
 const shellNavigation = initAuthenticatedShellNavigation();

@@ -1,6 +1,6 @@
 # Runbook de deploy y rollback
 
-Ultima actualizacion: 2026-06-03
+Ultima actualizacion: 2026-07-03
 Repositorio: `C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`
 Rama vigente: `main`
 
@@ -96,6 +96,16 @@ docker compose exec app php artisan view:cache
 docker compose exec app php artisan route:list
 docker compose exec app php artisan schedule:list
 ```
+
+Si el cambio incluye auditoria de integraciones, revisar migraciones aditivas antes de ejecutarlas:
+
+```bash
+docker compose exec app php artisan migrate --pretend
+docker compose exec app php artisan migrate --force
+docker compose exec app php artisan audit:purge --days=365 --dry-run
+```
+
+No programar `audit:purge` en scheduler sin una tarea aprobada separada.
 
 Assets:
 

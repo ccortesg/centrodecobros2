@@ -350,8 +350,14 @@ class RespuestaController extends Controller
                 $error_msg = "";
 
                 try{
-                    $client = new Client();
-                    $response =  $client->request('POST', $usuario->ligaPago, [RequestOptions::JSON => $params]);
+                    $response = $this->postJsonAuditado($usuario->ligaPago, $params, [
+                        'provider' => 'Cliente',
+                        'source_context' => 'callback_webhook_liga',
+                        'idusuario' => $usuario->id,
+                        'idtransaccion' => $transaccion->id,
+                        'productivo' => $transaccion->productivo,
+                        'correlation_reference' => $transaccion->ClientReference,
+                    ]);
                 } catch (RequestException $e){
                     $response_decode = "error";
                     // Log the error message
@@ -470,8 +476,14 @@ class RespuestaController extends Controller
                 $error_msg = "";
 
                 try{
-                    $client = new Client();
-                    $response =  $client->request('POST', $usuario->ligaPago, [RequestOptions::JSON => $params]);
+                    $response = $this->postJsonAuditado($usuario->ligaPago, $params, [
+                        'provider' => 'Cliente',
+                        'source_context' => 'callback_webhook_lector',
+                        'idusuario' => $usuario->id,
+                        'idtransaccion' => $transaccion->id,
+                        'productivo' => $transaccion->productivo,
+                        'correlation_reference' => $transaccion->ClientReference,
+                    ]);
                 } catch (RequestException $e){
                     $response  = $e->getResponse();
                     $response_body = $response !== null ? (string) $response->getBody() : '';

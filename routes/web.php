@@ -23,6 +23,7 @@ Route::group(['middleware'=>['guest']],function(){
 Route::group(['middleware'=>['auth']],function(){
     
     Route::post('/logout', 'Auth\LoginController@logout')->name('logout');
+    Route::post('/user-activity/module', 'IntegrationAuditController@storeModuleActivity');
     Route::get('/dashboard','DashboardController');
     //Notificaciones
     Route::post('/notification/get','NotificationController@get');
@@ -123,6 +124,13 @@ Route::group(['middleware'=>['auth']],function(){
         Route::put('/user/desactivar', 'UserController@desactivar');
         Route::put('/user/activar', 'UserController@activar');
         Route::get('/user/selectUsuario', 'UserController@selectUsuario');
+
+        Route::get('/integraciones/outgoing-api-requests', 'IntegrationAuditController@outgoing');
+        Route::get('/integraciones/outgoing-api-requests/exportar', 'IntegrationAuditController@exportOutgoing');
+        Route::get('/integraciones/incoming-api-requests', 'IntegrationAuditController@incoming');
+        Route::get('/integraciones/incoming-api-requests/exportar', 'IntegrationAuditController@exportIncoming');
+        Route::get('/integraciones/user-activity-log', 'IntegrationAuditController@userActivity');
+        Route::get('/integraciones/user-activity-log/exportar', 'IntegrationAuditController@exportUserActivity');
     });       
 });
 

@@ -1932,8 +1932,11 @@ class TransaccionController extends Controller
         $response_decode = "";
 
         /*try{*/
-            $client = new Client();
-            $response =  $client->request('POST', $this->urlPath, [RequestOptions::JSON => $params]);            
+            $response = $this->postJsonControlado($this->urlPath, $params, [
+                'source_context' => 'pagadetodo_liga_publica',
+                'productivo' => 0,
+                'correlation_reference' => $params['Reference'] ?? null,
+            ]);
         /*} catch (RequestException $e){
             //$response  = Psr7\Message::toString($e->getRequest());
             //$response = Psr7\Message::toString($e->getResponse());
@@ -3274,8 +3277,14 @@ class TransaccionController extends Controller
             $error_code = "";
             $error_msg = "";
             try{
-                $client = new Client();
-                $response =  $client->request('POST', $usuario->ligaPago, [RequestOptions::JSON => $params]);
+                $response = $this->postJsonAuditado($usuario->ligaPago, $params, [
+                    'provider' => 'Cliente',
+                    'source_context' => 'callback_pago_spei',
+                    'idusuario' => $usuario->id,
+                    'idtransaccion' => $transaccion->id,
+                    'productivo' => $transaccion->productivo,
+                    'correlation_reference' => $transaccion->ClientReference,
+                ]);
             } catch (RequestException $e){
                 Log::info('FallÃ³ el registro del pago spei '.$pagospei->id);
                 return;
@@ -3327,8 +3336,14 @@ class TransaccionController extends Controller
             $error_code = "";
             $error_msg = "";
             try{
-                $client = new Client();
-                $response =  $client->request('POST', $usuario->ligaPago, [RequestOptions::JSON => $params]);
+                $response = $this->postJsonAuditado($usuario->ligaPago, $params, [
+                    'provider' => 'Cliente',
+                    'source_context' => 'callback_pago_liga',
+                    'idusuario' => $usuario->id,
+                    'idtransaccion' => $transaccion->id,
+                    'productivo' => $transaccion->productivo,
+                    'correlation_reference' => $transaccion->ClientReference,
+                ]);
             } catch (RequestException $e){
                 Log::info('FallÃ³ el registro de la liga de pago '.$respuesta->id);
                 return;

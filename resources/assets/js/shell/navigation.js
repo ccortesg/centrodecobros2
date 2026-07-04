@@ -53,6 +53,12 @@ const LEGACY_HASH_MENU_TARGETS = new Map([
     ['ingresos-cargos-recurrentes', 25],
     ['terminal', 26],
     ['terminal-respuestas', 27],
+    ['integraciones-outgoing', 31],
+    ['outgoing-api-requests', 31],
+    ['integraciones-incoming', 32],
+    ['incoming-api-requests', 32],
+    ['user-activity-log', 33],
+    ['integraciones-actividad', 33],
 ]);
 
 let listenersBound = false;

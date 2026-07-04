@@ -119,6 +119,20 @@
             <template v-if="menu==30">
                 <pagorecibido></pagorecibido>
             </template>
+
+            @if (Auth::user()->idrol == 1)
+            <template v-if="menu==31">
+                <integrationaudit tipo="outgoing"></integrationaudit>
+            </template>
+
+            <template v-if="menu==32">
+                <integrationaudit tipo="incoming"></integrationaudit>
+            </template>
+
+            <template v-if="menu==33">
+                <integrationaudit tipo="user_activity"></integrationaudit>
+            </template>
+            @endif
             @else
 
 

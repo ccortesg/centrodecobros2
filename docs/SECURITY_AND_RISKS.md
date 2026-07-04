@@ -1,6 +1,6 @@
 # Seguridad, robustez y mantenibilidad
 
-Ultima actualizacion: 2026-06-03
+Ultima actualizacion: 2026-07-03
 
 ## Hallazgos de seguridad vigentes
 
@@ -35,12 +35,18 @@ Ultima actualizacion: 2026-06-03
    - `npm audit --omit=dev --audit-level=low` es la frontera runtime usada en CI.
    - La auditoria completa puede incluir deuda dev/tooling y debe atenderse en carril separado, con build y smoke browser.
 
+7. Auditoria de integraciones
+   - Las bitacoras nuevas guardan headers/payloads sanitizados, no valores crudos de passwords, tokens, cookies, CSRF, CLABE ni datos de tarjeta.
+   - El acceso a `Outgoing API Requests`, `Incoming API Requests` y `User Activity Log` es solo Administrador.
+   - La purga recomendada es manual a 365 dias con `audit:purge`; no se modifico scheduler.
+
 ## Robustez e integridad
 
 - Multiples relaciones no tienen FK confiables; validar relaciones desde uso real en codigo.
 - Folios por `max()+1` pueden tener carreras bajo concurrencia.
 - Controladores monoliticos elevan riesgo de regresion.
 - Manejo de errores sigue mixto: algunas rutas tienen respuestas controladas y otras conservan patrones legacy.
+- La auditoria no debe bloquear flujos financieros; si el insert de bitacora falla, solo debe registrarse warning.
 - Feature tests con SQLite cubren regresiones importantes, pero UAT MySQL/productivo sigue siendo necesario para aceptar negocio.
 
 ## Riesgos por modulo
@@ -51,6 +57,7 @@ Ultima actualizacion: 2026-06-03
 - Respuestas: falta firma/origen de proveedor.
 - Clientes: consolidacion/depuracion debe preservar integridad en tablas sin FK completa.
 - Notificaciones: polling funciona; realtime websocket no esta cerrado.
+- Integraciones/Auditoria: riesgo de crecimiento de tablas y exposicion operativa si se amplian campos sin sanitizacion.
 
 ## Oportunidades de mejora
 

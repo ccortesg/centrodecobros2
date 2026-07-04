@@ -1,6 +1,6 @@
 # Integraciones externas
 
-Ultima actualizacion: 2026-06-03
+Ultima actualizacion: 2026-07-03
 
 ## 1. Pagadetodo
 
@@ -105,3 +105,11 @@ Si `VITE_PUSHER_APP_KEY` no existe, `window.Echo` queda en `null` y el sistema n
 3. Sanitizar request/response en cualquier evidencia.
 4. Mantener `PAGADETODO_MOCK=true` en local; ejecutar llamadas reales Pagadetodo solo desde servidor/IP autorizado.
 5. Actualizar `docs/MODULES` y pruebas si cambia un contrato.
+
+## 8. Auditoria de integraciones
+
+- `Outgoing API Requests` registra llamadas salientes a Pagadetodo y callbacks a clientes (`users.ligaPago`, `users.ligaRecurrente`).
+- `Incoming API Requests` registra llamadas externas del grupo `api` (`routes/api.php`), que conserva rutas legacy sin prefijo `/api`.
+- `User Activity Log` registra login exitoso/fallido, logout y acceso a modulos del shell.
+- La sanitizacion vive en `App\Services\AuditSanitizer`; los headers/payloads se guardan ya sanitizados.
+- La purga es manual con `php artisan audit:purge --days=365 --dry-run`; no se agrego scheduler.

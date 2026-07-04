@@ -31,7 +31,8 @@ No crear copias nuevas para fases, fixes, documentacion o actualizaciones futura
 - Configuracion externa: `.env` en servidor, `.env.example`, `config/services.php`, `config/broadcasting.php`.
 - Esquema operativo: MySQL productivo o dump autorizado fuera de Git. No asumir que `database/migrations` reconstruye el sistema real.
 - Pruebas Feature: SQLite preparado por `scripts/local/prepare_phase33_browser_sqlite.php` y soporte bajo `tests/Support`.
-- Inventario de rutas vigente: `php artisan route:list` muestra 100 rutas en el corte 2026-06-07.
+- Inventario de rutas vigente: `php artisan route:list` muestra 110 rutas en el corte 2026-07-03.
+- Addendum 2026-07-03: los modulos de auditoria de integraciones agregan rutas `integraciones/*` y el comando manual `audit:purge`; confirmar el inventario vigente con `route:list` en cada tarea.
 - Diagnostico vigente: `docs/PROJECT_STATUS_DIAGNOSTIC_2026-06-07.md`.
 
 ## Flujo de trabajo para cualquier cambio
@@ -55,6 +56,7 @@ No crear copias nuevas para fases, fixes, documentacion o actualizaciones futura
 - No publicar `.env`, dumps SQL, SQLite, logs, `vendor/`, `node_modules/`, outputs ni assets compilados.
 - No tocar `principal.blade.php` ni contrato publico de assets sin justificacion y validacion.
 - No renombrar rutas API legacy ni agregar prefijo `/api` sin plan de compatibilidad.
+- No ampliar campos auditados ni exportados sin revisar `App\Services\AuditSanitizer`; headers/payloads deben quedar sanitizados antes de persistirse.
 - Si una relacion de DB se infiere desde codigo, documentarla como inferida.
 
 ## Checklist previo a cambios funcionales
@@ -79,6 +81,7 @@ git diff --check docs
 ```
 
 Si la tarea toca contratos Pagadetodo o ownership, ejecutar tambien Feature con SQLite/WAMP y `PAGADETODO_MOCK=true`.
+Si la tarea toca auditoria de integraciones, ejecutar `tests/Unit/AuditSanitizerTest.php` y `tests/Feature/IntegrationAuditFeatureTest.php`.
 
 ## Nota de validacion 2026-06-07
 

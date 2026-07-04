@@ -311,6 +311,69 @@ trait UsesIsolatedCentroCobrosDatabase
             $table->integer('idusuario')->nullable();
             $table->timestamps();
         });
+
+        Schema::create('outgoing_api_requests', function (Blueprint $table) {
+            $table->increments('id');
+            $table->dateTime('occurred_at')->nullable();
+            $table->string('provider')->nullable();
+            $table->string('source_context')->nullable();
+            $table->string('method')->nullable();
+            $table->string('url')->nullable();
+            $table->string('host')->nullable();
+            $table->integer('status_code')->nullable();
+            $table->boolean('success')->default(false);
+            $table->integer('duration_ms')->nullable();
+            $table->text('request_headers')->nullable();
+            $table->text('request_payload')->nullable();
+            $table->text('response_headers')->nullable();
+            $table->text('response_body')->nullable();
+            $table->string('error_class')->nullable();
+            $table->text('error_message')->nullable();
+            $table->integer('idusuario')->nullable();
+            $table->integer('idtransaccion')->nullable();
+            $table->string('correlation_reference')->nullable();
+            $table->integer('productivo')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('incoming_api_requests', function (Blueprint $table) {
+            $table->increments('id');
+            $table->dateTime('occurred_at')->nullable();
+            $table->string('method')->nullable();
+            $table->string('path')->nullable();
+            $table->string('route_action')->nullable();
+            $table->string('ip_address')->nullable();
+            $table->string('user_agent')->nullable();
+            $table->integer('status_code')->nullable();
+            $table->boolean('success')->default(false);
+            $table->integer('duration_ms')->nullable();
+            $table->text('request_headers')->nullable();
+            $table->text('request_payload')->nullable();
+            $table->text('response_body')->nullable();
+            $table->text('error_message')->nullable();
+            $table->integer('idusuario')->nullable();
+            $table->integer('idtransaccion')->nullable();
+            $table->string('correlation_reference')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('user_activity_logs', function (Blueprint $table) {
+            $table->increments('id');
+            $table->dateTime('occurred_at')->nullable();
+            $table->integer('idusuario')->nullable();
+            $table->string('usuario')->nullable();
+            $table->integer('idrol')->nullable();
+            $table->string('action')->nullable();
+            $table->boolean('success')->default(true);
+            $table->integer('module_key')->nullable();
+            $table->string('module_name')->nullable();
+            $table->string('route_path')->nullable();
+            $table->string('ip_address')->nullable();
+            $table->string('user_agent')->nullable();
+            $table->string('session_id_hash')->nullable();
+            $table->text('metadata')->nullable();
+            $table->timestamps();
+        });
     }
 
     private function seedCentroCobrosData(): void

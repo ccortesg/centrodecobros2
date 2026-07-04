@@ -128,6 +128,20 @@
                             </li>
                         </ul>
                     </li>
+                    <li class="nav-item nav-dropdown">
+                        <a class="nav-link nav-dropdown-toggle" href="#"><i class="fa fa-plug"></i> Integraciones</a>
+                        <ul class="nav-dropdown-items">
+                            <li class="nav-item" data-menu-target="31">
+                                <a class="nav-link" href="#"><i class="fa fa-cloud-upload"></i> Outgoing API Requests</a>
+                            </li>
+                            <li class="nav-item" data-menu-target="32">
+                                <a class="nav-link" href="#"><i class="fa fa-cloud-download"></i> Incoming API Requests</a>
+                            </li>
+                            <li class="nav-item" data-menu-target="33">
+                                <a class="nav-link" href="#"><i class="fa fa-history"></i> User Activity Log</a>
+                            </li>
+                        </ul>
+                    </li>
                     <li class="nav-item" data-menu-target="5">
                         <a class="nav-link" href="#"><i class="fa fa-book"></i> Ayuda <span class="badge badge-danger">PDF</span></a>
                     </li>

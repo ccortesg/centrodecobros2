@@ -810,8 +810,13 @@ class TransaccionDomController extends Controller
             $response_decode = "";
 
             try{        
-                $client = new Client();
-                $response =  $client->request('POST', $this->urlDom, [RequestOptions::JSON => $params]);                        
+                $response = $this->postJsonControlado($this->urlDom, $params, [
+                    'source_context' => 'pagadetodo_cargo_recurrente_cron',
+                    'idusuario' => $usuario->id,
+                    'idtransaccion' => $transaccion->id,
+                    'productivo' => $transaccion->productivo,
+                    'correlation_reference' => $transaccion->ClientReference,
+                ]);
             } catch (RequestException $e){
                 //Agregar al log cuando hubo un error con la respuesta del error con el id de la transacción
                 Log::info('Error en cargo de domiciliación. IdTransacción: '.$transaccion->id);
@@ -948,8 +953,14 @@ class TransaccionDomController extends Controller
                 $error_msg = "";
 
                 try{
-                    $client = new Client();
-                    $response =  $client->request('POST', $usuario->ligaRecurrente, [RequestOptions::JSON => $params]);
+                    $response = $this->postJsonAuditado($usuario->ligaRecurrente, $params, [
+                        'provider' => 'Cliente',
+                        'source_context' => 'callback_cargo_recurrente',
+                        'idusuario' => $usuario->id,
+                        'idtransaccion' => $transaccion->id,
+                        'productivo' => $transaccion->productivo,
+                        'correlation_reference' => $transaccion->ClientReference,
+                    ]);
                 } catch (RequestException $e){
                     $response  = $e->getResponse();
                     $response_body = (string) $response->getBody();

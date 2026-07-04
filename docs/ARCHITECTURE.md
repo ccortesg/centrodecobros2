@@ -1,6 +1,6 @@
 # Arquitectura real del sistema
 
-Ultima actualizacion: 2026-06-03
+Ultima actualizacion: 2026-07-03
 
 ## 1. Vista general
 
@@ -35,6 +35,7 @@ Ultima actualizacion: 2026-06-03
 ### Integraciones
 
 - Pagadetodo via Guzzle y endpoints configurados en `config/services.php`.
+- Auditoria de integraciones via `ApiAuditLogger`, `AuditSanitizer` y middleware `LogIncomingApiRequest`.
 - Pusher/Echo para notificaciones si existen variables `VITE_PUSHER_*` y broadcasting configurado.
 - SMTP/Postmark para correo.
 - TeleSign queda como dependencia historica residual; el flujo publico OTP/SMS fue retirado.
@@ -49,6 +50,7 @@ Ultima actualizacion: 2026-06-03
 - SPEI: consulta, pago y cancelacion.
 - Dashboard y notificaciones.
 - Reportes y exportaciones.
+- Integraciones y auditoria: outgoing API, incoming API y actividad de usuario.
 
 ## 4. Acoplamientos criticos
 
@@ -57,6 +59,7 @@ Ultima actualizacion: 2026-06-03
 - `app/Http/Controllers/RespuestaController.php` recibe respuestas de ligas y lector.
 - Los payloads externos usan nombres legacy como `User`, `Password`, `BusinessID`, `IntegrationID`, `reference`, `transaccion` y `autorizacion`.
 - El frontend y backend dependen de nombres exactos de campos historicos.
+- La auditoria de integraciones es aditiva: no cambia payloads externos y guarda headers/payloads sanitizados.
 
 ## 5. Flujo principal
 
@@ -66,6 +69,7 @@ Ultima actualizacion: 2026-06-03
 4. El controlador valida, aplica rol/ownership, arma payload, invoca proveedor si aplica y persiste.
 5. Reportes/exportaciones consultan datos acotados por rol.
 6. Webhooks `Service/*` actualizan respuestas, transacciones SPEI o callbacks segun contrato.
+7. Las llamadas entrantes/salientes y accesos de usuario se registran en bitacoras administrativas sanitizadas.
 
 ## 6. Diagnostico arquitectonico
 

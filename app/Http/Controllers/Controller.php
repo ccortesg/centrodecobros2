@@ -140,15 +140,49 @@ class Controller extends BaseController
         return $query;
     }
 
-    protected function postJsonControlado($url, array $params)
+    protected function postJsonControlado($url, array $params, array $context = [])
     {
+        $context = array_merge([
+            'provider' => 'Pagadetodo',
+            'source_context' => 'pagadetodo',
+            'method' => 'POST',
+        ], $context);
+
         if (config('services.pagadetodo.mock', false)) {
-            return new \GuzzleHttp\Psr7\Response(200, [], json_encode($this->pagadetodoMockPayload($url, $params)));
+            $startedAt = microtime(true);
+            $response = new \GuzzleHttp\Psr7\Response(200, [], json_encode($this->pagadetodoMockPayload($url, $params)));
+            app(\App\Services\ApiAuditLogger::class)->recordOutgoing($url, $params, $response, null, $startedAt, $context);
+
+            return $response;
         }
 
-        $client = new \GuzzleHttp\Client();
+        return $this->postJsonAuditado($url, $params, $context);
+    }
 
-        return $client->request('POST', $url, [\GuzzleHttp\RequestOptions::JSON => $params]);
+    protected function postJsonAuditado($url, array $params, array $context = [])
+    {
+        $startedAt = microtime(true);
+        $client = new \GuzzleHttp\Client();
+        $response = null;
+
+        try {
+            $response = $client->request('POST', $url, [\GuzzleHttp\RequestOptions::JSON => $params]);
+            app(\App\Services\ApiAuditLogger::class)->recordOutgoing($url, $params, $response, null, $startedAt, array_merge([
+                'method' => 'POST',
+            ], $context));
+
+            return $response;
+        } catch (\Throwable $e) {
+            if ($e instanceof \GuzzleHttp\Exception\RequestException) {
+                $response = $e->getResponse();
+            }
+
+            app(\App\Services\ApiAuditLogger::class)->recordOutgoing($url, $params, $response, $e, $startedAt, array_merge([
+                'method' => 'POST',
+            ], $context));
+
+            throw $e;
+        }
     }
 
     private function pagadetodoMockPayload($url, array $params)

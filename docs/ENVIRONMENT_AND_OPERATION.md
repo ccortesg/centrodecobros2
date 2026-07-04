@@ -86,6 +86,33 @@ Reglas de operacion:
 5. Limpiar caches Laravel despues de cambiar codigo/configuracion.
 6. Validar logs, login y modulos criticos despues de cada despliegue.
 
+### Auditoria de integraciones
+
+Los modulos `Outgoing API Requests`, `Incoming API Requests` y `User Activity Log` requieren migraciones aditivas para crear:
+
+- `outgoing_api_requests`
+- `incoming_api_requests`
+- `user_activity_logs`
+
+Antes de produccion:
+
+```bash
+php artisan migrate --pretend
+```
+
+Durante ventana aprobada:
+
+```bash
+php artisan migrate --force
+```
+
+La retencion se maneja con comando manual, sin scheduler:
+
+```bash
+php artisan audit:purge --days=365 --dry-run
+php artisan audit:purge --days=365
+```
+
 ## Scheduler
 
 El scheduler contiene procesos financieros sensibles:

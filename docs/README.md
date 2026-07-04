@@ -1,6 +1,6 @@
 # Documentacion tecnica - Centro de Cobros
 
-Ultima actualizacion: 2026-06-07
+Ultima actualizacion: 2026-07-03
 
 ## Punto de entrada actual
 
@@ -42,7 +42,7 @@ Los documentos `MIGRATION_PHASE_*` son evidencia historica por fase. Para tareas
 - Composer local observado: `2.2.6`.
 - Frontend: Vue `3.5.30`, Vite `7.x`.
 - Node/npm observados desde Windows: Node `v20.20.0`, npm `10.8.2`.
-- Rutas vigentes: `php artisan route:list` registra 100 rutas en el corte 2026-06-07.
+- Rutas vigentes: confirmar con `php artisan route:list`; el corte 2026-07-03 agrega rutas administrativas `integraciones/*` y `user-activity/module`.
 - Assets compilados: no se versionan; se generan con `npm ci && npm run production` en CI/deploy.
 - Contrato publico preservado:
   - `public/js/app.js`
@@ -71,6 +71,7 @@ Los documentos `MIGRATION_PHASE_*` son evidencia historica por fase. Para tareas
 - Repo Git inicializado en `main`, `.gitignore` saneado y workflow GitHub de validacion sandbox agregado.
 - Credenciales Pagadetodo/Pusher externalizadas hacia `.env`, `config/services.php` y variables `VITE_PUSHER_*`.
 - Servicios Pagadetodo probados exitosamente en servidor sandbox y productivo, confirmado por el propietario el 2026-06-08.
+- Modulos administrativos de auditoria de integraciones: `Outgoing API Requests`, `Incoming API Requests` y `User Activity Log`, con payloads/headers sanitizados y exportacion Excel.
 
 ## Condiciones abiertas
 
