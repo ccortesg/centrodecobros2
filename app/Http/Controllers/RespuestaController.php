@@ -19,9 +19,17 @@ use Exception;
 use Throwable;
 
 use App\Services\WebhookEventPublisher;
+use App\Services\TransaccionStatusSynchronizer;
 
 class RespuestaController extends Controller
 {
+    private TransaccionStatusSynchronizer $statusSynchronizer;
+
+    public function __construct(TransaccionStatusSynchronizer $statusSynchronizer)
+    {
+        $this->statusSynchronizer = $statusSynchronizer;
+    }
+
     private function webhookCamposMinimos()
     {
         return [
@@ -76,36 +84,6 @@ class RespuestaController extends Controller
             ->where('reference', '=', $reference)
             ->lockForUpdate()
             ->first();
-    }
-
-    private function sincronizarStatusTransaccionPorRespuesta($transaccion, Respuesta $respuesta)
-    {
-        if ($transaccion === null || $respuesta->status !== 'approved') {
-            return;
-        }
-
-        if (in_array((int) $transaccion->tipo, [1, 4], true)) {
-            $transaccion->condicion = 3;
-            $transaccion->save();
-            return;
-        }
-
-        if ((int) $transaccion->tipo !== 2) {
-            return;
-        }
-
-        $token = trim((string) $respuesta->number_tkn);
-        $transaccion->condicion = $token === '' ? 5 : 1;
-
-        if ($transaccion->ProximoCargo && !$transaccion->ProximoCargoBase) {
-            $transaccion->ProximoCargoBase = $transaccion->ProximoCargo;
-        }
-
-        if ($transaccion->intentos === null) {
-            $transaccion->intentos = 0;
-        }
-
-        $transaccion->save();
     }
 
     private function eventosWebhookRespuesta($transaccion, Respuesta $respuesta)
@@ -329,10 +307,16 @@ class RespuestaController extends Controller
         if (!$request->ajax()) return redirect('/');
 
         $respuesta = new Respuesta();
+        $transaccion = $this->transaccionPorRespuestaReferencia($request->reference);
+
+        if ($transaccion !== null && !$this->usuarioPuedeOperarRegistro($transaccion)) {
+            return $this->respuestaNoAutorizado($request);
+        }
 
         try{
             DB::beginTransaction();
             $mytime= Carbon::now('America/Hermosillo');
+            $respuesta->idtransaccion = $transaccion->id ?? null;
             $respuesta->fecha = $mytime->toDateTimeString();
             $respuesta->reference = $request->reference;
             $respuesta->status = $request->status;
@@ -359,6 +343,7 @@ class RespuestaController extends Controller
             $respuesta->number_tkn = $request->number_tkn;
             $respuesta->cc_mask = $request->cc_mask;
             $respuesta->save();
+            $this->statusSynchronizer->sincronizarPorRespuesta($transaccion, $respuesta);
             DB::commit();
         } catch (Exception $e){
             DB::rollBack();
@@ -383,7 +368,7 @@ class RespuestaController extends Controller
             DB::beginTransaction();
             $duplicada = $this->respuestaWebhookDuplicada($idtransaccion, $date_response["reference"]);
             if ($duplicada !== null) {
-                $this->sincronizarStatusTransaccionPorRespuesta($transaccion, $duplicada);
+                $this->statusSynchronizer->sincronizarPorRespuesta($transaccion, $duplicada);
                 DB::commit();
                 $this->procesarNotificacionRespuesta($transaccion, $duplicada, $date_response);
                 return 'success';
@@ -419,7 +404,7 @@ class RespuestaController extends Controller
             $respuesta->cc_mask = $this->valorWebhook($date_response, 'cc_mask');
             $respuesta->response = $data;
             $respuesta->save();
-            $this->sincronizarStatusTransaccionPorRespuesta($transaccion, $respuesta);
+            $this->statusSynchronizer->sincronizarPorRespuesta($transaccion, $respuesta);
             DB::commit();
         } catch (Exception $e){
             DB::rollBack();
@@ -454,7 +439,7 @@ class RespuestaController extends Controller
             DB::beginTransaction();
             $duplicada = $this->respuestaWebhookDuplicada($idtransaccion, $date_response["reference"]);
             if ($duplicada !== null) {
-                $this->sincronizarStatusTransaccionPorRespuesta($transaccion, $duplicada);
+                $this->statusSynchronizer->sincronizarPorRespuesta($transaccion, $duplicada);
                 DB::commit();
                 $this->procesarNotificacionRespuesta($transaccion, $duplicada, $date_response, true);
                 return 'success';
@@ -484,7 +469,7 @@ class RespuestaController extends Controller
             $respuesta->amount = $date_response["amount"];
             $respuesta->response = $data;
             $respuesta->save();
-            $this->sincronizarStatusTransaccionPorRespuesta($transaccion, $respuesta);
+            $this->statusSynchronizer->sincronizarPorRespuesta($transaccion, $respuesta);
             DB::commit();
         } catch (Exception $e){
             DB::rollBack();
@@ -519,6 +504,18 @@ class RespuestaController extends Controller
                 DB::rollBack();
                 return $this->respuestaNoAutorizado($request);
             }
+            $transaccion = $respuesta->idtransaccion
+                ? Transaccion::find($respuesta->idtransaccion)
+                : $this->transaccionPorRespuestaReferencia($request->reference);
+
+            if ($transaccion !== null && !$this->usuarioPuedeOperarRegistro($transaccion)) {
+                DB::rollBack();
+                return $this->respuestaNoAutorizado($request);
+            }
+
+            if ($respuesta->idtransaccion === null && $transaccion !== null) {
+                $respuesta->idtransaccion = $transaccion->id;
+            }
             $respuesta->reference = $request->reference;
             $respuesta->status = $request->status;
             $respuesta->foliocpagos = $request->foliocpagos;
@@ -544,6 +541,7 @@ class RespuestaController extends Controller
             $respuesta->number_tkn = $request->number_tkn;
             $respuesta->cc_mask = $request->cc_mask;       
             $respuesta->save();
+            $this->statusSynchronizer->sincronizarPorRespuesta($transaccion, $respuesta);
             DB::commit();
         } catch (Exception $e){
             DB::rollBack();

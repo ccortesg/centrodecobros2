@@ -160,7 +160,7 @@ Para domiciliacion:
 - Una liga nueva tipo `2` nace como `Pendiente=0`.
 - Una respuesta aprobada con token la marca como `Activo=1`.
 - Una respuesta aprobada sin token la marca como `Error=5`.
-- Si vence sin respuesta aprobada, `revisarStatus()` la marca como `Vencido=4`.
+- Si vence sin respuesta aprobada, `transacciones:sincronizar-status` la marca diariamente como `Vencido=4`; webhooks y operaciones manuales sincronizan inmediatamente activaciones y errores.
 - `transacciones.intentos` cuenta cargos recurrentes fallidos (`transaccionesDom.code != 00`) y se reinicia con cargo aprobado.
 
 ## Pruebas recomendadas

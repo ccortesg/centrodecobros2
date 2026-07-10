@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\UX;
 
-use App\Http\Controllers\TransaccionController;
+use App\Services\TransaccionStatusSynchronizer;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\UsesIsolatedCentroCobrosDatabase;
 use Tests\TestCase;
@@ -204,7 +204,7 @@ class FinancialFiltersFeatureTest extends TestCase
         }
     }
 
-    public function test_revisar_status_marks_expired_active_links_spei_and_terminal_as_expired()
+    public function test_daily_status_sync_marks_expired_active_links_spei_and_terminal_as_expired()
     {
         $expired = now()->subDay()->toDateString();
 
@@ -230,7 +230,7 @@ class FinancialFiltersFeatureTest extends TestCase
             'ExpirationDate' => $expired,
         ]);
 
-        app(TransaccionController::class)->revisarStatus();
+        app(TransaccionStatusSynchronizer::class)->sincronizarTodo();
 
         $this->assertSame(4, (int) DB::table('transacciones')->where('id', 100)->value('condicion'));
         $this->assertSame(4, (int) DB::table('transacciones')->where('id', 200)->value('condicion'));
@@ -238,7 +238,7 @@ class FinancialFiltersFeatureTest extends TestCase
         $this->assertSame(4, (int) DB::table('transacciones')->where('id', 101)->value('condicion'));
     }
 
-    public function test_revisar_status_does_not_expire_paid_cancelled_or_error_transactions()
+    public function test_daily_status_sync_does_not_expire_paid_cancelled_or_error_transactions()
     {
         $expired = now()->subDay()->toDateString();
 
@@ -258,7 +258,7 @@ class FinancialFiltersFeatureTest extends TestCase
             'ExpirationDate' => $expired,
         ]);
 
-        app(TransaccionController::class)->revisarStatus();
+        app(TransaccionStatusSynchronizer::class)->sincronizarTodo();
 
         $this->assertSame(3, (int) DB::table('transacciones')->where('id', 100)->value('condicion'));
         $this->assertSame(2, (int) DB::table('transacciones')->where('id', 200)->value('condicion'));

@@ -101,7 +101,7 @@ Reglas especificas para `tipo=2` domiciliacion:
 - Al generar la liga, inicia `Pendiente=0`.
 - Al recibir respuesta aprobada con token, cambia a `Activo=1`.
 - Al recibir respuesta aprobada sin token, cambia a `Error=5`.
-- Si vence sin respuesta aprobada, `revisarStatus()` cambia a `Vencido=4`.
+- Si vence sin respuesta aprobada, el comando diario `transacciones:sincronizar-status` cambia a `Vencido=4`.
 - `intentos` cuenta cargos recurrentes fallidos y se reinicia a `0` con cargo aprobado.
 - `ProximoCargoBase` conserva la primera fecha de proximo cargo como ancla/auditoria.
 
@@ -111,7 +111,39 @@ Reglas de error/pago vigentes desde 2026-07-01:
 - `tipo=4`: si la generacion terminal responde `code='error'`, no entrega `codeQR` o no entrega `responseReference`, la transaccion se guarda con `condicion=5`.
 - `tipo=1`: al recibir `Service/EntregarPagoLiga` con `response='approved'`, la transaccion cambia a `Pagado=3`.
 - `tipo=4`: al recibir `Service/EntregarPagoLector` con `response='approved'`, la transaccion cambia a `Pagado=3`.
-- `revisarStatus()` marca vencidas las transacciones `tipo=1`, `tipo=3` y `tipo=4` con `condicion=1` cuando `ExpirationDate` ya paso; para `tipo=2` conserva la regla de `condicion=0`.
+- El comando diario `transacciones:sincronizar-status`, programado a las 00:05 de Hermosillo, marca vencidas las transacciones `tipo=1`, `tipo=3` y `tipo=4` con `condicion=1` cuando `ExpirationDate` ya paso; para `tipo=2` conserva la regla de `condicion=0`.
+- `revisarStatus()` queda reservado al reenvio de pagos SPEI legacy/shadow cada cinco minutos.
+- Webhooks Pagadetodo y altas/ediciones manuales de respuestas sincronizan inmediatamente el estado mediante `TransaccionStatusSynchronizer`.
+
+Optimizacion de indices pendiente y separada: no se agregaron migraciones. Antes de proponer indices productivos se deben capturar `SHOW INDEX` y planes de solo lectura:
+
+```sql
+SHOW INDEX FROM transacciones;
+SHOW INDEX FROM respuestas;
+
+EXPLAIN
+SELECT t.id
+FROM transacciones t
+WHERE t.tipo IN (1, 3, 4)
+  AND t.condicion = 1
+  AND t.ExpirationDate < CURDATE();
+
+EXPLAIN
+SELECT t.id
+FROM transacciones t
+WHERE t.tipo = 2
+  AND t.condicion IN (0, 5)
+  AND EXISTS (
+    SELECT 1
+    FROM respuestas r
+    WHERE r.idtransaccion = t.id
+      AND r.status = 'approved'
+      AND r.number_tkn IS NOT NULL
+      AND r.number_tkn <> ''
+  );
+```
+
+No ejecutar `ALTER TABLE` hasta revisar volumen, cardinalidad, plan y ventana de bloqueo MySQL.
 
 Queries de regularizacion historica, para ejecucion controlada por operacion:
 

@@ -42,11 +42,12 @@ Gestionar generacion de ligas de domiciliacion, cargos recurrentes, cancelacione
 - La liga domiciliada nace como `transacciones.condicion=0` (`Pendiente`) hasta que llega respuesta aprobada.
 - Si llega respuesta aprobada con token (`respuestas.number_tkn`), queda `condicion=1` (`Activo`).
 - Si llega respuesta aprobada sin token, queda `condicion=5` (`Error`).
-- Si vence sin respuesta aprobada, `TransaccionController@revisarStatus` la marca `condicion=4` (`Vencido`).
+- Si vence sin respuesta aprobada, el comando diario `transacciones:sincronizar-status` la marca `condicion=4` (`Vencido`) a partir de las 00:05 de Hermosillo.
 - Cargo recurrente: genera/actualiza registros en `transaccionesDom`.
 - Cancelacion: registra cancelacion e interactua con Pagadetodo si aplica.
 - Callback cliente: en `legacy/shadow`, solo el cargo automatico usa `users.ligaRecurrente`; en `active`, cargos manuales/API/automaticos pueden notificarse por suscripcion.
 - Scheduler diario ejecuta `TransaccionDomController@ejecutarCron`.
+- El comando diario de reconciliacion registra duracion y filas afectadas; no realiza llamadas a Pagadetodo ni cargos.
 - `Domiciliación Activa` lista domiciliaciones tipo `2`, productivas, con respuesta aprobada y `condicion` `Activo` o `Cancelado`.
 - Desde `Domiciliación Activa`, el cargo manual reutiliza `POST transaccionDom/registrar`; cuando el cargo manual queda aprobado, avanza `ProximoCargo` con la frecuencia configurada de la domiciliacion.
 - Desde `Domiciliación Activa`, la accion de calendario permite actualizar manualmente `ProximoCargo` con `PUT transaccion/proximo-cargo`.

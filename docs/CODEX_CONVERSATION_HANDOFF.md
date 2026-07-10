@@ -641,7 +641,8 @@ Reglas de domiciliacion:
 - Una liga nueva tipo `2` nace como `Pendiente=0`.
 - Una respuesta aprobada con token marca `Activo=1`.
 - Una respuesta aprobada sin token marca `Error=5`.
-- Si vence sin respuesta aprobada, `revisarStatus()` marca `Vencido=4`.
+- Si vence sin respuesta aprobada, el comando `transacciones:sincronizar-status` de las 00:05 marca `Vencido=4`.
+- `revisarStatus()` queda exclusivo para pagos SPEI legacy/shadow cada cinco minutos; ambos eventos usan `withoutOverlapping()` y registran metricas de duracion/filas.
 - `transacciones.intentos` cuenta cargos recurrentes fallidos (`transaccionesDom.code != '00'`).
 - `intentos` se reinicia a `0` con cargo aprobado.
 - `ProximoCargoBase` queda como ancla/auditoria inicial.

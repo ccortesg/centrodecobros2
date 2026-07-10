@@ -25,7 +25,14 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule)
     {
         $schedule->call('App\Http\Controllers\TransaccionDomController@ejecutarCron')->dailyAt('07:00');
-        $schedule->call('App\Http\Controllers\TransaccionController@revisarStatus')->everyFiveMinutes();
+        $schedule->call('App\Http\Controllers\TransaccionController@revisarStatus')
+            ->name('revisar-status-pagos-spei')
+            ->everyFiveMinutes()
+            ->withoutOverlapping(10);
+        $schedule->command('transacciones:sincronizar-status')
+            ->dailyAt('00:05')
+            ->timezone('America/Hermosillo')
+            ->withoutOverlapping(120);
     }
 
     /**

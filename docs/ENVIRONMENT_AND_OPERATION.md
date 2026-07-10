@@ -118,9 +118,20 @@ php artisan audit:purge --days=365
 El scheduler contiene procesos financieros sensibles:
 
 - `TransaccionDomController@ejecutarCron`
-- `TransaccionController@revisarStatus`
+- `TransaccionController@revisarStatus`, exclusivo para reenvio SPEI legacy/shadow cada cinco minutos
+- comando `transacciones:sincronizar-status`, reconciliacion diaria a las 00:05 de Hermosillo
 
 No activar, duplicar ni modificar scheduler sin instruccion explicita. Si se trabaja en sandbox o ambiente paralelo contra la misma DB, el scheduler debe permanecer deshabilitado.
+
+En produccion Docker, el cron del host debe invocar Artisan dentro del servicio `app`; no debe usar el PHP global del host. Antes de reemplazarlo se debe confirmar que no exista otro cron, contenedor `scheduler` o proceso `schedule:work`. Como los comandos Docker productivos requieren `sudo`, registrar una sola entrada en el crontab de `root`:
+
+```cron
+* * * * * cd /var/www/centrodecobros2 && /usr/bin/flock -n /tmp/centrodecobros-schedule.lock /usr/bin/docker compose exec -T app php artisan schedule:run --no-interaction >> /var/log/centrodecobros-scheduler.log 2>&1
+```
+
+Verificar antes las rutas con `command -v docker` y `command -v flock`; sustituir `/usr/bin/docker` o `/usr/bin/flock` si el servidor devuelve otra ubicacion. `-T` evita que cron intente reservar una terminal. Laravel recomienda despertar el scheduler cada minuto; el propio `Schedule` decide si ejecuta el reenvio SPEI cada cinco minutos, la reconciliacion de estados a las 00:05 o `ejecutarCron` a las 07:00. Los dos primeros usan `withoutOverlapping()`. Reemplazar la linea host anterior, no conservar ambas.
+
+La reconciliacion diaria registra en `laravel.log` duracion, filas vencidas, domiciliaciones activadas y domiciliaciones con error. El reenvio SPEI registra candidatos, enviados, pendientes y duracion. Los indices de `transacciones` y `respuestas` siguen como optimizacion separada y deben decidirse con `EXPLAIN` productivo; esta iteracion no agrega migraciones de indices.
 
 ## Produccion Docker: webhooks configurables
 
@@ -209,27 +220,62 @@ Se debe elegir exactamente una de las siguientes alternativas. No ejecutar ambas
 
 #### Alternativa A (recomendada): servicio dedicado en Docker Compose
 
-El compose no esta versionado en este repo. Agregar un servicio equivalente que reutilice la misma imagen, volumen, red y variables del servicio `app`:
+El compose no esta versionado en este repo. Antes de editarlo, respaldar el archivo y revisar el bloque real `services.app`. Del servicio `app` se deben copiar a `queue` solamente:
+
+- `image` o `build`;
+- `working_dir`;
+- `user`, si existe;
+- `env_file` y/o `environment`;
+- `volumes`, especialmente el codigo y `storage` compartidos;
+- `networks`, `depends_on`, `extra_hosts` o DNS necesarios para DB y salida HTTPS.
+
+No copiar `ports`, `expose`, `container_name`, labels del proxy, healthcheck HTTP ni el comando web. Para el compose productivo confirmado el 2026-07-10, el archivo completo queda asi:
 
 ```yaml
-queue:
-  build: .
-  restart: unless-stopped
-  command: php artisan queue:work database --queue=webhooks --sleep=3 --tries=3 --timeout=30 --max-time=3600
-  volumes:
-    - ./:/var/www/html
-    - /var/run/mysqld:/var/run/mysqld
-  stop_grace_period: 30s
+services:
+  app:
+    build: .
+    container_name: centrodecobros2_php83
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8083:80"
+    volumes:
+      - .:/var/www/html
+      - /var/run/mysqld:/var/run/mysqld
+
+  queue:
+    build: .
+    container_name: centrodecobros2_queue
+    working_dir: /var/www/html
+    restart: unless-stopped
+    command:
+      - php
+      - artisan
+      - queue:work
+      - database
+      - --queue=webhooks
+      - --sleep=3
+      - --tries=3
+      - --timeout=30
+      - --max-time=3600
+    volumes:
+      - .:/var/www/html
+      - /var/run/mysqld:/var/run/mysqld
+    stop_grace_period: 40s
 ```
 
-Copiar tambien `environment`, `env_file`, `networks`, `user` y `depends_on` que utilice realmente `app`. No publicar un puerto adicional para `queue`.
+No se agrega `env_file`: el bind mount incluye el `.env` de `/var/www/centrodecobros2`. No se agregan `networks` ni `depends_on`: la aplicacion productiva se conecta al MySQL del host mediante `/var/run/mysqld`.
+
+El proyecto usa `CACHE_DRIVER=file` por default y los jobs implementan locks unicos. Por lo tanto `app` y `queue` deben compartir `storage/framework/cache`. El bind mount `./:/var/www/html` lo garantiza; si el codigo vive solo dentro de la imagen y no existe un volumen compartido para `storage`, detener la activacion y corregir primero ese almacenamiento compartido.
 
 Validar y levantar:
 
 ```bash
 sudo docker compose config
-sudo docker compose up -d app queue
+sudo docker compose build queue
+sudo docker compose up -d queue
 sudo docker compose ps
+sudo docker compose top queue
 sudo docker compose logs --tail=100 queue
 ```
 

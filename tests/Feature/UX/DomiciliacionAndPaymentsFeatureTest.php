@@ -3,8 +3,10 @@
 namespace Tests\Feature\UX;
 
 use App\Http\Controllers\TransaccionController;
+use App\Services\TransaccionStatusSynchronizer;
 use App\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Artisan;
 use Tests\Support\UsesIsolatedCentroCobrosDatabase;
 use Tests\TestCase;
 
@@ -274,36 +276,120 @@ class DomiciliacionAndPaymentsFeatureTest extends TestCase
             ->assertStatus(403);
     }
 
-    public function test_revisar_status_marks_pending_domiciliacion_as_expired_after_expiration()
+    public function test_daily_status_sync_marks_pending_domiciliacion_as_expired_after_expiration()
     {
         DB::table('transacciones')->insert($this->transactionRowForStatus(700, 0, now()->subDay()->toDateString()));
 
-        app(TransaccionController::class)->revisarStatus();
+        $metricas = app(TransaccionStatusSynchronizer::class)->sincronizarTodo();
 
         $this->assertSame(4, (int) DB::table('transacciones')->where('id', 700)->value('condicion'));
+        $this->assertSame(1, $metricas['vencidas_domiciliacion']);
+        $this->assertGreaterThanOrEqual(1, $metricas['filas_afectadas']);
+        $this->assertArrayHasKey('duracion_ms', $metricas);
     }
 
-    public function test_revisar_status_marks_approved_domiciliacion_without_token_as_error()
+    public function test_daily_status_sync_marks_approved_domiciliacion_without_token_as_error()
     {
         DB::table('transacciones')->insert($this->transactionRowForStatus(701, 0, now()->addDay()->toDateString()));
         DB::table('respuestas')->insert($this->responseRowForStatus(701, 701, 'RESP-NO-TOKEN', ''));
 
-        app(TransaccionController::class)->revisarStatus();
+        app(TransaccionStatusSynchronizer::class)->sincronizarTodo();
 
         $this->assertSame(5, (int) DB::table('transacciones')->where('id', 701)->value('condicion'));
     }
 
-    public function test_revisar_status_marks_approved_domiciliacion_with_token_as_active()
+    public function test_daily_status_sync_marks_approved_domiciliacion_with_token_as_active()
     {
         DB::table('transacciones')->insert($this->transactionRowForStatus(702, 0, now()->addDay()->toDateString()));
         DB::table('respuestas')->insert($this->responseRowForStatus(702, 702, 'RESP-WITH-TOKEN', 'TOKEN-OK'));
 
-        app(TransaccionController::class)->revisarStatus();
+        app(TransaccionStatusSynchronizer::class)->sincronizarTodo();
 
         $transaccion = DB::table('transacciones')->where('id', 702)->first();
         $this->assertSame(1, (int) $transaccion->condicion);
         $this->assertSame(0, (int) $transaccion->intentos);
         $this->assertNotNull($transaccion->ProximoCargoBase);
+    }
+
+    public function test_revisar_status_only_processes_spei_and_does_not_run_daily_reconciliation()
+    {
+        DB::table('transacciones')->insert($this->transactionRowForStatus(703, 0, now()->subDay()->toDateString()));
+        DB::table('pagospei')->update(['enviada' => 1]);
+
+        $metricas = app(TransaccionController::class)->revisarStatus();
+
+        $this->assertSame(0, (int) DB::table('transacciones')->where('id', 703)->value('condicion'));
+        $this->assertSame(0, $metricas['pagos_candidatos']);
+        $this->assertArrayHasKey('duracion_ms', $metricas);
+    }
+
+    public function test_daily_status_command_reconciles_transactions_and_reports_metrics()
+    {
+        DB::table('transacciones')->insert($this->transactionRowForStatus(704, 0, now()->subDay()->toDateString()));
+
+        $exitCode = Artisan::call('transacciones:sincronizar-status');
+        $output = Artisan::output();
+
+        $this->assertSame(0, $exitCode, $output);
+        $this->assertSame(4, (int) DB::table('transacciones')->where('id', 704)->value('condicion'));
+        $this->assertStringContainsString('"vencidas_domiciliacion":1', $output);
+        $this->assertStringContainsString('"duracion_ms":', $output);
+    }
+
+    public function test_manual_response_creation_activates_domiciliation_immediately()
+    {
+        DB::table('transacciones')->where('id', 200)->update(['condicion' => 0]);
+
+        $this->actingAs($this->adminUser())
+            ->post('/respuesta/registrar', [
+                'reference' => 'RESP-DOM-A',
+                'status' => 'approved',
+                'amount' => 10000,
+                'number_tkn' => 'TOKEN-MANUAL',
+            ], $this->ajaxHeaders())
+            ->assertOk();
+
+        $this->assertSame(1, (int) DB::table('transacciones')->where('id', 200)->value('condicion'));
+        $this->assertDatabaseHas('respuestas', [
+            'idtransaccion' => 200,
+            'reference' => 'RESP-DOM-A',
+            'number_tkn' => 'TOKEN-MANUAL',
+        ]);
+    }
+
+    public function test_manual_response_update_reconciles_domiciliation_immediately()
+    {
+        DB::table('transacciones')->where('id', 200)->update(['condicion' => 5]);
+
+        $this->actingAs($this->adminUser())
+            ->put('/respuesta/actualizar', [
+                'id' => 3,
+                'reference' => 'RESP-DOM-A',
+                'status' => 'approved',
+                'amount' => 10000,
+                'number_tkn' => 'TOKEN-ACTUALIZADO',
+            ], $this->ajaxHeaders())
+            ->assertOk();
+
+        $this->assertSame(1, (int) DB::table('transacciones')->where('id', 200)->value('condicion'));
+        $this->assertSame('TOKEN-ACTUALIZADO', DB::table('respuestas')->where('id', 3)->value('number_tkn'));
+    }
+
+    public function test_client_cannot_create_manual_response_for_another_users_transaction()
+    {
+        DB::table('transacciones')->where('id', 201)->update(['condicion' => 0]);
+
+        $this->actingAs($this->clientAUser())
+            ->post('/respuesta/registrar', [
+                'reference' => 'RESP-DOM-B',
+                'status' => 'approved',
+                'amount' => 10000,
+                'number_tkn' => 'TOKEN-NO-AUTORIZADO',
+            ], $this->ajaxHeaders())
+            ->assertStatus(403);
+
+        $this->assertSame(0, (int) DB::table('transacciones')->where('id', 201)->value('condicion'));
+        $this->assertDatabaseMissing('respuestas', ['number_tkn' => 'TOKEN-NO-AUTORIZADO']);
     }
 
     public function test_manual_successful_recurring_charge_resets_domiciliacion_intentos()

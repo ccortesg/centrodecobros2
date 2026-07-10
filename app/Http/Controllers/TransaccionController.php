@@ -31,6 +31,7 @@ use App\Mail\TransaccionValidada;
 use App\Services\WebhookEventPublisher;
 
 use Exception;
+use Throwable;
 
 use App\Exports\ReporteExport;
 use Excel;
@@ -3412,109 +3413,57 @@ class TransaccionController extends Controller
         }
     }
 
-    private function sincronizarStatusDomiciliaciones()
-    {
-        $hoy = Carbon::now('America/Hermosillo')->toDateString();
-
-        Transaccion::whereIn('tipo', [1, 3, 4])
-            ->where('condicion', '=', 1)
-            ->whereDate('ExpirationDate', '<', $hoy)
-            ->update(['condicion' => 4]);
-
-        Transaccion::where('tipo', '=', 2)
-            ->where('condicion', '=', 0)
-            ->whereDate('ExpirationDate', '<', $hoy)
-            ->whereNotExists(function ($query) {
-                $query->select(DB::raw(1))
-                    ->from('respuestas')
-                    ->whereRaw('respuestas.idtransaccion = transacciones.id')
-                    ->where('respuestas.status', '=', 'approved');
-            })
-            ->update(['condicion' => 4]);
-
-        $domiciliacionesConToken = Transaccion::where('tipo', '=', 2)
-            ->whereIn('condicion', [0, 5])
-            ->whereExists(function ($query) {
-                $query->select(DB::raw(1))
-                    ->from('respuestas')
-                    ->whereRaw('respuestas.idtransaccion = transacciones.id')
-                    ->where('respuestas.status', '=', 'approved')
-                    ->whereNotNull('respuestas.number_tkn')
-                    ->where('respuestas.number_tkn', '<>', '');
-            })
-            ->get();
-
-        foreach ($domiciliacionesConToken as $transaccion) {
-            $transaccion->condicion = 1;
-            if ($transaccion->ProximoCargo && !$transaccion->ProximoCargoBase) {
-                $transaccion->ProximoCargoBase = $transaccion->ProximoCargo;
-            }
-            if ($transaccion->intentos === null) {
-                $transaccion->intentos = 0;
-            }
-            $transaccion->save();
-        }
-
-        Transaccion::where('tipo', '=', 2)
-            ->whereIn('condicion', [0, 1])
-            ->whereExists(function ($query) {
-                $query->select(DB::raw(1))
-                    ->from('respuestas')
-                    ->whereRaw('respuestas.idtransaccion = transacciones.id')
-                    ->where('respuestas.status', '=', 'approved')
-                    ->where(function ($query) {
-                        $query->whereNull('respuestas.number_tkn')
-                            ->orWhere('respuestas.number_tkn', '=', '');
-                    });
-            })
-            ->whereNotExists(function ($query) {
-                $query->select(DB::raw(1))
-                    ->from('respuestas')
-                    ->whereRaw('respuestas.idtransaccion = transacciones.id')
-                    ->where('respuestas.status', '=', 'approved')
-                    ->whereNotNull('respuestas.number_tkn')
-                    ->where('respuestas.number_tkn', '<>', '');
-            })
-            ->update(['condicion' => 5]);
-    }
-
     public function revisarStatus() {
-        $this->sincronizarStatusDomiciliaciones();
+        $inicio = microtime(true);
 
-        $pagosQuery = PagoSpei::join('transacciones','transacciones.id','pagospei.idtransaccion')
-            ->join('users','users.id','transacciones.idusuario');
+        try {
+            $pagosQuery = PagoSpei::join('transacciones','transacciones.id','pagospei.idtransaccion')
+                ->join('users','users.id','transacciones.idusuario');
 
-        if (config('webhooks.enabled', false) && Schema::hasTable('webhook_user_settings')) {
-            $pagosQuery->leftJoin('webhook_user_settings', 'webhook_user_settings.idusuario', '=', 'users.id')
-                ->where(function ($query) {
-                    $query->whereNull('webhook_user_settings.id')
-                        ->orWhereIn('webhook_user_settings.mode', ['legacy', 'shadow']);
-                });
+            if (config('webhooks.enabled', false) && Schema::hasTable('webhook_user_settings')) {
+                $pagosQuery->leftJoin('webhook_user_settings', 'webhook_user_settings.idusuario', '=', 'users.id')
+                    ->where(function ($query) {
+                        $query->whereNull('webhook_user_settings.id')
+                            ->orWhereIn('webhook_user_settings.mode', ['legacy', 'shadow']);
+                    });
+            }
+
+            $pagos = $pagosQuery->select('pagospei.id as id')
+                ->where([
+                    ['users.notificaPago','=','1'],
+                    ['pagospei.condicion','=','1'],
+                    ['pagospei.autorizacion','<>','0'],
+                    ['pagospei.codigo','=','0'],
+                    ['pagospei.enviada','=','0']
+                ])->get();
+
+            $enviados = 0;
+            foreach($pagos as $pago){
+                if ($this->consultaStatus($pago->id)) {
+                    $enviados++;
+                }
+            }
+
+            $metricas = [
+                'pagos_candidatos' => $pagos->count(),
+                'pagos_enviados' => $enviados,
+                'pagos_pendientes' => $pagos->count() - $enviados,
+                'duracion_ms' => (int) round((microtime(true) - $inicio) * 1000),
+            ];
+
+            Log::info('Revision programada de pagos SPEI completada.', $metricas);
+
+            return $metricas;
+        } catch (Throwable $exception) {
+            Log::error('Fallo la revision programada de pagos SPEI.', [
+                'duracion_ms' => (int) round((microtime(true) - $inicio) * 1000),
+                'error_class' => get_class($exception),
+                'error' => $exception->getMessage(),
+            ]);
+
+            throw $exception;
         }
 
-        $pagos = $pagosQuery->select('pagospei.id as id')
-        ->where([
-            ['users.notificaPago','=','1'],
-            ['pagospei.condicion','=','1'],
-            ['pagospei.autorizacion','<>','0'],
-            ['pagospei.codigo','=','0'],
-            ['pagospei.enviada','=','0']])->get();
-        
-        foreach($pagos as $pago){            
-            $this->consultaStatus($pago->id);                        
-        }
-
-        /*$pagosligas = Respuesta::join('transacciones','transacciones.id','respuestas.idtransaccion')
-        ->join('users','users.id','transacciones.idusuario')
-        ->select('respuestas.id as id')
-        ->where([
-            ['users.notificaPago','=','1'],
-            ['respuestas.status','=','approved'],
-            ['respuestas.enviada','=','0']])->get();
-        
-        foreach($pagosligas as $pagoliga){            
-            $this->consultaStatusLiga($pagoliga->id);                        
-        }*/
     }
 
     public function consultaStatus($idpago)
@@ -3524,7 +3473,7 @@ class TransaccionController extends Controller
         $usuario = User::find($transaccion->idusuario);
 
         if (!app(WebhookEventPublisher::class)->shouldUseLegacy($usuario)) {
-            return;
+            return false;
         }
     
         if($usuario->notificaPago){
@@ -3555,9 +3504,9 @@ class TransaccionController extends Controller
                     'productivo' => $transaccion->productivo,
                     'correlation_reference' => $transaccion->ClientReference,
                 ]);
-            } catch (RequestException $e){
+            } catch (Throwable $e){
                 Log::info('FallÃ³ el registro del pago spei '.$pagospei->id);
-                return;
+                return false;
             }
             if($response_decode == "") {
                 $response_body = (string) $response->getBody();
@@ -3569,8 +3518,11 @@ class TransaccionController extends Controller
                 Log::info('Si se recibiÃ³ respuesta exitosa del pago '.$pagospei->id);
                 $pagospei->enviada = 1;
                 $pagospei->save();
+                return true;
             }
-        }      
+        }
+
+        return false;
     }
 
     public function consultaStatusLiga($idpago)

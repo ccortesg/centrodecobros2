@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Smoke;
 
+use App\Console\Kernel as ConsoleKernel;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -40,10 +41,22 @@ class CommandAndDatabaseSmokeTest extends TestCase
             $normalizedOutput
         );
         $this->assertStringContainsString('*/5 * * * *', $normalizedOutput);
-        $this->assertStringContainsString(
-            'App\Http\Controllers\TransaccionController@revisarStatus',
-            $normalizedOutput
-        );
+        $this->assertStringContainsString('revisar-status-pagos-spei', $normalizedOutput);
+        $this->assertStringContainsString('5 0 * * *', $normalizedOutput);
+        $this->assertStringContainsString('transacciones:sincronizar-status', $normalizedOutput);
+
+        $events = app(ConsoleKernel::class)->resolveConsoleSchedule()->events();
+        $speiEvent = collect($events)->first(function ($event) {
+            return $event->getSummaryForDisplay() === 'revisar-status-pagos-spei';
+        });
+        $syncEvent = collect($events)->first(function ($event) {
+            return str_contains($event->getSummaryForDisplay(), 'transacciones:sincronizar-status');
+        });
+
+        $this->assertNotNull($speiEvent);
+        $this->assertNotNull($syncEvent);
+        $this->assertTrue($speiEvent->withoutOverlapping);
+        $this->assertTrue($syncEvent->withoutOverlapping);
     }
 
     public function test_route_list_command_executes()
