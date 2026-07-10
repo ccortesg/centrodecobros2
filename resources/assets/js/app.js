@@ -29,6 +29,8 @@ import CancelaSpei from './components/CancelaSpei.vue';
 import ReporteSpei from './components/ReporteSpei.vue';
 import PagoRecibido from './components/PagoRecibido.vue';
 import IntegrationAudit from './components/IntegrationAudit.vue';
+import WebhookConfiguration from './components/WebhookConfiguration.vue';
+import WebhookDeliveries from './components/WebhookDeliveries.vue';
 
 const jQuery = window.jQuery || window.$ || importedJQuery;
 const $ = jQuery;
@@ -64,7 +66,9 @@ const components = {
     cancelaspei: CancelaSpei,
     reportespei: ReporteSpei,
     pagorecibido: PagoRecibido,
-    integrationaudit: IntegrationAudit
+    integrationaudit: IntegrationAudit,
+    webhookconfiguration: WebhookConfiguration,
+    webhookdeliveries: WebhookDeliveries
 };
 
 let sessionExpiredModalVisible = false;

@@ -1,6 +1,6 @@
 # Seguridad, robustez y mantenibilidad
 
-Ultima actualizacion: 2026-07-03
+Ultima actualizacion: 2026-07-10
 
 ## Hallazgos de seguridad vigentes
 
@@ -40,6 +40,15 @@ Ultima actualizacion: 2026-07-03
    - El acceso a `Outgoing API Requests`, `Incoming API Requests` y `User Activity Log` es solo Administrador.
    - La purga recomendada es manual a 365 dias con `audit:purge`; no se modifico scheduler.
 
+8. Webhooks configurables a clientes
+   - Las URLs deben tener formato valido y usar HTTPS; no se valida allowlist/DNS/rango privado por decision explicita del propietario.
+   - HMAC-SHA256 es opcional por cliente. El secreto se cifra en DB, se muestra una sola vez al generarlo/rotarlo y nunca aparece crudo en auditoria.
+   - La firma cubre exactamente `timestamp.event_id.raw_request_body`; cualquier reserializacion en el receptor invalida la verificacion.
+   - El payload HTTP real no se sanitiza: se transmite completo tal como lo requiere negocio. Solo auditoria, UI y exportaciones se sanitizan.
+   - El cuerpo real y los payloads de eventos se almacenan cifrados mediante casts Laravel; la seguridad depende de proteger `APP_KEY` y los respaldos.
+   - El limite emisor es agregado por host, default 25 y maximo 30 por minuto.
+   - `shadow` conserva legacy; `active` lo reemplaza. Activar sin worker persistente produce cola acumulada.
+
 ## Robustez e integridad
 
 - Multiples relaciones no tienen FK confiables; validar relaciones desde uso real en codigo.
@@ -47,6 +56,7 @@ Ultima actualizacion: 2026-07-03
 - Controladores monoliticos elevan riesgo de regresion.
 - Manejo de errores sigue mixto: algunas rutas tienen respuestas controladas y otras conservan patrones legacy.
 - La auditoria no debe bloquear flujos financieros; si el insert de bitacora falla, solo debe registrarse warning.
+- La publicacion/entrega webhook tampoco debe revertir la operacion financiera; los fallos quedan pendientes, reintentando o `dead`.
 - Feature tests con SQLite cubren regresiones importantes, pero UAT MySQL/productivo sigue siendo necesario para aceptar negocio.
 
 ## Riesgos por modulo
@@ -58,6 +68,8 @@ Ultima actualizacion: 2026-07-03
 - Clientes: consolidacion/depuracion debe preservar integridad en tablas sin FK completa.
 - Notificaciones: polling funciona; realtime websocket no esta cerrado.
 - Integraciones/Auditoria: riesgo de crecimiento de tablas y exposicion operativa si se amplian campos sin sanitizacion.
+- Webhooks configurables: riesgo de exfiltracion si un administrador configura un endpoint HTTPS incorrecto. No hay allowlist por decision funcional; limitar estrictamente el rol Administrador y auditar cambios.
+- Cargos recurrentes: el posible duplicado por multiples respuestas aprobadas en el JOIN del cron no se resolvio en esta tarea y sigue como riesgo financiero separado.
 
 ## Oportunidades de mejora
 

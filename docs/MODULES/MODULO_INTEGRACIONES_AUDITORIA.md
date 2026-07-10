@@ -1,6 +1,6 @@
 # Modulo Integraciones y Auditoria
 
-Ultima actualizacion: 2026-07-03
+Ultima actualizacion: 2026-07-10
 
 ## Objetivo
 
@@ -20,6 +20,7 @@ El modulo es solo de consulta/exportacion y no modifica contratos Pagadetodo, ca
   - `menu==31`: `Outgoing API Requests`.
   - `menu==32`: `Incoming API Requests`.
   - `menu==33`: `User Activity Log`.
+- El mismo menu ahora incluye `menu==34/35` para configuracion y entregas webhook. Su comportamiento operativo se documenta por separado en `MODULO_NOTIFICACIONES_WEBHOOK_CONFIGURABLES.md`.
 - Componente: `resources/assets/js/components/IntegrationAudit.vue`.
 - Switchboard: `resources/views/contenido/contenido.blade.php`.
 
@@ -90,9 +91,12 @@ Nunca se deben guardar valores crudos de:
 
 - `Password`, `password`, `token`, `Authorization`, `Cookie`, `X-CSRF-TOKEN`.
 - `Tkn_reference`, `number_tkn`, `cc_number`, `cc_mask`, `Clabe`.
+- `X-Soportetech-Signature` y secretos HMAC.
 - bearer tokens, claves o secretos equivalentes.
 
 Los cuerpos y headers se guardan ya sanitizados. La UI y los exports no deben intentar recuperar valores originales.
+
+Esta regla aplica a las bitacoras, no al payload real de una entrega webhook configurable. El cuerpo real debe conservarse byte por byte para poder firmarlo y enviarlo sin alteracion.
 
 ## Filtros y exportacion
 

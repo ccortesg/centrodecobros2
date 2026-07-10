@@ -144,6 +144,32 @@
     background: rgba(0, 0, 0, .8) !important;
 }
 
+.cdc-webhook-check-field {
+    align-items: center;
+    display: flex;
+    min-height: 4.5rem;
+    padding-top: 1.5rem;
+}
+
+.cdc-webhook-event-list {
+    max-height: 25rem;
+    overflow-y: auto;
+}
+
+.cdc-webhook-event-list .table {
+    min-width: 680px;
+}
+
+.cdc-webhook-actions {
+    min-width: 7.5rem;
+    white-space: nowrap;
+}
+
+.cdc-webhook-modal.mostrar {
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
 @media (max-width: 575.98px) {
     .cdc-list-toolbar .input-group {
         display: grid;

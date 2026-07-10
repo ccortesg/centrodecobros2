@@ -1,6 +1,6 @@
 # Analisis frontend
 
-Ultima actualizacion: 2026-06-17
+Ultima actualizacion: 2026-07-10
 
 ## Estructura actual
 
@@ -181,4 +181,6 @@ Para domiciliacion:
 - Addendum 2026-06-27: `Cliente.vue` abre el modal de alta/edicion llamando `/estado/selectEstado` y `/ciudad/selectCiudad`; estos endpoints deben responder para rol Cliente porque alimentan los selects y el default Sonora/Hermosillo. Si el allowlist de `Administrador` no los incluye, el sintoma visible es `403` en consola y combos vacios.
 - Addendum 2026-07-01: `Transaccion.vue` muestra columna/filtro `Status` para ligas tipo `1`, `2`, `3` y `4`; las opciones se filtran por tipo para evitar estados no operables en cada pantalla.
 - Addendum 2026-07-03: `IntegrationAudit.vue` agrega los targets admin `menu==31/32/33` para `Outgoing API Requests`, `Incoming API Requests` y `User Activity Log`. El menu `Integraciones` vive despues de `Acceso` en `sidebaradministrador.blade.php`; no se agrega al sidebar cliente. Los filtros default usan el mes actual, paginacion inicia en 50 y el modal de detalle muestra informacion ya sanitizada por backend.
+- Addendum 2026-07-10: `WebhookConfiguration.vue` (`menu==34`) administra modo por cliente, HMAC, endpoints HTTPS y suscripciones. `WebhookDeliveries.vue` (`menu==35`) lista entregas con rango default del mes actual, paginacion 50, exportacion, detalle sanitizado, reintento y cancelacion. Ambos targets existen solo en sidebar/contenido de Administrador.
+- Las clases `.cdc-webhook-check-field`, `.cdc-webhook-event-list` y `.cdc-webhook-actions` estabilizan controles y tablas del nuevo modulo sin tocar `principal.blade.php`.
 - Los pendientes UX/UI de listados anchos y migracion responsive siguen abiertos salvo pilotos ya documentados; cualquier cambio visual debe incluir build y browser smoke admin/cliente.

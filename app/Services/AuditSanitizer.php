@@ -15,6 +15,7 @@ class AuditSanitizer
         'set-cookie',
         'x-csrf-token',
         'x-xsrf-token',
+        'x-soportetech-signature',
         'csrf',
         'password',
         'passwd',

@@ -1,6 +1,6 @@
 # Documentacion tecnica - Centro de Cobros
 
-Ultima actualizacion: 2026-07-03
+Ultima actualizacion: 2026-07-10
 
 ## Punto de entrada actual
 
@@ -72,11 +72,13 @@ Los documentos `MIGRATION_PHASE_*` son evidencia historica por fase. Para tareas
 - Credenciales Pagadetodo/Pusher externalizadas hacia `.env`, `config/services.php` y variables `VITE_PUSHER_*`.
 - Servicios Pagadetodo probados exitosamente en servidor sandbox y productivo, confirmado por el propietario el 2026-06-08.
 - Modulos administrativos de auditoria de integraciones: `Outgoing API Requests`, `Incoming API Requests` y `User Activity Log`, con payloads/headers sanitizados y exportacion Excel.
+- Motor administrable de notificaciones webhook con modos legacy/shadow/active/disabled, Database Queue, reintentos, idempotencia, HMAC opcional y monitoreo administrativo.
 
 ## Condiciones abiertas
 
 - Pagadetodo no puede probarse con llamadas reales desde ambiente local por restricciones del proveedor sobre el IP address de origen; local debe usar `PAGADETODO_MOCK=true`.
-- Firma/origen de webhooks queda pendiente hasta recibir especificacion del proveedor.
+- Firma/origen de webhooks entrantes Pagadetodo queda pendiente hasta recibir especificacion del proveedor. Los webhooks salientes a clientes ya soportan HMAC-SHA256 opcional.
+- La activacion productiva del motor webhook requiere migraciones aditivas, un worker persistente y rollout por cliente; ver `docs/MODULES/MODULO_NOTIFICACIONES_WEBHOOK_CONFIGURABLES.md`.
 - Realtime Pusher/Echo requiere validacion end-to-end con credenciales aisladas.
 - `npm audit` completo puede reportar deuda dev/tooling; la frontera runtime es `npm audit --omit=dev`.
 - Docker productivo funciona, pero su compose/orquestacion no esta documentado dentro del repo.

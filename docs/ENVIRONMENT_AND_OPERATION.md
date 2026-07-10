@@ -1,6 +1,6 @@
 # Entorno y operacion
 
-Ultima actualizacion: 2026-06-03
+Ultima actualizacion: 2026-07-10
 
 ## Entorno validado de este repositorio
 
@@ -15,7 +15,7 @@ Ultima actualizacion: 2026-06-03
 | PHP local bash | `8.3.27` |
 | PHP Feature recomendado | `C:\wamp64\bin\php\php8.3.0\php.exe` |
 | Composer local | `2.2.6` |
-| Node Windows | `v20.20.0` |
+| Node local compatible | `v24.16.0` en `/home/ccortesg/.nvm/versions/node/v24.16.0/bin/node` |
 | npm Windows | `10.8.2` |
 | Frontend | Vue `3.5.30` + Vite `7.x` |
 | DB productiva | MySQL en servidor |
@@ -121,6 +121,186 @@ El scheduler contiene procesos financieros sensibles:
 - `TransaccionController@revisarStatus`
 
 No activar, duplicar ni modificar scheduler sin instruccion explicita. Si se trabaja en sandbox o ambiente paralelo contra la misma DB, el scheduler debe permanecer deshabilitado.
+
+## Produccion Docker: webhooks configurables
+
+Esta implementacion requiere tres migraciones aditivas y un worker persistente. Los comandos siguientes son una guia para el operador; no deben ejecutarse desde un agente local contra produccion.
+
+### 1. Precheck y respaldo
+
+```bash
+cd /var/www/centrodecobros2
+git status --short
+sudo docker compose ps
+sudo docker compose config --services
+sudo docker compose exec app php artisan about
+```
+
+Crear respaldo MySQL antes de cualquier migracion con el procedimiento productivo vigente. No pegar credenciales en consola compartida, Git ni documentacion.
+
+Confirmar que las variables no secretas queden inicialmente asi:
+
+```dotenv
+WEBHOOK_NOTIFICATIONS_ENABLED=false
+WEBHOOK_QUEUE_CONNECTION=database
+WEBHOOK_QUEUE_NAME=webhooks
+WEBHOOK_CONNECT_TIMEOUT=5
+WEBHOOK_TIMEOUT=15
+WEBHOOK_MAX_ATTEMPTS=8
+WEBHOOK_RATE_LIMIT_PER_MINUTE=25
+```
+
+No es obligatorio cambiar `QUEUE_CONNECTION`; los jobs webhook seleccionan explicitamente `WEBHOOK_QUEUE_CONNECTION`.
+
+### 2. Desplegar codigo y dependencias
+
+```bash
+cd /var/www/centrodecobros2
+git fetch
+git pull --ff-only
+sudo docker compose exec app composer install --no-dev --optimize-autoloader --no-interaction
+sudo docker compose exec app php artisan optimize:clear
+```
+
+### 3. Revisar las migraciones sin ejecutarlas
+
+```bash
+sudo docker compose exec app php artisan migrate --pretend --path=database/migrations/2026_07_10_120000_create_webhook_notification_tables.php
+sudo docker compose exec app php artisan migrate --pretend --path=database/migrations/2026_07_10_120100_create_queue_tables.php
+sudo docker compose exec app php artisan migrate --pretend --path=database/migrations/2026_07_10_120200_add_transaction_correlation_to_cancellations.php
+```
+
+Revisar que solo cree tablas webhook/queue y agregue `idtransaccion` nullable a `cancelacionesDom` y `cancelacionesLector`.
+
+### 4. Ejecutar migraciones en ventana aprobada
+
+Solo despues de respaldo y aprobacion:
+
+```bash
+sudo docker compose exec app php artisan migrate --path=database/migrations/2026_07_10_120000_create_webhook_notification_tables.php --force
+sudo docker compose exec app php artisan migrate --path=database/migrations/2026_07_10_120100_create_queue_tables.php --force
+sudo docker compose exec app php artisan migrate --path=database/migrations/2026_07_10_120200_add_transaction_correlation_to_cancellations.php --force
+sudo docker compose exec app php artisan migrate:status
+```
+
+No ejecutar seeds ni migraciones no revisadas dentro de esta ventana.
+
+### 5. Compilar frontend con el comando productivo vigente
+
+```bash
+sudo docker run --rm \
+  --user "$(id -u):$(id -g)" \
+  -e npm_config_cache=/app/.npm-cache \
+  -v "$PWD":/app \
+  -w /app \
+  node:22-bookworm \
+  sh -lc 'npm ci --include=dev && npm run production'
+```
+
+Los assets se generan en servidor; no se versionan.
+
+### 6. Agregar worker persistente al compose del servidor
+
+El compose no esta versionado en este repo. Agregar un servicio equivalente que reutilice la misma imagen, volumen, red y variables del servicio `app`:
+
+```yaml
+queue:
+  build: .
+  restart: unless-stopped
+  command: php artisan queue:work database --queue=webhooks --sleep=3 --tries=3 --timeout=30 --max-time=3600
+  volumes:
+    - ./:/var/www/html
+    - /var/run/mysqld:/var/run/mysqld
+  stop_grace_period: 30s
+```
+
+Copiar tambien `environment`, `env_file`, `networks`, `user` y `depends_on` que utilice realmente `app`. No publicar un puerto adicional para `queue`.
+
+Validar y levantar:
+
+```bash
+sudo docker compose config
+sudo docker compose up -d app queue
+sudo docker compose ps
+sudo docker compose logs --tail=100 queue
+```
+
+No usar `docker compose exec -d app queue:work` como solucion permanente: no queda supervisado despues de reinicios.
+
+### 7. Cache y reinicio
+
+```bash
+sudo docker compose exec app php artisan optimize:clear
+sudo docker compose exec app php artisan config:cache
+sudo docker compose exec app php artisan route:cache
+sudo docker compose exec app php artisan view:cache
+sudo docker compose exec app php artisan queue:restart
+sudo docker compose restart app
+sudo docker compose restart queue
+```
+
+Confirmar que no cambio el scheduler:
+
+```bash
+sudo docker compose exec app php artisan route:list --path=integraciones/webhooks
+sudo docker compose exec app php artisan schedule:list
+```
+
+### 8. Preparar modo shadow
+
+Con `WEBHOOK_NOTIFICATIONS_ENABLED=false`:
+
+```bash
+sudo docker compose exec app php artisan webhooks:import-legacy --dry-run --mode=shadow
+sudo docker compose exec app php artisan webhooks:import-legacy --mode=shadow
+```
+
+Revisar URLs invalidas reportadas. El comando no configura HMAC ni muestra secretos.
+
+Despues cambiar solo el interruptor global a `true`, reconstruir config y reiniciar app/worker:
+
+```bash
+sudo docker compose exec app php artisan optimize:clear
+sudo docker compose exec app php artisan config:cache
+sudo docker compose exec app php artisan queue:restart
+sudo docker compose restart app
+sudo docker compose restart queue
+```
+
+En `shadow` el callback legacy continua enviandose; el motor nuevo solo crea entregas `shadow`.
+
+### 9. Activar `app.donarconcausa.org.mx`
+
+1. Entrar como Administrador a `Integraciones > Webhook Configuration`.
+2. Seleccionar el usuario correspondiente a `app.donarconcausa.org.mx`.
+3. Confirmar modo `shadow` y endpoint HTTPS.
+4. Seleccionar eventos y formato acordados.
+5. Habilitar HMAC-SHA256 y generar/rotar secreto.
+6. Transferir el secreto por un canal seguro; no guardarlo en tickets, logs ni Git.
+7. Ejecutar `Enviar prueba`.
+8. Verificar en `Webhook Deliveries` HTTP/ACK y firma del receptor.
+9. Confirmar tolerancia 300 s, anti-replay 10 min y limite 30/min/IP en el receptor.
+10. Cambiar a `active` solo cuando prueba, worker y monitoreo esten correctos.
+
+### 10. Verificacion y rollback
+
+```bash
+sudo docker compose exec app php artisan queue:failed
+sudo docker compose exec app php artisan tinker --execute="echo DB::table('jobs')->where('queue', 'webhooks')->count();"
+sudo docker compose logs --tail=200 app
+sudo docker compose logs --tail=200 queue
+```
+
+Smoke funcional:
+
+- admin ve configuracion/entregas y puede exportar;
+- cliente recibe 403 y no ve los menus;
+- una prueba HMAC queda `delivered`;
+- un duplicado conserva el mismo `event_id` y no duplica la entrega;
+- Outgoing API Requests muestra copia sanitizada;
+- el payload recibido por la plataforma destino conserva todos los campos esperados.
+
+Rollback funcional inmediato: cambiar el cliente de `active` a `shadow` o `legacy`. Esto reactiva el callback anterior sin borrar tablas. Si falla UI/codigo, volver al commit aprobado, recompilar, limpiar caches y reiniciar `app`/`queue`. No ejecutar `migrate:rollback` automaticamente ni borrar tablas con evidencia operativa.
 
 ## Operacion segura local
 

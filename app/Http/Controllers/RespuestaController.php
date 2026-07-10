@@ -8,10 +8,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
-use GuzzleHttp\Client;
-use GuzzleHttp\RequestOptions;
-use GuzzleHttp\Psr7;
-use GuzzleHttp\Exception\RequestException;
 
 use App\User;
 use App\Transaccion;
@@ -20,6 +16,9 @@ use App\Respuesta;
 use App\Exports\RespuestaExport;
 use Excel;
 use Exception;
+use Throwable;
+
+use App\Services\WebhookEventPublisher;
 
 class RespuestaController extends Controller
 {
@@ -107,6 +106,114 @@ class RespuestaController extends Controller
         }
 
         $transaccion->save();
+    }
+
+    private function eventosWebhookRespuesta($transaccion, Respuesta $respuesta)
+    {
+        if ($transaccion === null) {
+            return [];
+        }
+
+        $approved = (string) $respuesta->status === 'approved';
+
+        if ((int) $transaccion->tipo === 1) {
+            return [$approved ? 'payment_link.payment.approved' : 'payment_link.payment.rejected'];
+        }
+
+        if ((int) $transaccion->tipo === 2) {
+            if (!$approved) {
+                return ['domiciliation_link.payment.rejected'];
+            }
+
+            return [
+                'domiciliation_link.payment.approved',
+                trim((string) $respuesta->number_tkn) === ''
+                    ? 'domiciliation.activation_failed'
+                    : 'domiciliation.activated',
+            ];
+        }
+
+        if ((int) $transaccion->tipo === 4) {
+            return [$approved ? 'terminal.payment.approved' : 'terminal.payment.rejected'];
+        }
+
+        return [];
+    }
+
+    private function payloadWebhookRespuesta(Transaccion $transaccion, array $data, $lector = false)
+    {
+        $payload = $data;
+        $payload['folio'] = $transaccion->ClientReference;
+        $payload['monto'] = (float) ($data['amount'] ?? 0);
+        $payload['reference'] = $data['reference'] ?? '';
+        $payload['foliocpagos'] = $lector ? ($data['folio'] ?? '') : ($data['foliocpagos'] ?? '');
+        $payload['auth'] = $data['auth'] ?? '';
+        $payload['cc_type'] = $lector ? ($data['ccType'] ?? '') : ($data['cc_type'] ?? '');
+        $payload['cc_name'] = $lector ? ($data['ccName'] ?? '') : ($data['cc_name'] ?? '');
+        $payload['cc_number'] = $lector ? ($data['ccNumber'] ?? '') : ($data['cc_number'] ?? '');
+        $payload['cc_expmonth'] = $lector ? ($data['ccExpMonth'] ?? '') : ($data['cc_expmonth'] ?? '');
+        $payload['cc_expyear'] = $lector ? ($data['ccExpYear'] ?? '') : ($data['cc_expyear'] ?? '');
+        $payload['amount'] = $data['amount'] ?? 0;
+        $payload['id_url'] = $data['id_url'] ?? '';
+        $payload['email'] = $data['email'] ?? '';
+        $payload['payment_type'] = $data['payment_type'] ?? '';
+
+        return $payload;
+    }
+
+    private function procesarNotificacionRespuesta(
+        $transaccion,
+        Respuesta $respuesta,
+        array $data,
+        $lector = false
+    ) {
+        if ($transaccion === null) {
+            return;
+        }
+
+        $usuario = User::find($transaccion->idusuario);
+        $payload = $this->payloadWebhookRespuesta($transaccion, $data, $lector);
+        $publisher = app(WebhookEventPublisher::class);
+
+        foreach ($this->eventosWebhookRespuesta($transaccion, $respuesta) as $eventType) {
+            $publisher->publish($usuario, $eventType, $payload, [
+                'idtransaccion' => $transaccion->id,
+                'source_type' => 'respuesta',
+                'source_id' => $respuesta->id,
+                'source_context' => $lector ? 'terminal' : 'webhook',
+                'source_payload' => $data,
+                'idempotency_key' => $eventType . ':respuesta:' . $respuesta->id,
+                'occurred_at' => $respuesta->fecha,
+            ]);
+        }
+
+        if ((string) $respuesta->status !== 'approved'
+            || $usuario === null
+            || !$usuario->notificaPago
+            || !$publisher->shouldUseLegacy($usuario)) {
+            return;
+        }
+
+        try {
+            $response = $this->postJsonAuditado($usuario->ligaPago, $payload, [
+                'provider' => 'Cliente',
+                'source_context' => $lector ? 'callback_webhook_lector' : 'callback_webhook_liga',
+                'idusuario' => $usuario->id,
+                'idtransaccion' => $transaccion->id,
+                'productivo' => $transaccion->productivo,
+                'correlation_reference' => $transaccion->ClientReference,
+            ]);
+            $decoded = json_decode((string) $response->getBody(), true);
+
+            if (is_array($decoded) && strtolower((string) ($decoded['code'] ?? '')) === 'success') {
+                $respuesta->enviada = 1;
+                $respuesta->save();
+            }
+        } catch (Throwable $exception) {
+            Log::info('Fallo el envio de la respuesta de la transaccion ' . $transaccion->id, [
+                'error' => $exception->getMessage(),
+            ]);
+        }
     }
 
     private function criteriosRespuestaPermitidos()
@@ -278,6 +385,7 @@ class RespuestaController extends Controller
             if ($duplicada !== null) {
                 $this->sincronizarStatusTransaccionPorRespuesta($transaccion, $duplicada);
                 DB::commit();
+                $this->procesarNotificacionRespuesta($transaccion, $duplicada, $date_response);
                 return 'success';
             }
 
@@ -319,73 +427,7 @@ class RespuestaController extends Controller
             return $this->respuestaWebhookInvalido('No se pudo guardar el webhook.', 500);
         }
 
-        //Se envía la respuesta del cargo si fue aprobado
-        if ($transaccion !== null && $date_response["response"] == 'approved') {
-            $usuario = User::find($transaccion->idusuario);
-            if($usuario !== null && $usuario->notificaPago){
-                 // Set request params
-                $params = array(
-                    "folio" => $transaccion->ClientReference,
-                    "monto" => ((float) $date_response["amount"]),
-                    "reference" => $date_response["reference"],
-                    "foliocpagos" =>  $this->valorWebhook($date_response, 'foliocpagos'),
-                    "auth" => $this->valorWebhook($date_response, 'auth'),
-                    "cc_type" => $this->valorWebhook($date_response, 'cc_type'),
-                    "cc_name" => $this->valorWebhook($date_response, 'cc_name'),
-                    "cc_number" => $this->valorWebhook($date_response, 'cc_number'),
-                    "cc_expmonth" => $this->valorWebhook($date_response, 'cc_expmonth'),
-                    "cc_expyear" => $this->valorWebhook($date_response, 'cc_expyear'),
-                    "amount" => $date_response["amount"],
-                    "id_url" => $this->valorWebhook($date_response, 'id_url'),
-                    "email" => $this->valorWebhook($date_response, 'email'),
-                    "payment_type" => $this->valorWebhook($date_response, 'payment_type')
-                );
-
-                $response = "";
-                $response_body = "";
-                $response_decode = "";
-                $response_code = "";
-                $response_msg = "";
-                $error_code = "";
-                $error_msg = "";
-
-                try{
-                    $response = $this->postJsonAuditado($usuario->ligaPago, $params, [
-                        'provider' => 'Cliente',
-                        'source_context' => 'callback_webhook_liga',
-                        'idusuario' => $usuario->id,
-                        'idtransaccion' => $transaccion->id,
-                        'productivo' => $transaccion->productivo,
-                        'correlation_reference' => $transaccion->ClientReference,
-                    ]);
-                } catch (RequestException $e){
-                    $response_decode = "error";
-                    // Log the error message
-                    Log::info('Falló el envío de la respuesta de la transacción '. $idtransaccion);
-                    // Imprime en el log la excepción
-                    Log::info(Psr7\Message::toString($e->getRequest()));                    
-                }
-
-                if($response_decode == "") {
-                    try {
-                        $response_body = (string) $response->getBody();
-                        $response_decode = json_decode($response_body);
-                        $response_code = $response_decode->code;
-                        $response_msg = $response_decode->message;
-                    }
-                    catch (Exception $e){
-                        Log::info('Error al decodificar la respuesta de la transacción '. $idtransaccion);
-                    }                    
-                }
-
-                if($response_code == "success"){
-                    $respuesta->enviada = 1;
-                    $respuesta->save();
-                }
-            }            
-        }
-
-        //Agregar el envío del cargo cuando se haya rechazado falta la variable para validar que si se desea enviar
+        $this->procesarNotificacionRespuesta($transaccion, $respuesta, $date_response);
 
         if($respuesta->id){
             return 'success';            
@@ -414,6 +456,7 @@ class RespuestaController extends Controller
             if ($duplicada !== null) {
                 $this->sincronizarStatusTransaccionPorRespuesta($transaccion, $duplicada);
                 DB::commit();
+                $this->procesarNotificacionRespuesta($transaccion, $duplicada, $date_response, true);
                 return 'success';
             }
 
@@ -449,60 +492,7 @@ class RespuestaController extends Controller
             return $this->respuestaWebhookInvalido('No se pudo guardar el webhook.', 500);
         }
 
-        if ($transaccion !== null && $date_response["response"] == 'approved') {
-            $usuario = User::find($transaccion->idusuario);
-            if($usuario !== null && $usuario->notificaPago){
-                 // Set request params
-                $params = array(
-                    "folio" => $transaccion->ClientReference,
-                    "monto" => ((float) $date_response["amount"]),
-                    "reference" => $date_response["reference"],
-                    "foliocpagos" =>  $this->valorWebhook($date_response, 'folio'),
-                    "auth" => $this->valorWebhook($date_response, 'auth'),
-                    "cc_type" => $this->valorWebhook($date_response, 'ccType'),
-                    "cc_name" => $this->valorWebhook($date_response, 'ccName'),
-                    "cc_number" => $this->valorWebhook($date_response, 'ccNumber'),
-                    "cc_expmonth" => $this->valorWebhook($date_response, 'ccExpMonth'),
-                    "cc_expyear" => $this->valorWebhook($date_response, 'ccExpYear'),
-                    "amount" => $date_response["amount"]                                        
-                );
-
-                $response = "";
-                $response_body = "";
-                $response_decode = "";
-                $response_code = "";
-                $response_msg = "";
-                $error_code = "";
-                $error_msg = "";
-
-                try{
-                    $response = $this->postJsonAuditado($usuario->ligaPago, $params, [
-                        'provider' => 'Cliente',
-                        'source_context' => 'callback_webhook_lector',
-                        'idusuario' => $usuario->id,
-                        'idtransaccion' => $transaccion->id,
-                        'productivo' => $transaccion->productivo,
-                        'correlation_reference' => $transaccion->ClientReference,
-                    ]);
-                } catch (RequestException $e){
-                    $response  = $e->getResponse();
-                    $response_body = $response !== null ? (string) $response->getBody() : '';
-                    Log::info('Falló el envío de la respuesta de la transacción '. $idtransaccion);
-                }
-
-                if($response_decode == "" && $response !== "") {
-                    $response_body = (string) $response->getBody();
-                    $response_decode = json_decode($response_body);
-                    $response_code = $response_decode->code ?? '';
-                    $response_msg = $response_decode->message ?? '';
-                }
-
-                if($response_code == "success"){
-                    $respuesta->enviada = 1;
-                    $respuesta->save();
-                }
-            }
-        }
+        $this->procesarNotificacionRespuesta($transaccion, $respuesta, $date_response, true);
 
         if($respuesta->id){
             return 'success';            

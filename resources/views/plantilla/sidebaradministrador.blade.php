@@ -140,6 +140,12 @@
                             <li class="nav-item" data-menu-target="33">
                                 <a class="nav-link" href="#"><i class="fa fa-history"></i> User Activity Log</a>
                             </li>
+                            <li class="nav-item" data-menu-target="34">
+                                <a class="nav-link" href="#"><i class="fa fa-random"></i> Webhook Configuration</a>
+                            </li>
+                            <li class="nav-item" data-menu-target="35">
+                                <a class="nav-link" href="#"><i class="fa fa-exchange"></i> Webhook Deliveries</a>
+                            </li>
                         </ul>
                     </li>
                     <li class="nav-item" data-menu-target="5">

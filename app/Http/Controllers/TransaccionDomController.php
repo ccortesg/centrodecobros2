@@ -7,9 +7,6 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use GuzzleHttp\Client;
-use GuzzleHttp\RequestOptions;
-use GuzzleHttp\Psr7;
 use GuzzleHttp\Exception\RequestException;
 use Carbon\Carbon;
 use SoapClient;
@@ -21,8 +18,10 @@ use App\Transaccion;
 use App\Respuesta;
 use App\TransaccionDom;
 use App\Mail\TransaccionValidada;
+use App\Services\WebhookEventPublisher;
 
 use Exception;
+use Throwable;
 
 use App\Exports\ReporteTransaccionDomExport;
 use App\Exports\TransaccionDomExport;
@@ -218,6 +217,112 @@ class TransaccionDomController extends Controller
         $tran->save();
     }
 
+    private function eventoCargoRecurrente(TransaccionDom $transaccionDom)
+    {
+        if ($this->cargoRecurrenteAprobado($transaccionDom)) {
+            return 'recurring_charge.approved';
+        }
+
+        if (trim((string) $transaccionDom->code) === '' || trim((string) $transaccionDom->message) === '') {
+            return 'recurring_charge.error';
+        }
+
+        return 'recurring_charge.rejected';
+    }
+
+    private function payloadCargoRecurrente(Transaccion $transaccion, TransaccionDom $transaccionDom)
+    {
+        return [
+            'folio' => $transaccionDom->folio,
+            'idtransaccion' => $transaccion->id,
+            'Reference' => $transaccionDom->Reference,
+            'ClientReference' => $transaccion->ClientReference,
+            'monto' => (float) $transaccionDom->response_amount,
+            'Amount' => (float) $transaccionDom->response_amount,
+            'ExpMonth' => $transaccionDom->ExpMonth,
+            'ExpYear' => $transaccionDom->ExpYear,
+            'response' => $transaccionDom->response,
+            'code' => $transaccionDom->code,
+            'message' => $transaccionDom->message,
+            'response_reference' => $transaccionDom->response_reference ?: '',
+            'status' => $transaccionDom->status ?: '',
+            'foliocpagos' => $transaccionDom->foliocpagos ?: '',
+            'auth' => $transaccionDom->auth ?: '',
+            'cd_response' => $transaccionDom->cd_response ?: '',
+            'cd_error' => $transaccionDom->cd_error ?: '',
+            'nb_error' => $transaccionDom->nb_error ?: '',
+            'time' => $transaccionDom->time ?: '',
+            'date' => $transaccionDom->date ?: '',
+            'nb_company' => $transaccionDom->nb_company ?: '',
+            'nb_merchant' => $transaccionDom->nb_merchant ?: '',
+            'nb_street' => $transaccionDom->nb_street ?: '',
+            'tp_operation' => $transaccionDom->tp_operation ?: '',
+            'cc_type' => $transaccionDom->cc_type ?: '',
+            'cc_name' => $transaccionDom->cc_name ?: '',
+            'cc_number' => $transaccionDom->cc_number ?: '',
+            'cc_expmonth' => $transaccionDom->cc_expmonth ?: '',
+            'cc_expyear' => $transaccionDom->cc_expyear ?: '',
+            'amount' => (float) $transaccionDom->response_amount,
+            'id_url' => $transaccionDom->id_url ?: '',
+            'email' => $transaccionDom->email ?: '',
+            'payment_type' => $transaccionDom->payment_type ?: '',
+        ];
+    }
+
+    private function procesarNotificacionCargoRecurrente(
+        Transaccion $transaccion,
+        TransaccionDom $transaccionDom,
+        ?User $usuario,
+        $source
+    ) {
+        if (!$transaccionDom->id) {
+            return;
+        }
+
+        $payload = $this->payloadCargoRecurrente($transaccion, $transaccionDom);
+        $eventType = $this->eventoCargoRecurrente($transaccionDom);
+        $publisher = app(WebhookEventPublisher::class);
+        $providerResponse = json_decode((string) $transaccionDom->response, true);
+
+        $publisher->publish($usuario, $eventType, $payload, [
+            'idtransaccion' => $transaccion->id,
+            'source_type' => 'transaccionDom',
+            'source_id' => $transaccionDom->id,
+            'source_context' => $source,
+            'source_payload' => is_array($providerResponse) ? $providerResponse : $payload,
+            'idempotency_key' => $eventType . ':transaccionDom:' . $transaccionDom->id,
+            'occurred_at' => $transaccionDom->fecha,
+        ]);
+
+        if ($source !== 'automatic'
+            || $usuario === null
+            || !$usuario->notificaPago
+            || !$publisher->shouldUseLegacy($usuario)) {
+            return;
+        }
+
+        try {
+            $response = $this->postJsonAuditado($usuario->ligaRecurrente, $payload, [
+                'provider' => 'Cliente',
+                'source_context' => 'callback_cargo_recurrente',
+                'idusuario' => $usuario->id,
+                'idtransaccion' => $transaccion->id,
+                'productivo' => $transaccion->productivo,
+                'correlation_reference' => $transaccion->ClientReference,
+            ]);
+            $decoded = json_decode((string) $response->getBody(), true);
+
+            if (is_array($decoded) && strtolower((string) ($decoded['code'] ?? '')) === 'success') {
+                $transaccionDom->enviada = 1;
+                $transaccionDom->save();
+            }
+        } catch (Throwable $exception) {
+            Log::info('Fallo el envio de la respuesta al domiciliar la transaccion ' . $transaccion->id, [
+                'error' => $exception->getMessage(),
+            ]);
+        }
+    }
+
     public function index(Request $request)
     {
         if (!$request->ajax()) return redirect('/');               
@@ -401,6 +506,7 @@ class TransaccionDomController extends Controller
         }        
 
         $transaccionDom = new TransaccionDom();
+        $cargoGuardado = false;
         try{
             DB::beginTransaction();                
             $mytime = Carbon::now('America/Hermosillo');
@@ -448,13 +554,23 @@ class TransaccionDomController extends Controller
             $transaccionDom->productivo = \Auth::user()->productivo;
             $transaccionDom->save();            
             DB::commit();
+            $cargoGuardado = true;
         } catch (Exception $e){
             DB::rollBack();
             $error = $e->getMessage();
         }
 
-        if ($error === '' && $transaccionDom->id) {
-            $this->actualizarIntentosCargo($transaccion, $transaccionDom, true);
+        if ($cargoGuardado) {
+            if ($error === '') {
+                $this->actualizarIntentosCargo($transaccion, $transaccionDom, true);
+            }
+
+            $this->procesarNotificacionCargoRecurrente(
+                $transaccion,
+                $transaccionDom,
+                User::find($transaccion->idusuario),
+                'manual'
+            );
         }
 
         return [                
@@ -648,6 +764,7 @@ class TransaccionDomController extends Controller
         }        
 
         $transaccionDom = new TransaccionDom();
+        $cargoGuardado = false;
         try{
             DB::beginTransaction();
             $mytime = Carbon::now('America/Hermosillo');
@@ -695,11 +812,20 @@ class TransaccionDomController extends Controller
             $transaccionDom->productivo = $usuario->productivo;
             $transaccionDom->save();            
             DB::commit();
+            $cargoGuardado = true;
         } catch (Exception $e){
             DB::rollBack();
             Log::info('Error al registrar la respuesta del cargo de domiciliación. Error: '.$e->getMessage());
             $error_code = "55";
             $error = "No se pudo guardar la respuesta del cargo.";
+        }
+
+        if ($cargoGuardado) {
+            if ($error === '') {
+                $this->actualizarIntentosCargo($transaccion, $transaccionDom);
+            }
+
+            $this->procesarNotificacionCargoRecurrente($transaccion, $transaccionDom, $usuario, 'api');
         }
 
         if($error != ""){
@@ -721,10 +847,6 @@ class TransaccionDomController extends Controller
                 'email' => '',
                 'payment_type' => '',
             ], 400);
-        }
-
-        if ($transaccionDom->id) {
-            $this->actualizarIntentosCargo($transaccion, $transaccionDom);
         }
 
         return response()->json([
@@ -903,87 +1025,13 @@ class TransaccionDomController extends Controller
                 Log::info('Error al guardar el control de cargo recurrente. IdTransacción: '.$transaccion->id);
             }
 
-            //Agregar envío de respuestas de cargos recurrentes
-            //Se envía la respuesta del cargo si fue aprobado                    
             $usuario = User::find($transaccion->idusuario);
-            if($usuario->notificaPago){                        
-                // Set request params
-                $params = array(
-                    "folio" => $transaccionDom->folio,
-                    "idtransaccion" => $transaccion->id,
-                    "Reference" => $transaccionDom->Reference,
-                    "ClientReference" => $transaccion->ClientReference,                    
-                    "monto" => (float) $transaccionDom->response_amount,                    
-                    "Amount" => (float) $transaccionDom->response_amount,
-                    "ExpMonth" => $transaccionDom->ExpMonth,
-                    "ExpYear" => $transaccionDom->ExpYear,
-                    "response" => $transaccionDom->response,
-                    "code" => $transaccionDom->code,
-                    "message" => $transaccionDom->message,
-                    "response_reference" => $transaccionDom->response_reference ? $transaccionDom->response_reference : "",
-                    "status" => $transaccionDom->status ? $transaccionDom->status : "",
-                    "foliocpagos" =>  $transaccionDom->foliocpagos ? $transaccionDom->foliocpagos : "",
-                    "auth" => $transaccionDom->auth ? $transaccionDom->auth : "",
-                    "cd_response" => $transaccionDom->cd_response ? $transaccionDom->cd_response : "",
-                    "cd_error" => $transaccionDom->cd_error ? $transaccionDom->cd_error : "",
-                    "nb_error" => $transaccionDom->nb_error ? $transaccionDom->nb_error : "",
-                    "time" => $transaccionDom->time ? $transaccionDom->time : "",
-                    "date" => $transaccionDom->date ? $transaccionDom->date : "",
-                    "nb_company" => $transaccionDom->nb_company ? $transaccionDom->nb_company : "",
-                    "nb_merchant" => $transaccionDom->nb_merchant ? $transaccionDom->nb_merchant : "",
-                    "nb_street" => $transaccionDom->nb_street ? $transaccionDom->nb_street : "",
-                    "tp_operation" => $transaccionDom->tp_operation ? $transaccionDom->tp_operation : "",
-                    "cc_type" => $transaccionDom->cc_type ? $transaccionDom->cc_type : "",
-                    "cc_name" => $transaccionDom->cc_name ? $transaccionDom->cc_name : "",
-                    "cc_number" => $transaccionDom->cc_number ? $transaccionDom->cc_number : "",
-                    "cc_expmonth" => $transaccionDom->cc_expmonth ? $transaccionDom->cc_expmonth : "",
-                    "cc_expyear" => $transaccionDom->cc_expyear ? $transaccionDom->cc_expyear : "",
-                    "amount" => $transaccionDom->cd_response ? $transaccionDom->cd_response : "",
-                    "id_url" => $transaccionDom->id_url ? $transaccionDom->id_url : "",
-                    "email" => $transaccionDom->email ? $transaccionDom->email : "",
-                    "payment_type" => $transaccionDom->payment_type ? $transaccionDom->payment_type : ""
-                );
-
-                $response = "";
-                $response_body = "";
-                $response_decode = "";
-                $response_code = "";
-                $response_msg = "";
-                $error_code = "";
-                $error_msg = "";
-
-                try{
-                    $response = $this->postJsonAuditado($usuario->ligaRecurrente, $params, [
-                        'provider' => 'Cliente',
-                        'source_context' => 'callback_cargo_recurrente',
-                        'idusuario' => $usuario->id,
-                        'idtransaccion' => $transaccion->id,
-                        'productivo' => $transaccion->productivo,
-                        'correlation_reference' => $transaccion->ClientReference,
-                    ]);
-                } catch (RequestException $e){
-                    $response  = $e->getResponse();
-                    $response_body = (string) $response->getBody();
-                    Log::info('Falló el envío de la respuesta al domiciliar la transacción '. $transaccion->id);
-                }
-
-                if($response_decode == "") {
-                    try {
-                        $response_body = (string) $response->getBody();
-                        $response_decode = json_decode($response_body);
-                        $response_code = $response_decode->code;
-                        $response_msg = $response_decode->message;
-                    }
-                    catch (Exception $e){
-                        Log::info('Error al decodificar la respuesta al domiciliar la transacción '. $transaccion->id);
-                    }                    
-                }
-
-                if($response_code == "success"){
-                    $transaccionDom->enviada = 1;
-                    $transaccionDom->save();
-                }
-            }
+            $this->procesarNotificacionCargoRecurrente(
+                $transaccion,
+                $transaccionDom,
+                $usuario,
+                'automatic'
+            );
         }         
     }
     

@@ -1,6 +1,6 @@
 # Modulo: Respuestas y webhooks
 
-Ultima actualizacion: 2026-06-18
+Ultima actualizacion: 2026-07-10
 
 ## Proposito
 
@@ -36,7 +36,7 @@ Recibir, validar y persistir respuestas del proveedor para conciliacion, trazabi
 
 - Persistencia en `respuestas`.
 - Actualizacion de transacciones o tablas SPEI segun flujo.
-- Callback a URL de cliente (`users.ligaPago`) cuando aplica.
+- En `legacy/shadow`, callback aprobado a `users.ligaPago`; en `active`, evento configurable en Database Queue.
 - Marcado de bandera `enviada`.
 - Respuestas controladas ante payload incompleto o duplicado.
 
@@ -77,7 +77,7 @@ Filtro de fechas:
 
 - Falta firma/origen de webhook hasta recibir especificacion Pagadetodo.
 - Dependencia fuerte de formato externo.
-- Callbacks a sistemas cliente pueden tener reintentos/timeouts no normalizados.
+- El callback legacy conserva su comportamiento. El motor `active` agrega timeout, ACK, reintentos e idempotencia; ver `MODULO_NOTIFICACIONES_WEBHOOK_CONFIGURABLES.md`.
 - Pagadetodo real probado exitosamente desde servidor en sandbox y productivo, confirmado por el propietario el 2026-06-08.
 - Validacion local real bloqueada por restriccion de IP de origen del proveedor; usar mock local.
 
@@ -97,7 +97,7 @@ Filtro de fechas:
 
 - Agregar verificacion de firma/origen cuando proveedor entregue especificacion.
 - Guardar evidencia sanitizada de pruebas servidor sandbox/productivo.
-- Formalizar politica de reintentos de callbacks.
+- Completar rollout por cliente del motor configurable y retirar callbacks legacy solo despues de validar `active`.
 - Extraer parseo de payloads a adaptadores probables.
 
 ## Corte diagnostico 2026-06-07

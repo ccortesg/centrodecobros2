@@ -59,6 +59,10 @@ const LEGACY_HASH_MENU_TARGETS = new Map([
     ['incoming-api-requests', 32],
     ['user-activity-log', 33],
     ['integraciones-actividad', 33],
+    ['webhook-configuration', 34],
+    ['integraciones-webhooks', 34],
+    ['webhook-deliveries', 35],
+    ['entregas-webhook', 35],
 ]);
 
 let listenersBound = false;

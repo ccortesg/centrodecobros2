@@ -1,6 +1,6 @@
 # Codex Conversation Handoff - Centro de Cobros Fase 34
 
-Fecha de handoff: 2026-06-07  
+Fecha de handoff: 2026-07-10
 Zona horaria de trabajo: America/Hermosillo  
 Workspace local actual: `/mnt/c/temp/centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`  
 Ruta Windows equivalente: `C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`  
@@ -1348,3 +1348,55 @@ Entrega:
 - Si se toca deploy/sandbox, actualizar runbook correspondiente.
 - Si se toca Pagadetodo, ejecutar Feature con `PAGADETODO_MOCK=true` y no usar credenciales productivas.
 - Si se toca scheduler o `ejecutarCron`, tratar como cambio de alto riesgo.
+
+---
+
+## 18. Addendum 2026-07-10: notificaciones webhook configurables
+
+Se implemento un motor administrable de webhooks salientes hacia plataformas cliente:
+
+- menu admin `Integraciones > Webhook Configuration` (`menu=34`);
+- menu admin `Integraciones > Webhook Deliveries` (`menu=35`);
+- modos por cliente `legacy`, `shadow`, `active`, `disabled`;
+- endpoints HTTPS, suscripciones por evento, ACK configurable y limite por host;
+- Database Queue con fanout, reintentos, historial y exportacion;
+- HMAC-SHA256 opcional por cliente con secreto cifrado;
+- payload real completo y sin sanitizar; auditoria/UI/export sanitizados;
+- eventos para pagos/rechazos de liga unica/domiciliacion/terminal, activacion/cancelacion, cargos recurrentes manual/API/automaticos y SPEI;
+- comando `webhooks:import-legacy --dry-run --mode=shadow`.
+
+Semantica critica:
+
+- `legacy`: solo callback anterior.
+- `shadow`: callback anterior continua; el motor nuevo no hace HTTP, solo registra entregas shadow.
+- `active`: el motor nuevo reemplaza callback anterior.
+- `disabled`: no envia.
+
+HMAC acordado para el usuario de `app.donarconcausa.org.mx`:
+
+```text
+X-Soportetech-Timestamp: <Unix UTC seconds>
+X-Soportetech-Event-Id: <stable event UUID>
+X-Soportetech-Signature: sha256=<lowercase hex>
+canonical = timestamp.event_id.raw_request_body
+```
+
+Receptor: HTTPS, tolerancia 300 segundos, anti-replay 10 minutos y 30 solicitudes/minuto/IP. Emisor default 25 y maximo 30 por host.
+
+No se resolvio el posible duplicado financiero del JOIN de `ejecutarCron` con multiples respuestas aprobadas; el propietario decidio tratarlo despues.
+
+No se agrego allowlist/DNS/rangos privados a endpoints; por decision funcional solo se valida formato y HTTPS.
+
+Archivos de schema nuevos:
+
+- `2026_07_10_120000_create_webhook_notification_tables.php`;
+- `2026_07_10_120100_create_queue_tables.php`;
+- `2026_07_10_120200_add_transaction_correlation_to_cancellations.php`.
+
+No se ejecutaron migraciones productivas. La activacion requiere worker Docker persistente y rollout `false -> shadow -> prueba HMAC -> active`, documentado en `docs/ENVIRONMENT_AND_OPERATION.md` y `docs/MODULES/MODULO_NOTIFICACIONES_WEBHOOK_CONFIGURABLES.md`.
+
+Validacion disponible al corte:
+
+- Unit Linux PHP 8.3: 5 tests, 23 assertions.
+- Feature WAMP PHP 8.3/SQLite: 12 tests, 44 assertions.
+- Quedan build Vite y smoke visual antes del cierre.

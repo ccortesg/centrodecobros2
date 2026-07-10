@@ -232,6 +232,13 @@ class Controller extends BaseController
         }
 
         if (strpos($url, 'PagarDomiciliacionIndi') !== false) {
+            if (($params['Token'] ?? '') === 'MOCK_REJECTED_CHARGE') {
+                return [
+                    'code' => '05',
+                    'message' => 'MOCK cargo rechazado',
+                ];
+            }
+
             return [
                 'code' => '00',
                 'message' => 'MOCK cargo aprobado',

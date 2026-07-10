@@ -1,6 +1,6 @@
 # Integraciones externas
 
-Ultima actualizacion: 2026-07-03
+Ultima actualizacion: 2026-07-10
 
 ## 1. Pagadetodo
 
@@ -58,13 +58,21 @@ Estas rutas no usan prefijo `/api`:
 - Fase 34 agrego validacion minima e idempotencia local en `Service/*`.
 - El propietario confirmo el 2026-06-08 que los servicios Pagadetodo ya fueron probados exitosamente desde servidor en sandbox y en productivo.
 - La validacion real no es reproducible desde ambiente local por restriccion de IP de origen del proveedor.
-- Firma/origen de webhooks sigue pendiente por falta de especificacion del proveedor.
+- La firma/origen de los webhooks entrantes de Pagadetodo sigue pendiente por falta de especificacion del proveedor. Esto es independiente de la firma HMAC implementada para webhooks salientes hacia sistemas cliente.
 
-## 2. Callback a sistemas cliente
+## 2. Webhooks salientes a sistemas cliente
 
-- URLs configuradas por usuario, principalmente `users.ligaPago` y `users.ligaRecurrente`.
-- Se invocan despues de respuestas aprobadas o eventos relevantes.
-- Riesgo vigente: reintentos, timeouts e idempotencia del sistema cliente no estan formalizados como contrato.
+- El flujo legacy conserva `users.ligaPago` y `users.ligaRecurrente`.
+- El motor configurable vive en `WebhookEventPublisher`, `WebhookFanoutService`, `DeliverWebhookJob` y `WebhookDeliveryService`.
+- Modos por cliente: `legacy`, `shadow`, `active`, `disabled`.
+- `shadow` conserva el callback legacy y genera entregas de simulacion sin hacer una segunda llamada HTTP.
+- `active` reemplaza el callback legacy por Database Queue.
+- Se cubren pagos/rechazos de liga unica, domiciliacion, cargos recurrentes manual/API/automaticos, cancelaciones, SPEI y terminal.
+- Los payloads reales se transmiten completos; la sanitizacion solo afecta bitacoras/UI/export.
+- URL valida y HTTPS son obligatorios. No existe allowlist de host por decision funcional.
+- HMAC-SHA256 opcional por cliente usa `timestamp.event_id.raw_request_body` y los headers `X-Soportetech-*`.
+- El primer receptor acordado es `app.donarconcausa.org.mx`, con tolerancia de 300 segundos, anti-replay de 10 minutos y maximo receptor de 30 solicitudes/minuto/IP.
+- Detalle completo: `docs/MODULES/MODULO_NOTIFICACIONES_WEBHOOK_CONFIGURABLES.md`.
 
 ## 3. Realtime Pusher/Echo
 
@@ -113,3 +121,4 @@ Si `VITE_PUSHER_APP_KEY` no existe, `window.Echo` queda en `null` y el sistema n
 - `User Activity Log` registra login exitoso/fallido, logout y acceso a modulos del shell.
 - La sanitizacion vive en `App\Services\AuditSanitizer`; los headers/payloads se guardan ya sanitizados.
 - La purga es manual con `php artisan audit:purge --days=365 --dry-run`; no se agrego scheduler.
+- Las entregas configurables tambien se registran en Outgoing API Requests, pero el cuerpo persistido en esa bitacora se sanitiza; no debe confundirse con el cuerpo real cifrado de `webhook_deliveries`.

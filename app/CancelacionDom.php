@@ -21,6 +21,7 @@ class CancelacionDom extends Model
                         'response',                        
                         'code',
                         'message',
+                        'idtransaccion',
                         'idusuario',
                         'productivo'                        
                         ];

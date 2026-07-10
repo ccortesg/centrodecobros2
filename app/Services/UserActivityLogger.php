@@ -54,6 +54,8 @@ class UserActivityLogger
             31 => 'Outgoing API Requests',
             32 => 'Incoming API Requests',
             33 => 'User Activity Log',
+            34 => 'Webhook Configuration',
+            35 => 'Webhook Deliveries',
         ];
     }
 

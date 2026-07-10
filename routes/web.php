@@ -131,6 +131,17 @@ Route::group(['middleware'=>['auth']],function(){
         Route::get('/integraciones/incoming-api-requests/exportar', 'IntegrationAuditController@exportIncoming');
         Route::get('/integraciones/user-activity-log', 'IntegrationAuditController@userActivity');
         Route::get('/integraciones/user-activity-log/exportar', 'IntegrationAuditController@exportUserActivity');
+        Route::get('/integraciones/webhooks/configuracion', 'WebhookNotificationController@configuration');
+        Route::post('/integraciones/webhooks/configuracion', 'WebhookNotificationController@saveSettings');
+        Route::post('/integraciones/webhooks/endpoints', 'WebhookNotificationController@storeEndpoint');
+        Route::put('/integraciones/webhooks/endpoints/{id}', 'WebhookNotificationController@updateEndpoint');
+        Route::delete('/integraciones/webhooks/endpoints/{id}', 'WebhookNotificationController@deleteEndpoint');
+        Route::post('/integraciones/webhooks/endpoints/{id}/test', 'WebhookNotificationController@testEndpoint');
+        Route::get('/integraciones/webhooks/entregas', 'WebhookNotificationController@deliveries');
+        Route::get('/integraciones/webhooks/entregas/exportar', 'WebhookNotificationController@exportDeliveries');
+        Route::get('/integraciones/webhooks/entregas/{id}', 'WebhookNotificationController@deliveryDetail');
+        Route::post('/integraciones/webhooks/entregas/{id}/reintentar', 'WebhookNotificationController@retryDelivery');
+        Route::post('/integraciones/webhooks/entregas/{id}/cancelar', 'WebhookNotificationController@cancelDelivery');
     });       
 });
 

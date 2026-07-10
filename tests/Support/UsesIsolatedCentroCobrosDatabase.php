@@ -262,6 +262,7 @@ trait UsesIsolatedCentroCobrosDatabase
             $table->string('response_token')->nullable();
             $table->integer('idusuario')->nullable();
             $table->integer('productivo')->default(1);
+            $table->integer('enviada')->default(0);
             $table->timestamps();
         });
 
@@ -298,6 +299,26 @@ trait UsesIsolatedCentroCobrosDatabase
             $table->text('response')->nullable();
             $table->string('code')->nullable();
             $table->string('message')->nullable();
+            $table->integer('idtransaccion')->nullable();
+            $table->integer('idusuario')->nullable();
+            $table->integer('productivo')->default(1);
+            $table->timestamps();
+        });
+
+        Schema::create('cancelacionesLector', function (Blueprint $table) {
+            $table->increments('id');
+            $table->integer('folio')->nullable();
+            $table->dateTime('fecha')->nullable();
+            $table->string('User')->nullable();
+            $table->string('Password')->nullable();
+            $table->string('IntegrationID')->nullable();
+            $table->string('BusinessID')->nullable();
+            $table->string('Reference')->nullable();
+            $table->text('response')->nullable();
+            $table->string('code')->nullable();
+            $table->string('message')->nullable();
+            $table->string('responseReference')->nullable();
+            $table->integer('idtransaccion')->nullable();
             $table->integer('idusuario')->nullable();
             $table->integer('productivo')->default(1);
             $table->timestamps();
@@ -373,6 +394,115 @@ trait UsesIsolatedCentroCobrosDatabase
             $table->string('session_id_hash')->nullable();
             $table->text('metadata')->nullable();
             $table->timestamps();
+        });
+
+        Schema::create('webhook_user_settings', function (Blueprint $table) {
+            $table->increments('id');
+            $table->integer('idusuario')->unique();
+            $table->string('mode')->default('legacy');
+            $table->boolean('hmac_enabled')->default(false);
+            $table->text('hmac_secret')->nullable();
+            $table->string('hmac_secret_fingerprint')->nullable();
+            $table->dateTime('hmac_rotated_at')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('webhook_endpoints', function (Blueprint $table) {
+            $table->increments('id');
+            $table->integer('idusuario');
+            $table->string('name');
+            $table->text('url');
+            $table->string('url_hash');
+            $table->string('host');
+            $table->boolean('active')->default(true);
+            $table->string('payload_mode')->default('legacy_exact');
+            $table->string('ack_mode')->default('legacy_code_success');
+            $table->integer('rate_limit_per_minute')->default(25);
+            $table->timestamps();
+            $table->softDeletes();
+        });
+
+        Schema::create('webhook_endpoint_subscriptions', function (Blueprint $table) {
+            $table->increments('id');
+            $table->integer('webhook_endpoint_id');
+            $table->string('event_type');
+            $table->string('source_filter')->default('all');
+            $table->boolean('active')->default(true);
+            $table->timestamps();
+        });
+
+        Schema::create('webhook_events', function (Blueprint $table) {
+            $table->string('id')->primary();
+            $table->integer('idusuario')->nullable();
+            $table->integer('idtransaccion')->nullable();
+            $table->string('event_type');
+            $table->string('source_type')->nullable();
+            $table->integer('source_id')->nullable();
+            $table->string('source_context')->nullable();
+            $table->string('idempotency_key')->unique();
+            $table->text('payload');
+            $table->string('status')->default('created');
+            $table->dateTime('occurred_at');
+            $table->timestamps();
+        });
+
+        Schema::create('webhook_deliveries', function (Blueprint $table) {
+            $table->string('id')->primary();
+            $table->string('webhook_event_id');
+            $table->integer('webhook_endpoint_id');
+            $table->string('status')->default('pending');
+            $table->integer('attempt_count')->default(0);
+            $table->dateTime('next_attempt_at')->nullable();
+            $table->dateTime('delivered_at')->nullable();
+            $table->integer('last_status_code')->nullable();
+            $table->text('last_error')->nullable();
+            $table->text('raw_body');
+            $table->string('body_hash');
+            $table->boolean('is_test')->default(false);
+            $table->timestamps();
+        });
+
+        Schema::create('webhook_delivery_attempts', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('webhook_delivery_id');
+            $table->dateTime('attempted_at');
+            $table->integer('status_code')->nullable();
+            $table->integer('duration_ms')->nullable();
+            $table->boolean('success')->default(false);
+            $table->text('request_headers')->nullable();
+            $table->text('request_body')->nullable();
+            $table->text('response_headers')->nullable();
+            $table->text('response_body')->nullable();
+            $table->string('error_class')->nullable();
+            $table->text('error_message')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('webhook_rate_limits', function (Blueprint $table) {
+            $table->string('host')->primary();
+            $table->dateTime('window_started_at');
+            $table->integer('request_count')->default(0);
+            $table->timestamps();
+        });
+
+        Schema::create('jobs', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('queue');
+            $table->text('payload');
+            $table->integer('attempts');
+            $table->integer('reserved_at')->nullable();
+            $table->integer('available_at');
+            $table->integer('created_at');
+        });
+
+        Schema::create('failed_jobs', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('uuid')->unique();
+            $table->text('connection');
+            $table->text('queue');
+            $table->text('payload');
+            $table->text('exception');
+            $table->dateTime('failed_at')->useCurrent();
         });
     }
 

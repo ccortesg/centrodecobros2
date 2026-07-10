@@ -132,6 +132,14 @@
             <template v-if="menu==33">
                 <integrationaudit tipo="user_activity"></integrationaudit>
             </template>
+
+            <template v-if="menu==34">
+                <webhookconfiguration></webhookconfiguration>
+            </template>
+
+            <template v-if="menu==35">
+                <webhookdeliveries></webhookdeliveries>
+            </template>
             @endif
             @else
 

@@ -1,6 +1,6 @@
 # Guia para agentes de IA
 
-Ultima actualizacion: 2026-06-07
+Ultima actualizacion: 2026-07-10
 
 ## Regla operativa obligatoria
 
@@ -58,6 +58,12 @@ No crear copias nuevas para fases, fixes, documentacion o actualizaciones futura
 - No renombrar rutas API legacy ni agregar prefijo `/api` sin plan de compatibilidad.
 - No ampliar campos auditados ni exportados sin revisar `App\Services\AuditSanitizer`; headers/payloads deben quedar sanitizados antes de persistirse.
 - Si una relacion de DB se infiere desde codigo, documentarla como inferida.
+- Para webhooks configurables, nunca sanitizar ni reserializar el cuerpo real ya guardado en `webhook_deliveries.raw_body`; HMAC depende de esos bytes exactos.
+- `shadow` debe conservar callbacks legacy y no hacer una segunda llamada HTTP. `active` es el unico modo que reemplaza legacy.
+- No habilitar `WEBHOOK_NOTIFICATIONS_ENABLED=true` ni cambiar un cliente a `active` sin tablas migradas y worker de cola persistente.
+- No imprimir, exportar ni registrar `webhook_user_settings.hmac_secret`; solo se muestra una vez al crear/rotar.
+- No agregar allowlist/DNS/rangos privados a URLs sin nueva decision del propietario; la regla vigente es formato valido + HTTPS.
+- El posible JOIN duplicado de `ejecutarCron` esta fuera del alcance de webhooks y debe tratarse como pendiente financiero separado.
 
 ## Checklist previo a cambios funcionales
 
@@ -82,6 +88,7 @@ git diff --check docs
 
 Si la tarea toca contratos Pagadetodo o ownership, ejecutar tambien Feature con SQLite/WAMP y `PAGADETODO_MOCK=true`.
 Si la tarea toca auditoria de integraciones, ejecutar `tests/Unit/AuditSanitizerTest.php` y `tests/Feature/IntegrationAuditFeatureTest.php`.
+Si toca notificaciones webhook, ejecutar tambien `tests/Unit/WebhookSecurityContractTest.php` y `tests/Feature/WebhookNotificationFeatureTest.php` con WAMP PHP 8.3/SQLite.
 
 ## Nota de validacion 2026-06-07
 

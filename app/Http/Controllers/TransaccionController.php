@@ -8,9 +8,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Schema;
 use GuzzleHttp\Client;
 use GuzzleHttp\RequestOptions;
-use GuzzleHttp\Psr7;
 use GuzzleHttp\Exception\RequestException;
 use Carbon\Carbon;
 use SoapClient;
@@ -28,6 +28,7 @@ use App\ConsultaSpei;
 use App\PagoSpei;
 use App\CancelaSpei;
 use App\Mail\TransaccionValidada;
+use App\Services\WebhookEventPublisher;
 
 use Exception;
 
@@ -2337,6 +2338,8 @@ class TransaccionController extends Controller
             return $this->respuestaNoAutorizado($request);
         }
 
+        $notificacionUsuario = User::find($transaccion->idusuario);
+
         $msg = "La cancelaciÃ³n se realizÃ³ con Ã©xito.";
 
         if($transaccion->tipo == 2) {
@@ -2346,6 +2349,17 @@ class TransaccionController extends Controller
                 ->first();
 
             if($respuesta == null || trim((string) $respuesta->number_tkn) === '') {
+                $this->publicarEventoCancelacionTransaccion(
+                    $notificacionUsuario,
+                    $transaccion,
+                    'domiciliation.cancellation_failed',
+                    [
+                        'ClientReference' => $transaccion->ClientReference,
+                        'code' => 'missing_token',
+                        'message' => 'La respuesta aprobada no pudo ser identificada para cancelar la domiciliacion.',
+                    ]
+                );
+
                 return response()->json([
                     'error' => 'La respuesta aprobada no pudo ser identificada para cancelar la domiciliacion.',
                     'msg' => 'No se pudo cancelar la domiciliacion.'
@@ -2408,6 +2422,19 @@ class TransaccionController extends Controller
             }
 
             if($response_decode == null) {
+                $this->publicarEventoCancelacionTransaccion(
+                    $notificacionUsuario,
+                    $transaccion,
+                    'domiciliation.cancellation_failed',
+                    [
+                        'ClientReference' => $transaccion->ClientReference,
+                        'Token' => $Token,
+                        'Tkn_reference' => str_pad($max, 15, '0', STR_PAD_LEFT),
+                        'code' => 'invalid_provider_response',
+                        'message' => $errorRemoto ?: 'No se recibio una respuesta valida de Pagadetodo.',
+                    ]
+                );
+
                 return response()->json([
                     'error' => $errorRemoto ?: 'No se recibio una respuesta valida de Pagadetodo.',
                     'msg' => 'No se pudo cancelar la domiciliacion.'
@@ -2428,6 +2455,9 @@ class TransaccionController extends Controller
                 $cancelaciondom->BusinessID = $BusinessID;
                 $cancelaciondom->Token = $Token;
                 $cancelaciondom->Tkn_reference = str_pad($max, 15, '0', STR_PAD_LEFT);
+                if (Schema::hasColumn('cancelacionesDom', 'idtransaccion')) {
+                    $cancelaciondom->idtransaccion = $transaccion->id;
+                }
                 $cancelaciondom->response = $response_body;
                 $cancelaciondom->code = $response_decode->code ?? $response_decode->Code ?? null;
                 $cancelaciondom->message = $response_decode->message ?? $response_decode->Message ?? null;
@@ -2437,11 +2467,40 @@ class TransaccionController extends Controller
                 DB::commit();
             } catch (Exception $e){
                 DB::rollBack();
+                $this->publicarEventoCancelacionTransaccion(
+                    $notificacionUsuario,
+                    $transaccion,
+                    'domiciliation.cancellation_failed',
+                    [
+                        'ClientReference' => $transaccion->ClientReference,
+                        'Token' => $Token,
+                        'Tkn_reference' => str_pad($max, 15, '0', STR_PAD_LEFT),
+                        'code' => 'persistence_error',
+                        'message' => 'No se pudo guardar la cancelacion de domiciliacion.',
+                    ]
+                );
+
                 return response()->json([
                     'error' => $e->getMessage(),
                     'msg' => 'No se pudo guardar la cancelacion.'
                 ], 500);
             }
+
+            $this->publicarEventoCancelacionTransaccion(
+                $notificacionUsuario,
+                $transaccion,
+                'domiciliation.cancelled',
+                [
+                    'ClientReference' => $transaccion->ClientReference,
+                    'Token' => $Token,
+                    'Tkn_reference' => $cancelaciondom->Tkn_reference,
+                    'code' => $cancelaciondom->code,
+                    'message' => $cancelaciondom->message,
+                    'response' => $response_body,
+                ],
+                'cancelacionesDom',
+                $cancelaciondom->id
+            );
 
             if($errorRemoto !== '') {
                 Log::warning('Pagadetodo devolvio error tecnico despues de persistir cancelacion de domiciliacion.', [
@@ -2508,6 +2567,18 @@ class TransaccionController extends Controller
             }
 
             if($response_decode == null) {
+                $this->publicarEventoCancelacionTransaccion(
+                    $notificacionUsuario,
+                    $transaccion,
+                    'terminal.cancellation_failed',
+                    [
+                        'ClientReference' => $transaccion->ClientReference,
+                        'Reference' => $Reference,
+                        'code' => 'invalid_provider_response',
+                        'message' => $errorRemoto ?: 'No se recibio una respuesta valida de Pagadetodo.',
+                    ]
+                );
+
                 return response()->json([
                     'error' => $errorRemoto ?: 'No se recibio una respuesta valida de Pagadetodo.',
                     'msg' => 'No se pudo cancelar la liga de terminal.'
@@ -2527,6 +2598,9 @@ class TransaccionController extends Controller
                 $cancelacionlector->IntegrationID = $IntegrationID;
                 $cancelacionlector->BusinessID = $BusinessID;
                 $cancelacionlector->Reference = $Reference;
+                if (Schema::hasColumn('cancelacionesLector', 'idtransaccion')) {
+                    $cancelacionlector->idtransaccion = $transaccion->id;
+                }
                 $cancelacionlector->response = $response_body;
                 $cancelacionlector->code = $response_decode->code ?? $response_decode->Code ?? null;
                 $cancelacionlector->message = $response_decode->message ?? $response_decode->Message ?? null;
@@ -2537,11 +2611,39 @@ class TransaccionController extends Controller
                 DB::commit();
             } catch (Exception $e){
                 DB::rollBack();
+                $this->publicarEventoCancelacionTransaccion(
+                    $notificacionUsuario,
+                    $transaccion,
+                    'terminal.cancellation_failed',
+                    [
+                        'ClientReference' => $transaccion->ClientReference,
+                        'Reference' => $Reference,
+                        'code' => 'persistence_error',
+                        'message' => 'No se pudo guardar la cancelacion de terminal.',
+                    ]
+                );
+
                 return response()->json([
                     'error' => $e->getMessage(),
                     'msg' => 'No se pudo guardar la cancelacion.'
                 ], 500);
             }
+
+            $this->publicarEventoCancelacionTransaccion(
+                $notificacionUsuario,
+                $transaccion,
+                'terminal.cancelled',
+                [
+                    'ClientReference' => $transaccion->ClientReference,
+                    'Reference' => $Reference,
+                    'responseReference' => $cancelacionlector->responseReference,
+                    'code' => $cancelacionlector->code,
+                    'message' => $cancelacionlector->message,
+                    'response' => $response_body,
+                ],
+                'cancelacionesLector',
+                $cancelacionlector->id
+            );
 
             if($errorRemoto !== '') {
                 Log::warning('Pagadetodo devolvio error tecnico despues de persistir cancelacion de terminal.', [
@@ -2606,6 +2708,19 @@ class TransaccionController extends Controller
             }
 
             $Token = $respuesta->number_tkn;
+        }
+
+        if($Token !== '' && $transaccion === null) {
+            $respuesta = Respuesta::where('number_tkn', '=', $Token)
+                ->where('status', 'LIKE', 'approved')
+                ->first();
+
+            if($respuesta !== null) {
+                $transaccion = Transaccion::where('id', '=', $respuesta->idtransaccion)
+                    ->where('tipo', '=', 2)
+                    ->where('idusuario', '=', $usuario->id)
+                    ->first();
+            }
         }
 
         $max = 0;
@@ -2687,6 +2802,19 @@ class TransaccionController extends Controller
         }        
 
         if($response_decode == "") {
+            $this->publicarEventoCancelacionTransaccion(
+                $usuario,
+                $transaccion,
+                'domiciliation.cancellation_failed',
+                [
+                    'ClientReference' => $data['ClientReference'] ?? ($transaccion->ClientReference ?? null),
+                    'Token' => $Token,
+                    'Tkn_reference' => str_pad($max, 15, '0', STR_PAD_LEFT),
+                    'code' => $error_code ?: '54',
+                    'message' => $error ?: 'Error al consultar servicio de cancelacion.',
+                ]
+            );
+
             return $this->apiCancelacionDomError($error_code ?: "54", $error ?: "Error al consultar servicio de cancelaciÃ³n.");
         }
 
@@ -2708,6 +2836,9 @@ class TransaccionController extends Controller
             $cancelaciondom->BusinessID = $BusinessID;
             $cancelaciondom->Token = $Token;
             $cancelaciondom->Tkn_reference = str_pad($max, 15, '0', STR_PAD_LEFT);
+            if (Schema::hasColumn('cancelacionesDom', 'idtransaccion')) {
+                $cancelaciondom->idtransaccion = $transaccion->id ?? null;
+            }
             $cancelaciondom->response = $response_body;
             $cancelaciondom->code = $response_decode->code ?? $response_decode->Code ?? null;
             $cancelaciondom->message = $response_decode->message ?? $response_decode->Message ?? null;
@@ -2718,8 +2849,37 @@ class TransaccionController extends Controller
         } catch (Exception $e){
             DB::rollBack();
             Log::info("Error al guardar cancelaciÃ³n de domiciliaciÃ³n API: ".$e->getMessage());
+            $this->publicarEventoCancelacionTransaccion(
+                $usuario,
+                $transaccion,
+                'domiciliation.cancellation_failed',
+                [
+                    'ClientReference' => $data['ClientReference'] ?? ($transaccion->ClientReference ?? null),
+                    'Token' => $Token,
+                    'Tkn_reference' => str_pad($max, 15, '0', STR_PAD_LEFT),
+                    'code' => 'persistence_error',
+                    'message' => 'No se pudo guardar la cancelacion de domiciliacion.',
+                ]
+            );
+
             return $this->apiCancelacionDomError("55", "No se pudo guardar la respuesta de cancelaciÃ³n.");
         }
+
+        $this->publicarEventoCancelacionTransaccion(
+            $usuario,
+            $transaccion,
+            'domiciliation.cancelled',
+            [
+                'ClientReference' => $data['ClientReference'] ?? ($transaccion->ClientReference ?? null),
+                'Token' => $Token,
+                'Tkn_reference' => $cancelaciondom->Tkn_reference,
+                'code' => $cancelaciondom->code,
+                'message' => $cancelaciondom->message,
+                'response' => $response_body,
+            ],
+            'cancelacionesDom',
+            $cancelaciondom->id
+        );
 
         if($error != "") {
             return $this->apiCancelacionDomError($error_code ?: "54", $error);
@@ -2911,6 +3071,93 @@ class TransaccionController extends Controller
         }  
     }
 
+    private function publicarEventoPagoSpei(PagoSpei $pago, $transaccion, array $requestPayload)
+    {
+        if (!$pago->id) {
+            return;
+        }
+
+        $usuario = $transaccion ? User::find($transaccion->idusuario) : null;
+        $approved = in_array((string) $pago->codigo, ['0', '00'], true) && (int) $pago->condicion === 1;
+        $eventType = $approved ? 'spei.payment.approved' : 'spei.payment.rejected';
+        $monto = ((float) $pago->monto) / 100.0;
+        $payload = array_merge($requestPayload, [
+            'folio' => $transaccion->ClientReference ?? '',
+            'monto' => $monto,
+            'reference' => '',
+            'clabe' => $pago->clabe,
+            'foliocpagos' => $pago->transaccion,
+            'auth' => $pago->autorizacion,
+            'amount' => $monto,
+            'codigo' => $pago->codigo,
+            'mensaje' => $pago->mensaje,
+            'condicion' => $pago->condicion,
+        ]);
+
+        app(WebhookEventPublisher::class)->publish($usuario, $eventType, $payload, [
+            'idtransaccion' => $transaccion->id ?? null,
+            'source_type' => 'pagospei',
+            'source_id' => $pago->id,
+            'source_context' => 'spei',
+            'source_payload' => array_merge($requestPayload, [
+                'codigo' => $pago->codigo,
+                'autorizacion' => $pago->autorizacion,
+                'mensaje' => $pago->mensaje,
+            ]),
+            'idempotency_key' => $eventType . ':pagospei:' . $pago->id,
+            'occurred_at' => $pago->fecha,
+        ]);
+    }
+
+    private function publicarEventoCancelacionSpei(CancelaSpei $cancelacion, $transaccion, array $requestPayload)
+    {
+        if (!$cancelacion->id) {
+            return;
+        }
+
+        $usuario = $transaccion ? User::find($transaccion->idusuario) : null;
+        $approved = in_array((string) $cancelacion->codigo, ['0', '00'], true);
+        $eventType = $approved ? 'spei.payment.cancelled' : 'spei.payment.cancellation_rejected';
+        $payload = array_merge($requestPayload, [
+            'codigo' => $cancelacion->codigo,
+            'mensaje' => $cancelacion->mensaje,
+            'clabe' => $cancelacion->clabe,
+            'monto' => $cancelacion->monto,
+            'transaccion' => $cancelacion->transaccion,
+            'autorizacion' => $cancelacion->autorizacion,
+        ]);
+
+        app(WebhookEventPublisher::class)->publish($usuario, $eventType, $payload, [
+            'idtransaccion' => $transaccion->id ?? null,
+            'source_type' => 'cancelaspei',
+            'source_id' => $cancelacion->id,
+            'source_context' => 'spei',
+            'source_payload' => $payload,
+            'idempotency_key' => $eventType . ':cancelaspei:' . $cancelacion->id,
+            'occurred_at' => $cancelacion->fecha,
+        ]);
+    }
+
+    private function publicarEventoCancelacionTransaccion(
+        ?User $usuario,
+        ?Transaccion $transaccion,
+        string $eventType,
+        array $payload,
+        $sourceType = null,
+        $sourceId = null
+    ) {
+        app(WebhookEventPublisher::class)->publish($usuario, $eventType, $payload, [
+            'idtransaccion' => $transaccion->id ?? null,
+            'source_type' => $sourceType,
+            'source_id' => $sourceId,
+            'source_context' => 'cancellation',
+            'source_payload' => $payload,
+            'idempotency_key' => $sourceType && $sourceId
+                ? $eventType . ':' . $sourceType . ':' . $sourceId
+                : null,
+        ]);
+    }
+
     public function pagoClabe(Request $request)
     {     
         try {
@@ -2934,6 +3181,10 @@ class TransaccionController extends Controller
 
             $pagoDuplicado = PagoSpei::where('transaccion', '=', $date_response["transaccion"])->first();
             if ($pagoDuplicado !== null) {
+                $transaccionDuplicada = $pagoDuplicado->idtransaccion
+                    ? Transaccion::find($pagoDuplicado->idtransaccion)
+                    : null;
+                $this->publicarEventoPagoSpei($pagoDuplicado, $transaccionDuplicada, $date_response);
                 return response()->json([
                     'codigo' => $pagoDuplicado->codigo,
                     'autorizacion' => $pagoDuplicado->autorizacion ?: '0',
@@ -2960,6 +3211,7 @@ class TransaccionController extends Controller
                 } catch (Exception $e){
                     DB::rollBack();            
                 }
+                $this->publicarEventoPagoSpei($pagospei, null, $date_response);
                 return response()->json([
                     'codigo' => '15',
                     'autorizacion' => '0',
@@ -2988,6 +3240,7 @@ class TransaccionController extends Controller
                 } catch (Exception $e){
                     DB::rollBack();            
                 }
+                $this->publicarEventoPagoSpei($pagospei, null, $date_response);
                 return response()->json([
                     'codigo' => '40',
                     'mensaje' => 'Adquiriente invÃ¡lido',
@@ -3016,6 +3269,7 @@ class TransaccionController extends Controller
                     } catch (Exception $e){
                         DB::rollBack();            
                     }
+                    $this->publicarEventoPagoSpei($pagospei, $transaccion, $date_response);
                     return response()->json([
                         'codigo' => '13',
                         'autorizacion' => '0',
@@ -3041,6 +3295,7 @@ class TransaccionController extends Controller
                     } catch (Exception $e){
                         DB::rollBack();            
                     }
+                    $this->publicarEventoPagoSpei($pagospei, $transaccion, $date_response);
                     return response()->json([
                         'codigo' => '14',
                         'autorizacion' => '0',
@@ -3066,6 +3321,7 @@ class TransaccionController extends Controller
                     } catch (Exception $e){
                         DB::rollBack();            
                     }
+                    $this->publicarEventoPagoSpei($pagospei, $transaccion, $date_response);
                     return response()->json([
                         'codigo' => '30',
                         'autorizacion' => '0',
@@ -3094,6 +3350,7 @@ class TransaccionController extends Controller
                     } catch (Exception $e){
                         DB::rollBack();            
                     }
+                    $this->publicarEventoPagoSpei($pagospei, $transaccion, $date_response);
                     /*$usuario = User::find($transaccion->idusuario);
                     if($usuario->notificaPago){
                         $monto = (((float) $date_response["monto"]) / 100.00);
@@ -3224,9 +3481,18 @@ class TransaccionController extends Controller
     public function revisarStatus() {
         $this->sincronizarStatusDomiciliaciones();
 
-        $pagos = PagoSpei::join('transacciones','transacciones.id','pagospei.idtransaccion')
-        ->join('users','users.id','transacciones.idusuario')
-        ->select('pagospei.id as id')
+        $pagosQuery = PagoSpei::join('transacciones','transacciones.id','pagospei.idtransaccion')
+            ->join('users','users.id','transacciones.idusuario');
+
+        if (config('webhooks.enabled', false) && Schema::hasTable('webhook_user_settings')) {
+            $pagosQuery->leftJoin('webhook_user_settings', 'webhook_user_settings.idusuario', '=', 'users.id')
+                ->where(function ($query) {
+                    $query->whereNull('webhook_user_settings.id')
+                        ->orWhereIn('webhook_user_settings.mode', ['legacy', 'shadow']);
+                });
+        }
+
+        $pagos = $pagosQuery->select('pagospei.id as id')
         ->where([
             ['users.notificaPago','=','1'],
             ['pagospei.condicion','=','1'],
@@ -3256,6 +3522,10 @@ class TransaccionController extends Controller
         $pagospei = PagoSpei::find($idpago);
         $transaccion = Transaccion::find($pagospei->idtransaccion);
         $usuario = User::find($transaccion->idusuario);
+
+        if (!app(WebhookEventPublisher::class)->shouldUseLegacy($usuario)) {
+            return;
+        }
     
         if($usuario->notificaPago){
             $monto = (((float) $pagospei->monto) / 100.00);
@@ -3383,6 +3653,11 @@ class TransaccionController extends Controller
                 ->where('autorizacion', '=', $date_response["autorizacion"])
                 ->first();
             if ($cancelacionDuplicada !== null) {
+                $transaccionDuplicada = $cancelacionDuplicada->idtransaccion
+                    ? Transaccion::find($cancelacionDuplicada->idtransaccion)
+                    : Transaccion::where('Clabe', '=', $cancelacionDuplicada->clabe)->first();
+                $this->publicarEventoCancelacionSpei($cancelacionDuplicada, $transaccionDuplicada, $date_response);
+
                 return response()->json([
                     'codigo' => $cancelacionDuplicada->codigo,
                     'mensaje' => $cancelacionDuplicada->mensaje,
@@ -3405,6 +3680,8 @@ class TransaccionController extends Controller
                 } catch (Exception $e){
                     DB::rollBack();            
                 }
+                $this->publicarEventoCancelacionSpei($cancelaspei, null, $date_response);
+
                 return response()->json([
                     'codigo' => '15',                    
                     'mensaje' => 'Referencia con error de formato',
@@ -3434,6 +3711,8 @@ class TransaccionController extends Controller
                 } catch (Exception $e){
                     DB::rollBack();            
                 }
+                $this->publicarEventoCancelacionSpei($cancelaspei, null, $date_response);
+
                 return response()->json([
                     'codigo' => '40',
                     'mensaje' => 'Adquiriente invÃ¡lido',
@@ -3457,6 +3736,8 @@ class TransaccionController extends Controller
                     } catch (Exception $e){
                         DB::rollBack();
                     }
+                    $this->publicarEventoCancelacionSpei($cancelaspei, $transaccion, $date_response);
+
                     return response()->json([
                         'codigo' => '40',
                         'mensaje' => 'Pago no encontrado',
@@ -3482,6 +3763,8 @@ class TransaccionController extends Controller
                     } catch (Exception $e){
                         DB::rollBack();            
                     }
+                    $this->publicarEventoCancelacionSpei($cancelaspei, $transaccion, $date_response);
+
                     return response()->json([
                         'codigo' => '13',                        
                         'mensaje' => 'Referencia aÃºn no pagada',
@@ -3503,6 +3786,8 @@ class TransaccionController extends Controller
                     } catch (Exception $e){
                         DB::rollBack();            
                     }
+                    $this->publicarEventoCancelacionSpei($cancelaspei, $transaccion, $date_response);
+
                     return response()->json([
                         'codigo' => '14',
                         'mensaje' => 'Referencia cancelada previamente',
@@ -3524,6 +3809,8 @@ class TransaccionController extends Controller
                     } catch (Exception $e){
                         DB::rollBack();            
                     }
+                    $this->publicarEventoCancelacionSpei($cancelaspei, $transaccion, $date_response);
+
                     return response()->json([
                         'codigo' => '60',                        
                         'mensaje' => 'CancelaciÃ³n fuera de periodo',
@@ -3553,6 +3840,8 @@ class TransaccionController extends Controller
                     } catch (Exception $e){
                         DB::rollBack();            
                     }
+                    $this->publicarEventoCancelacionSpei($cancelaspei, $transaccion, $date_response);
+
                     return response()->json([
                         'codigo' => '0',                        
                         'mensaje' => 'CancelaciÃ³n exitosa',

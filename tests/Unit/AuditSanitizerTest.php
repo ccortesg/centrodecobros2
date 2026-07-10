@@ -14,6 +14,7 @@ class AuditSanitizerTest extends TestCase
         $headers = $sanitizer->sanitizeHeaders([
             'Authorization' => ['Bearer abc123'],
             'X-CSRF-TOKEN' => ['csrf-value'],
+            'X-Soportetech-Signature' => ['sha256=super-secret-signature'],
             'Content-Type' => ['application/json'],
         ]);
 
@@ -29,6 +30,7 @@ class AuditSanitizerTest extends TestCase
 
         $this->assertSame('[secreto omitido]', $headers['Authorization']);
         $this->assertSame('[secreto omitido]', $headers['X-CSRF-TOKEN']);
+        $this->assertSame('[secreto omitido]', $headers['X-Soportetech-Signature']);
         $this->assertSame('application/json', $headers['Content-Type']);
         $this->assertSame('cliente', $payload['User']);
         $this->assertSame('[secreto omitido]', $payload['Password']);

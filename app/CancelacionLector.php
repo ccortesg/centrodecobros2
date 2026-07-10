@@ -21,6 +21,7 @@ class CancelacionLector extends Model
                         'code',
                         'message',
                         'responseReference',
+                        'idtransaccion',
                         'idusuario',
                         'productivo'                        
                         ];

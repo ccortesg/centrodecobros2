@@ -1,6 +1,6 @@
 # Arquitectura real del sistema
 
-Ultima actualizacion: 2026-07-03
+Ultima actualizacion: 2026-07-10
 
 ## 1. Vista general
 
@@ -36,6 +36,7 @@ Ultima actualizacion: 2026-07-03
 
 - Pagadetodo via Guzzle y endpoints configurados en `config/services.php`.
 - Auditoria de integraciones via `ApiAuditLogger`, `AuditSanitizer` y middleware `LogIncomingApiRequest`.
+- Webhooks cliente mediante publicacion idempotente, fanout por suscripcion y jobs Laravel en la cola `webhooks`.
 - Pusher/Echo para notificaciones si existen variables `VITE_PUSHER_*` y broadcasting configurado.
 - SMTP/Postmark para correo.
 - TeleSign queda como dependencia historica residual; el flujo publico OTP/SMS fue retirado.
@@ -51,6 +52,7 @@ Ultima actualizacion: 2026-07-03
 - Dashboard y notificaciones.
 - Reportes y exportaciones.
 - Integraciones y auditoria: outgoing API, incoming API y actividad de usuario.
+- Configuracion y monitoreo de notificaciones webhook por cliente.
 
 ## 4. Acoplamientos criticos
 
@@ -60,6 +62,7 @@ Ultima actualizacion: 2026-07-03
 - Los payloads externos usan nombres legacy como `User`, `Password`, `BusinessID`, `IntegrationID`, `reference`, `transaccion` y `autorizacion`.
 - El frontend y backend dependen de nombres exactos de campos historicos.
 - La auditoria de integraciones es aditiva: no cambia payloads externos y guarda headers/payloads sanitizados.
+- El motor webhook separa evento (`webhook_events`), entrega (`webhook_deliveries`) e intento (`webhook_delivery_attempts`). El cuerpo real se cifra y permanece inmutable por entrega; la auditoria conserva una copia sanitizada.
 
 ## 5. Flujo principal
 
@@ -70,6 +73,7 @@ Ultima actualizacion: 2026-07-03
 5. Reportes/exportaciones consultan datos acotados por rol.
 6. Webhooks `Service/*` actualizan respuestas, transacciones SPEI o callbacks segun contrato.
 7. Las llamadas entrantes/salientes y accesos de usuario se registran en bitacoras administrativas sanitizadas.
+8. En modo `active`, un evento financiero persistido produce un evento idempotente, fanout por endpoint y entrega asyncrona con reintentos/HMAC opcional.
 
 ## 6. Diagnostico arquitectonico
 

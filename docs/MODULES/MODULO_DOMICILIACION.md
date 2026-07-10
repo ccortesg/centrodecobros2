@@ -1,6 +1,6 @@
 # Modulo: Domiciliacion y cargos recurrentes
 
-Ultima actualizacion: 2026-06-18
+Ultima actualizacion: 2026-07-10
 
 ## Proposito
 
@@ -45,7 +45,7 @@ Gestionar generacion de ligas de domiciliacion, cargos recurrentes, cancelacione
 - Si vence sin respuesta aprobada, `TransaccionController@revisarStatus` la marca `condicion=4` (`Vencido`).
 - Cargo recurrente: genera/actualiza registros en `transaccionesDom`.
 - Cancelacion: registra cancelacion e interactua con Pagadetodo si aplica.
-- Callback cliente: usa `users.ligaRecurrente` cuando el flujo lo requiere.
+- Callback cliente: en `legacy/shadow`, solo el cargo automatico usa `users.ligaRecurrente`; en `active`, cargos manuales/API/automaticos pueden notificarse por suscripcion.
 - Scheduler diario ejecuta `TransaccionDomController@ejecutarCron`.
 - `Domiciliación Activa` lista domiciliaciones tipo `2`, productivas, con respuesta aprobada y `condicion` `Activo` o `Cancelado`.
 - Desde `Domiciliación Activa`, el cargo manual reutiliza `POST transaccionDom/registrar`; cuando el cargo manual queda aprobado, avanza `ProximoCargo` con la frecuencia configurada de la domiciliacion.
@@ -70,6 +70,7 @@ Gestionar generacion de ligas de domiciliacion, cargos recurrentes, cancelacione
 - `respuestas`
 - `clientes`
 - `users`
+- `webhook_events`, `webhook_deliveries` y tablas relacionadas cuando el cliente usa `shadow/active`.
 
 Campos de control agregados a `transacciones`:
 
@@ -105,6 +106,7 @@ Campos de control agregados a `transacciones`:
 - Metodos de controlador usados como jobs.
 - Reglas temporales y de estado embebidas.
 - Riesgo de duplicar cargos si dos instancias ejecutan scheduler contra la misma DB.
+- El JOIN de `ejecutarCron` puede devolver una domiciliacion mas de una vez si existen varias respuestas aprobadas. No se corrigio en la implementacion webhook por decision del propietario; queda como pendiente financiero separado.
 - Los campos `ProximoCargoBase` e `intentos` requieren ejecutar migracion antes de desplegar codigo que los consulte.
 
 ## Diagnostico de `ejecutarCron`
@@ -134,6 +136,7 @@ Campos de control agregados a `transacciones`:
 - Conservar evidencia sanitizada de pruebas Pagadetodo servidor sandbox/productivo.
 - Documentar matriz de estados/frecuencias con ejemplos reales.
 - Agregar pruebas de concurrencia/idempotencia de cargos.
+- Corregir en una tarea separada la multiplicidad del JOIN y agregar locks antes de ampliar concurrencia del cron.
 - Ejecutar migracion controlada para `ProximoCargoBase` e `intentos` antes de usar esta funcionalidad en servidor.
 
 ## Corte diagnostico 2026-06-07

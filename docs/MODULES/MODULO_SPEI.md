@@ -1,6 +1,6 @@
 # Modulo: SPEI
 
-Ultima actualizacion: 2026-07-01
+Ultima actualizacion: 2026-07-10
 
 ## Proposito
 
@@ -56,6 +56,7 @@ Gestionar generacion de CLABE/referencia SPEI, consulta de estado, registro de p
 - `Service/ConsultaClabe`: maneja referencia vacia o no encontrada y persiste respuesta controlada `codigo=50` cuando aplica.
 - `Service/PagoClabe`: valida `clabe`, `monto`, `fecha`, `transaccion`; rechaza monto no numerico, deduplica por `transaccion` y, cuando el pago es exitoso (`codigo='0'`), actualiza la transaccion `tipo=3` a `condicion=3` (`Pagado`).
 - `Service/CancelaClabe`: valida `clabe`, `fecha`, `monto`, `transaccion`, `autorizacion`; deduplica por `transaccion + autorizacion` y maneja pago asociado inexistente.
+- En `shadow/active`, cada `pagospei` persistido publica `spei.payment.approved/rejected` y cada `cancelaspei` publica `spei.payment.cancelled/cancellation_rejected` con clave idempotente por registro.
 - `storeSpeiAPI` requiere correo (`Email` o `email`) para continuar.
 
 ## Riesgos
