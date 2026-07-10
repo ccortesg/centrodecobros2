@@ -269,6 +269,29 @@ class TransaccionDomController extends Controller
         ];
     }
 
+    private function normalizarExcepcionCargo(Throwable $exception)
+    {
+        $response = $exception instanceof RequestException ? $exception->getResponse() : null;
+        $responseBody = $response ? (string) $response->getBody() : '';
+        $decoded = $responseBody !== '' ? json_decode($responseBody, true) : null;
+
+        if (!is_array($decoded)) {
+            $decoded = [
+                'code' => 'error',
+                'message' => 'No se recibio una respuesta valida al procesar el cargo recurrente.',
+            ];
+
+            if ($responseBody === '') {
+                $responseBody = json_encode($decoded);
+            }
+        } else {
+            $decoded['code'] = $decoded['code'] ?? 'error';
+            $decoded['message'] = $decoded['message'] ?? 'El servicio rechazo el cargo recurrente.';
+        }
+
+        return [$response, $responseBody, $decoded, (string) $decoded['message']];
+    }
+
     private function procesarNotificacionCargoRecurrente(
         Transaccion $transaccion,
         TransaccionDom $transaccionDom,
@@ -493,11 +516,12 @@ class TransaccionDomController extends Controller
 
         try{        
             $response = $this->postJsonControlado($this->urlDom, $params);
-        } catch (RequestException $e){
-            $response  = $e->getResponse();
-            $response_body = (string) $response->getBody();
-            $response_decode = json_decode($response_body, true);
-            $error = $response_decode['message'];
+        } catch (Throwable $e){
+            [$response, $response_body, $response_decode, $error] = $this->normalizarExcepcionCargo($e);
+            Log::warning('Error al procesar cargo recurrente manual.', [
+                'idtransaccion' => $transaccion->id,
+                'error' => $e->getMessage(),
+            ]);
         }
 
         if($response_decode == "") {
@@ -747,12 +771,10 @@ class TransaccionDomController extends Controller
 
         try{        
             $response = $this->postJsonControlado($this->urlDom, $params);
-        } catch (RequestException $e){           
+        } catch (Throwable $e){
             Log::info('Error al consultar el servicio para registrar el cargo de domiciliación.');
             Log::info($e->getMessage());
-            $response  = $e->getResponse();
-            $response_body = (string) $response->getBody();
-            $response_decode = json_decode($response_body, true);
+            [$response, $response_body, $response_decode] = $this->normalizarExcepcionCargo($e);
             $error = "Error al consultar el servicio para registrar el cargo de domiciliación.";
             $error_code = "54";            
         }
@@ -939,13 +961,10 @@ class TransaccionDomController extends Controller
                     'productivo' => $transaccion->productivo,
                     'correlation_reference' => $transaccion->ClientReference,
                 ]);
-            } catch (RequestException $e){
+            } catch (Throwable $e){
                 //Agregar al log cuando hubo un error con la respuesta del error con el id de la transacción
                 Log::info('Error en cargo de domiciliación. IdTransacción: '.$transaccion->id);
-                $response  = $e->getResponse();
-                $response_body = (string) $response->getBody();
-                $response_decode = json_decode($response_body, true);
-                $error = $response_decode['message'];
+                [$response, $response_body, $response_decode, $error] = $this->normalizarExcepcionCargo($e);
                 //Agregar al log cuando hubo un error con la respuesta del error
                 Log::info('Error al consultar el servicio para registrar el cargo de domiciliación. Error: '.$error);
                 

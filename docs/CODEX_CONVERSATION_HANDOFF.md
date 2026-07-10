@@ -1399,4 +1399,7 @@ Validacion disponible al corte:
 
 - Unit Linux PHP 8.3: 5 tests, 23 assertions.
 - Feature WAMP PHP 8.3/SQLite: 12 tests, 44 assertions.
-- Quedan build Vite y smoke visual antes del cierre.
+- Build Vite de produccion completado correctamente sin versionar assets compilados.
+- Smoke visual Chrome completado para Administrador y Cliente en desktop/movil; se corrigio y verifico el scroll del modal movil.
+- Validacion final: Unit 19/19 (97 aserciones) y Feature focalizado 51/51 (171 aserciones). En Feature completo pasaron 122/135; los 13 errores restantes son smoke acoplado a la MySQL local y fallan por acceso denegado, no por el motor webhook.
+- Produccion requiere un unico worker persistente para la cola `webhooks`: servicio Compose recomendado o Supervisor en host como alternativa, nunca ambos.

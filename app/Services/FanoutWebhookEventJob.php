@@ -5,21 +5,29 @@ namespace App\Services;
 use App\WebhookEvent;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 
-class FanoutWebhookEventJob implements ShouldQueue
+class FanoutWebhookEventJob implements ShouldQueue, ShouldBeUniqueUntilProcessing
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
+
+    public int $uniqueFor = 86400;
 
     private string $eventId;
 
     public function __construct(string $eventId)
     {
         $this->eventId = $eventId;
+    }
+
+    public function uniqueId(): string
+    {
+        return $this->eventId;
     }
 
     public function handle(WebhookFanoutService $fanout): void

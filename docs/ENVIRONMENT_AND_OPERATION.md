@@ -146,6 +146,7 @@ WEBHOOK_QUEUE_CONNECTION=database
 WEBHOOK_QUEUE_NAME=webhooks
 WEBHOOK_CONNECT_TIMEOUT=5
 WEBHOOK_TIMEOUT=15
+WEBHOOK_PROCESSING_TIMEOUT=60
 WEBHOOK_MAX_ATTEMPTS=8
 WEBHOOK_RATE_LIMIT_PER_MINUTE=25
 ```
@@ -165,12 +166,15 @@ sudo docker compose exec app php artisan optimize:clear
 ### 3. Revisar las migraciones sin ejecutarlas
 
 ```bash
+sudo docker compose exec app php artisan migrate:status
 sudo docker compose exec app php artisan migrate --pretend --path=database/migrations/2026_07_10_120000_create_webhook_notification_tables.php
 sudo docker compose exec app php artisan migrate --pretend --path=database/migrations/2026_07_10_120100_create_queue_tables.php
 sudo docker compose exec app php artisan migrate --pretend --path=database/migrations/2026_07_10_120200_add_transaction_correlation_to_cancellations.php
 ```
 
 Revisar que solo cree tablas webhook/queue y agregue `idtransaccion` nullable a `cancelacionesDom` y `cancelacionesLector`.
+
+Si `migrate:status` muestra pendientes las migraciones de auditoria `2026_07_03_120000`, `120100` o `120200`, revisar y ejecutar tambien esas rutas de forma individual. No usar un `php artisan migrate --force` general: la base historica puede contener tablas importadas cuyo registro de migraciones no coincida con el schema real.
 
 ### 4. Ejecutar migraciones en ventana aprobada
 
@@ -199,7 +203,11 @@ sudo docker run --rm \
 
 Los assets se generan en servidor; no se versionan.
 
-### 6. Agregar worker persistente al compose del servidor
+### 6. Agregar un worker persistente
+
+Se debe elegir exactamente una de las siguientes alternativas. No ejecutar ambas al mismo tiempo.
+
+#### Alternativa A (recomendada): servicio dedicado en Docker Compose
 
 El compose no esta versionado en este repo. Agregar un servicio equivalente que reutilice la misma imagen, volumen, red y variables del servicio `app`:
 
@@ -227,6 +235,64 @@ sudo docker compose logs --tail=100 queue
 
 No usar `docker compose exec -d app queue:work` como solucion permanente: no queda supervisado despues de reinicios.
 
+Con esta alternativa Docker Compose reemplaza a Supervisor mediante `restart: unless-stopped`. No instalar Supervisor dentro del contenedor.
+
+#### Alternativa B: Supervisor en el host
+
+Usar esta alternativa solo si el compose productivo no se puede modificar. Supervisor se instala en el host y mantiene un unico `queue:work` dentro de `app`.
+
+Confirmar primero la ruta absoluta del proyecto y del binario Docker:
+
+```bash
+pwd
+command -v docker
+sudo docker compose ps
+```
+
+Instalar y habilitar Supervisor en un host Debian/Ubuntu:
+
+```bash
+sudo apt update
+sudo apt install -y supervisor
+sudo systemctl enable --now supervisor
+sudo systemctl status supervisor --no-pager
+```
+
+Crear `/etc/supervisor/conf.d/centrodecobros-webhooks.conf`, sustituyendo `/RUTA/ABSOLUTA/DEL/PROYECTO` por el resultado de `pwd` y `/usr/bin/docker` si `command -v docker` devuelve otra ruta:
+
+```ini
+[program:centrodecobros-webhooks]
+process_name=%(program_name)s
+directory=/RUTA/ABSOLUTA/DEL/PROYECTO
+command=/usr/bin/docker compose exec -T app php artisan queue:work database --queue=webhooks --sleep=3 --tries=3 --timeout=30 --max-time=3600
+user=root
+numprocs=1
+autostart=true
+autorestart=true
+startsecs=5
+startretries=20
+stopsignal=TERM
+stopasgroup=true
+killasgroup=true
+stopwaitsecs=40
+redirect_stderr=true
+stdout_logfile=/var/log/supervisor/centrodecobros-webhooks.log
+stdout_logfile_maxbytes=20MB
+stdout_logfile_backups=10
+environment=HOME="/root"
+```
+
+Cargar y validar:
+
+```bash
+sudo supervisorctl reread
+sudo supervisorctl update
+sudo supervisorctl status centrodecobros-webhooks
+sudo tail -n 100 /var/log/supervisor/centrodecobros-webhooks.log
+```
+
+El estado esperado es `RUNNING`. No anteponer `sudo` dentro de `command`: Supervisor ya inicia el proceso como `root`. `-T` es obligatorio para evitar que `docker compose exec` intente reservar una terminal interactiva.
+
 ### 7. Cache y reinicio
 
 ```bash
@@ -236,7 +302,21 @@ sudo docker compose exec app php artisan route:cache
 sudo docker compose exec app php artisan view:cache
 sudo docker compose exec app php artisan queue:restart
 sudo docker compose restart app
+```
+
+Si se eligio la alternativa A:
+
+```bash
 sudo docker compose restart queue
+sudo docker compose logs --tail=100 queue
+```
+
+Si se eligio la alternativa B, esperar a que Supervisor recupere el proceso despues del reinicio de `app` y verificarlo:
+
+```bash
+sudo supervisorctl status centrodecobros-webhooks
+sudo supervisorctl restart centrodecobros-webhooks
+sudo tail -n 100 /var/log/supervisor/centrodecobros-webhooks.log
 ```
 
 Confirmar que no cambio el scheduler:
@@ -264,8 +344,9 @@ sudo docker compose exec app php artisan optimize:clear
 sudo docker compose exec app php artisan config:cache
 sudo docker compose exec app php artisan queue:restart
 sudo docker compose restart app
-sudo docker compose restart queue
 ```
+
+Reiniciar despues el worker con `sudo docker compose restart queue` para la alternativa A o `sudo supervisorctl restart centrodecobros-webhooks` para la alternativa B.
 
 En `shadow` el callback legacy continua enviandose; el motor nuevo solo crea entregas `shadow`.
 
@@ -288,8 +369,9 @@ En `shadow` el callback legacy continua enviandose; el motor nuevo solo crea ent
 sudo docker compose exec app php artisan queue:failed
 sudo docker compose exec app php artisan tinker --execute="echo DB::table('jobs')->where('queue', 'webhooks')->count();"
 sudo docker compose logs --tail=200 app
-sudo docker compose logs --tail=200 queue
 ```
+
+Consultar tambien `sudo docker compose logs --tail=200 queue` con la alternativa A o `sudo tail -n 200 /var/log/supervisor/centrodecobros-webhooks.log` con la alternativa B.
 
 Smoke funcional:
 

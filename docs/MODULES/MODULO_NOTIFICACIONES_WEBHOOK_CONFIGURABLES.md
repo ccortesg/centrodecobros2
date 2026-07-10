@@ -158,6 +158,7 @@ Modos de ACK:
 
 - Conexion: `WEBHOOK_QUEUE_CONNECTION`, recomendada `database`.
 - Cola: `WEBHOOK_QUEUE_NAME`, default `webhooks`.
+- Recuperacion de una entrega atascada en `processing`: 60 s por default (`WEBHOOK_PROCESSING_TIMEOUT`).
 - Maximo: 8 intentos de negocio.
 - Backoff: 60 s, 5 min, 15 min, 1 h, 3 h, 6 h y 12 h.
 - Reintentables: error de red, sin respuesta, HTTP 408/425/429/5xx y ACK legacy no confirmado.
@@ -234,8 +235,11 @@ Secuencia segura por cliente:
 ## Validaciones locales del corte
 
 ```text
-PHPUnit Unit: 5 pruebas, 23 aserciones.
-PHPUnit Feature WAMP/SQLite: 12 pruebas, 44 aserciones.
+PHPUnit Unit: 19 pruebas, 97 aserciones.
+PHPUnit Feature focalizado WAMP/SQLite: 51 pruebas, 171 aserciones.
+PHPUnit Feature completo: 122 de 135 pruebas pasaron; 13 smoke fallaron exclusivamente por acceso denegado a la MySQL local configurada.
+Build frontend de produccion: correcto, sin versionar assets compilados.
+Smoke visual Chrome: correcto para Administrador y Cliente en desktop/movil; modal movil con scroll validado.
 ```
 
-Volver a ejecutar las suites despues de cualquier cambio. El build frontend debe ejecutarse sin versionar `public/js`, `public/css` ni `public/build`.
+Volver a ejecutar las suites despues de cualquier cambio. Los 13 smoke acoplados a MySQL requieren un dataset/usuario local valido; no deben resolverse con credenciales productivas. El build frontend debe ejecutarse sin versionar `public/js`, `public/css` ni `public/build`.

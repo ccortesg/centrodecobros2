@@ -8,25 +8,35 @@ use App\WebhookUserSetting;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
-class DeliverWebhookJob implements ShouldQueue
+class DeliverWebhookJob implements ShouldQueue, ShouldBeUniqueUntilProcessing
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
 
+    public int $backoff = 60;
+
     public int $timeout = 25;
+
+    public int $uniqueFor = 86400;
 
     private string $deliveryId;
 
     public function __construct(string $deliveryId)
     {
         $this->deliveryId = $deliveryId;
+    }
+
+    public function uniqueId(): string
+    {
+        return $this->deliveryId;
     }
 
     public function handle(WebhookRateLimiter $rateLimiter, WebhookDeliveryService $deliveryService): void
