@@ -48,6 +48,23 @@
     vertical-align: middle;
 }
 
+.cdc-bottom-aligned-headings thead th {
+    text-align: center;
+    vertical-align: bottom;
+}
+
+.cdc-header-control-stack {
+    align-items: center;
+    display: flex;
+    flex-direction: column;
+    gap: .25rem;
+    justify-content: flex-end;
+}
+
+.cdc-header-control-stack > span {
+    display: block;
+}
+
 .cdc-table-shell > .cdc-responsive-table {
     min-width: max-content;
 }

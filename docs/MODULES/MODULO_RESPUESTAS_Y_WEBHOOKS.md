@@ -65,6 +65,7 @@ Filtro de fechas:
 
 Presentacion compacta del listado:
 
+- En los encabezados `Opciones` y `Status`, el select aparece centrado en el primer renglón y el título en el segundo. El resto de encabezados se alinea horizontalmente al centro y verticalmente al borde inferior de la celda.
 - `Referencia` y `Ref. Transacción` comparten una columna, en dos renglones del mismo tamaño.
 - `Date` y `Time` comparten una columna; `Time` aparece en el segundo renglón con tipografia menor.
 - `NB Error` no despliega texto extenso en la tabla. Cuando existe contenido muestra un icono de libro con tooltip nativo y un modal de detalle; cuando está vacío, la celda permanece vacía.

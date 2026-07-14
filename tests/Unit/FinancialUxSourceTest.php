@@ -18,6 +18,25 @@ class FinancialUxSourceTest extends TestCase
         $this->assertStringContainsString('v-text="nbErrorDetalle"', $source);
     }
 
+    public function test_response_table_stacks_header_filters_above_bottom_aligned_titles(): void
+    {
+        $source = file_get_contents(__DIR__ . '/../../resources/assets/js/components/Respuesta.vue');
+        $styles = file_get_contents(__DIR__ . '/../../resources/assets/js/styles/ux-ui.css');
+
+        $this->assertStringContainsString('cdc-responsive-table cdc-bottom-aligned-headings', $source);
+        $this->assertMatchesRegularExpression(
+            '/<select[^>]+v-model="offset"[^>]*>.*?<\/select>\s*<span>Opciones<\/span>/s',
+            $source
+        );
+        $this->assertMatchesRegularExpression(
+            '/<select[^>]+v-model="filtroStatus"[^>]*>.*?<\/select>\s*<span>Status<\/span>/s',
+            $source
+        );
+        $this->assertStringContainsString('.cdc-bottom-aligned-headings thead th', $styles);
+        $this->assertStringContainsString('vertical-align: bottom;', $styles);
+        $this->assertStringContainsString('.cdc-header-control-stack', $styles);
+    }
+
     public function test_expired_transaction_status_uses_red_badge_with_dark_text_contract(): void
     {
         $source = file_get_contents(__DIR__ . '/../../resources/assets/js/components/Transaccion.vue');

@@ -46,16 +46,19 @@
                             </div>
                         </div>
                         <div class="cdc-table-shell">
-                        <table class="table table-bordered table-striped table-sm cdc-responsive-table">
+                        <table class="table table-bordered table-striped table-sm cdc-responsive-table cdc-bottom-aligned-headings">
                             <thead>
                                 <tr>
-                                    <th class="text-center">Opciones
-                                        <select v-model="offset" @change="listarRespuesta(1,buscar,criterio)">
-                                            <option value="10">10</option>
-                                            <option value="25">25</option>
-                                            <option value="50" selected>50</option>
-                                            <option value="100">100</option>
-                                        </select>
+                                    <th class="text-center">
+                                        <div class="cdc-header-control-stack">
+                                            <select class="cdc-header-page-size" v-model="offset" @change="listarRespuesta(1,buscar,criterio)">
+                                                <option value="10">10</option>
+                                                <option value="25">25</option>
+                                                <option value="50" selected>50</option>
+                                                <option value="100">100</option>
+                                            </select>
+                                            <span>Opciones</span>
+                                        </div>
                                     </th>
                                     <th class="text-center">Folio</th>
                                     <th class="text-center">Fecha</th>
@@ -69,13 +72,16 @@
                                     <th class="text-center">NB Error</th>
                                     <th class="text-center">Date / Time</th>
                                     <th class="text-center">NB Company</th>
-                                    <th class="text-center">Status
-                                        <select v-model="filtroStatus" @change="listarRespuesta(1,buscar,criterio)">
-                                            <option value="99" selected>Todos</option>
-                                            <option value="approved">Aprobado</option>
-                                            <option value="denied">Denegado</option>
-                                            <option value="error">Error</option>
-                                        </select>
+                                    <th class="text-center">
+                                        <div class="cdc-header-control-stack">
+                                            <select class="cdc-inline-status-select" v-model="filtroStatus" @change="listarRespuesta(1,buscar,criterio)">
+                                                <option value="99" selected>Todos</option>
+                                                <option value="approved">Aprobado</option>
+                                                <option value="denied">Denegado</option>
+                                                <option value="error">Error</option>
+                                            </select>
+                                            <span>Status</span>
+                                        </div>
                                     </th>
                                 </tr>
                             </thead>
