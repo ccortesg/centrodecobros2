@@ -71,6 +71,8 @@ Presentacion compacta del listado:
 - `Date` y `Time` comparten una columna y un encabezado de dos renglones; `Time` aparece con tipografia menor. `Date` usa el formato visual mexicano cuando el valor es reconocible y conserva el texto original recibido cuando el formato externo no puede interpretarse.
 - `NB Error` no despliega texto extenso en la tabla. Cuando existe contenido muestra un icono de libro con tooltip nativo y un modal de detalle; cuando está vacío, la celda permanece vacía.
 - La columna `Status` conserva internamente los valores de origen y usa el contrato visual financiero: `approved` se presenta como `Aprobado` con badge verde de Activo, `denied` como `Denegado` con badge rojo y texto negro de Vencido, y `error` conserva su badge amarillo de Pendiente.
+- La tabla recibe `idrol` desde el shell autenticado. `NB Company` permanece visible para Administrador y se oculta visualmente para Cliente en los cuatro tipos de Respuestas; el dato no se elimina de la respuesta backend en esta iteración.
+- El modal `Ver Respuesta` conserva todos sus campos y valores, pero usa una cuadrícula compacta de dos columnas en escritorio para reducir el desplazamiento vertical. En pantallas menores a `768px` vuelve a una columna y mantiene scroll interno solo cuando es necesario.
 
 ## Acceso por rol
 

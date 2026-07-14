@@ -12,7 +12,7 @@
             </template>
 
             <template v-if="menu==2">
-                <respuesta :tipo="1"></respuesta>
+                <respuesta :tipo="1" :idrol="{{Auth::user()->idrol}}"></respuesta>
             </template>
 
             <template v-if="menu==3">
@@ -61,7 +61,7 @@
             </template>
 
             <template v-if="menu==12">
-                <respuesta :tipo="2"></respuesta>
+                <respuesta :tipo="2" :idrol="{{Auth::user()->idrol}}"></respuesta>
             </template>
 
             <template v-if="menu==13">
@@ -73,7 +73,7 @@
             </template>
 
             <template v-if="menu==15">
-                <respuesta :tipo="3"></respuesta>
+                <respuesta :tipo="3" :idrol="{{Auth::user()->idrol}}"></respuesta>
             </template>
 
             <template v-if="menu==18">
@@ -113,7 +113,7 @@
             </template>
 
             <template v-if="menu==27">
-                <respuesta :tipo="4"></respuesta>
+                <respuesta :tipo="4" :idrol="{{Auth::user()->idrol}}"></respuesta>
             </template>
 
             <template v-if="menu==30">

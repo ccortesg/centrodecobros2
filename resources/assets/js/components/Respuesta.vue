@@ -86,7 +86,7 @@
                                             <span>Time</span>
                                         </span>
                                     </th>
-                                    <th class="text-center">NB Company</th>
+                                    <th v-if="esAdmin" class="text-center">NB Company</th>
                                     <th class="text-center">
                                         <div class="cdc-header-control-stack">
                                             <select class="cdc-inline-status-select" v-model="filtroStatus" @change="listarRespuesta(1,buscar,criterio)">
@@ -149,7 +149,7 @@
                                             <span class="cdc-date-stack__time" v-text="respuesta.time"></span>
                                         </span>
                                     </td>
-                                    <td v-text="respuesta.nb_company" class="text-center"></td>
+                                    <td v-if="esAdmin" v-text="respuesta.nb_company" class="text-center"></td>
                                     <td class="text-center">
                                         <span v-if="respuesta.status === 'approved'" class="badge badge-success">Aprobado</span>
                                         <span v-else-if="respuesta.status === 'denied'" class="badge badge-danger cdc-status-expired">Denegado</span>
@@ -178,8 +178,8 @@
                 <!-- Fin ejemplo de tabla Listado -->
             </div>
             <!--Inicio del modal agregar/actualizar-->
-            <div class="modal fade" tabindex="-1" :class="{'mostrar' : modal}" role="dialog" aria-labelledby="myModalLabel" style="overflow-y: scroll;display: none;" aria-hidden="true">
-                <div class="modal-dialog modal-primary modal-lg" role="document">
+            <div class="modal fade cdc-response-detail-modal" tabindex="-1" :class="{'mostrar' : modal}" role="dialog" aria-labelledby="myModalLabel" style="display: none;" aria-hidden="true">
+                <div class="modal-dialog modal-primary modal-lg cdc-response-detail-dialog" role="document">
                     <div class="modal-content">
                         <div class="modal-header">
                             <h4 class="modal-title" v-text="tituloModal"></h4>
@@ -188,7 +188,7 @@
                             </button>
                         </div>
                         <div class="modal-body">
-                            <form action="" method="post" enctype="multipart/form-data" class="form-horizontal">
+                            <form action="" method="post" enctype="multipart/form-data" class="form-horizontal cdc-response-detail-grid">
                                 <div class="form-group row">
                                     <label class="col-md-3 form-control-label" for="text-input">Ref. Transacción</label>
                                     <div class="col-md-9">
@@ -376,7 +376,7 @@
 <script>
     
     export default {
-        props: ['tipo'],
+        props: ['tipo', 'idrol'],
         data (){
             return {                
                 respuesta_id: 0,
@@ -431,6 +431,9 @@
             }
         },
         computed:{
+            esAdmin: function() {
+                return Number(this.idrol) === 1;
+            },
             isActived: function(){
                 return this.pagination.current_page;
             },

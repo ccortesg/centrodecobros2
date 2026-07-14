@@ -31,6 +31,26 @@ class FinancialUxSourceTest extends TestCase
         $this->assertStringContainsString('badge badge-danger cdc-status-expired">Denegado</span>', $source);
     }
 
+    public function test_response_hides_nb_company_for_clients_and_uses_compact_detail_modal(): void
+    {
+        $source = file_get_contents(__DIR__ . '/../../resources/assets/js/components/Respuesta.vue');
+        $styles = file_get_contents(__DIR__ . '/../../resources/assets/js/styles/ux-ui.css');
+        $content = file_get_contents(__DIR__ . '/../../resources/views/contenido/contenido.blade.php');
+
+        $this->assertStringContainsString("props: ['tipo', 'idrol']", $source);
+        $this->assertStringContainsString('return Number(this.idrol) === 1;', $source);
+        $this->assertStringContainsString('<th v-if="esAdmin" class="text-center">NB Company</th>', $source);
+        $this->assertStringContainsString('<td v-if="esAdmin" v-text="respuesta.nb_company" class="text-center"></td>', $source);
+        $this->assertSame(4, substr_count($content, '<respuesta :tipo='));
+        $this->assertSame(4, substr_count($content, ':idrol="{{Auth::user()->idrol}}"></respuesta>'));
+        $this->assertStringContainsString('cdc-response-detail-modal', $source);
+        $this->assertStringContainsString('form-horizontal cdc-response-detail-grid', $source);
+        $this->assertStringContainsString('grid-template-columns: repeat(2, minmax(0, 1fr));', $styles);
+        $this->assertStringContainsString('.cdc-response-detail-modal.fade .cdc-response-detail-dialog', $styles);
+        $this->assertStringContainsString('transform: translate(0, 0) !important;', $styles);
+        $this->assertStringContainsString('@media (max-width: 767.98px)', $styles);
+    }
+
     public function test_response_table_stacks_header_filters_above_bottom_aligned_titles(): void
     {
         $source = file_get_contents(__DIR__ . '/../../resources/assets/js/components/Respuesta.vue');
