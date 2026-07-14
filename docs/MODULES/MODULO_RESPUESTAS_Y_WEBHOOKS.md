@@ -47,10 +47,14 @@ En `Respuesta.vue`, el select usa campos distintos al listado de transacciones:
 - `Ref. Cliente`: `transacciones.ClientReference`.
 - `Ref. Transacción`: `transacciones.Reference`.
 - `Ref. Respuesta`: `respuestas.reference`.
+- `Folio Operación`: `respuestas.foliocpagos`.
+- `Núm. Autorización`: `respuestas.auth`; el criterio HTTP se llama `autorizacion` para usar una etiqueta funcional consistente.
 - `Cliente`: `clientes.razon_social`.
 - El filtro de status usa `respuestas.status`.
 
 La relacion entre tablas es `respuestas.idtransaccion = transacciones.id`. No confundir `respuestas.reference` con `transacciones.responseReference`: suelen coincidir en flujos normales, pero pueden divergir en datos historicos o registros desnormalizados.
+
+El esquema vigente no contiene `respuestas.autorizacion`. El numero de autorizacion entregado por Pagadetodo se persiste en `respuestas.auth`; no se debe crear una segunda columna para el mismo dato.
 
 Filtro de fechas:
 
@@ -58,6 +62,12 @@ Filtro de fechas:
 - Al entrar al modulo, el frontend usa el rango de los ultimos 30 dias, con la fecha actual como `Hasta`.
 - `Limpiar` borra `Texto a buscar`, `Desde` y `Hasta`.
 - El selector de cantidad inicia en `50` registros.
+
+Presentacion compacta del listado:
+
+- `Referencia` y `Ref. Transacción` comparten una columna, en dos renglones del mismo tamaño.
+- `Date` y `Time` comparten una columna; `Time` aparece en el segundo renglón con tipografia menor.
+- `NB Error` no despliega texto extenso en la tabla. Cuando existe contenido muestra un icono de libro con tooltip nativo y un modal de detalle; cuando está vacío, la celda permanece vacía.
 
 ## Acceso por rol
 

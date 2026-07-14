@@ -48,6 +48,8 @@ class RespuestaExport implements FromCollection
                 $query->where('clientes.razon_social', 'like', '%' . $this->buscar . '%');
             } elseif (in_array($this->criterio, ['ClientReference', 'Reference', 'responseReference'], true)) {
                 $query->where('transacciones.' . $this->criterio, 'like', '%' . $this->buscar . '%');
+            } elseif ($this->criterio === 'autorizacion') {
+                $query->where('respuestas.auth', 'like', '%' . $this->buscar . '%');
             } else {
                 $query->where('respuestas.' . $this->criterio, 'like', '%' . $this->buscar . '%');
             }

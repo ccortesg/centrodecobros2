@@ -204,6 +204,7 @@ class RespuestaController extends Controller
             'reference',
             'status',
             'foliocpagos',
+            'autorizacion',
             'auth',
             'email',
             'payment_type',
@@ -268,6 +269,8 @@ class RespuestaController extends Controller
             }
             else if($criterio=='ClientReference' || $criterio=='Reference' || $criterio=='responseReference') {
                 $query->where('transacciones.'.$criterio, 'like', '%'. $buscar . '%');
+            } else if($criterio=='autorizacion') {
+                $query->where('respuestas.auth', 'like', '%'. $buscar . '%');
             } else {
                 $query->where('respuestas.'.$criterio, 'like', '%'. $buscar . '%');
             }

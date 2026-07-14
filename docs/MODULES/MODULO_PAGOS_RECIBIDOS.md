@@ -63,11 +63,14 @@ Si no existe override, el status por defecto es `activo`; actualmente no se mues
 - Al entrar al modulo, `Desde` se inicializa con la fecha de hace 30 dias y `Hasta` con la fecha actual.
 - `Limpiar` borra `Texto a buscar`, `Desde` y `Hasta`.
 - El selector de cantidad inicia en `50` registros.
+- `Folio Operación` busca en `respuestas.foliocpagos` y `transaccionesDom.foliocpagos`; SPEI no tiene un campo equivalente y no participa en ese criterio.
+- `Núm. Autorización` busca en `respuestas.auth`, `pagospei.autorizacion` y `transaccionesDom.auth` mediante el alias unificado `autorizacion`.
 
 ## Exportacion
 
 - El boton `Exportar` descarga `pagos_recibidos.csv`.
 - El endpoint reutiliza la misma consulta unificada del listado y respeta filtros de texto, criterio, rango de fechas, status heredado y ownership.
+- Los filtros `foliocpagos` y `autorizacion` también se aplican a la exportación, aunque no agregan columnas nuevas al CSV.
 - La exportacion incluye las tres fuentes actuales: `respuestas`, `pagospei` y `transaccionesDom`.
 
 ## Reglas de monto

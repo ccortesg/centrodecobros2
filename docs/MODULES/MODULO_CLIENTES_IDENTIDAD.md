@@ -1,6 +1,6 @@
 # Modulo: Clientes, personas, usuarios, roles y catalogos
 
-Ultima actualizacion: 2026-06-27
+Ultima actualizacion: 2026-07-13
 
 ## Proposito
 
@@ -55,6 +55,7 @@ Administrar identidades, datos de cliente, usuarios de acceso, roles y catalogos
 
 - `GET cliente` lista clientes con `leftJoin` contra `ciudades` para que registros historicos/importados con `clientes.idciudad=0` sigan visibles en busqueda por nombre, razon social, RFC, email o telefono.
 - `POST cliente/registrar` y `PUT cliente/actualizar` rechazan `idciudad<=0` o ciudades inexistentes/inactivas con `422`, evitando crear nuevos clientes con ciudad invalida.
+- `personas.num_documento` es el folio inmutable del cliente. `PUT cliente/actualizar` conserva el valor existente aunque el frontend omita el campo o envie otro valor; solo el alta genera el folio.
 - El alta en `Cliente.vue` selecciona por defecto estado `Sonora` y ciudad `Hermosillo` cuando ambos catálogos activos estan disponibles. Para soportarlo, `/ciudad/selectCiudad` expone `idestado` junto con `id` y `nombre`.
 - `/estado/selectEstado` y `/ciudad/selectCiudad` son dependencias AJAX de lectura del modal de alta/edicion de clientes. Deben estar permitidas para Admin y Cliente (`idrol=2`) en `Administrador`; si se omiten del allowlist, el modal abre pero el navegador recibe `403` y los selects de Estado/Ciudad quedan vacios.
 - Correccion verificada contra el caso del dump `database/centrodecobros.sql`: `VILLEGAS JESUS` estaba en `clientes/personas`, pero no aparecia en Clientes por `clientes.idciudad=0` y un `join` obligatorio contra `ciudades`; el selector de generacion de ligas si lo mostraba porque no unia contra ciudad.

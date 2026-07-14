@@ -212,6 +212,8 @@ Filtro de fechas:
 - `Limpiar` borra `Texto a buscar`, `Desde` y `Hasta`; no cambia criterio, status ni tipo.
 - El selector de cantidad inicia en `50` registros.
 - El filtro `Status` de `Transaccion.vue` se muestra para los tipos `1`, `2`, `3` y `4`. `tipo=2` permite Pendiente/Activo/Cancelado/Vencido/Error; los demas tipos permiten Activo/Pagado/Vencido/Error.
+- En la tabla compartida, `Vencido=4` usa el mismo fondo rojo de `Cancelado` con texto negro; es un cambio exclusivamente visual.
+- Las acciones financieras directas de cancelar transaccion/domiciliacion y detener una importacion requieren confirmacion y abortan antes de Axios cuando el usuario cancela el dialogo.
 
 ## Deteccion de cliente duplicado en APIs
 

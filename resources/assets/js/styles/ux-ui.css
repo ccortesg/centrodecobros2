@@ -112,6 +112,30 @@
     font-size: .85em;
 }
 
+.cdc-value-stack {
+    display: inline-flex;
+    flex-direction: column;
+    line-height: 1.2;
+    max-width: 18rem;
+    overflow-wrap: anywhere;
+    white-space: normal;
+}
+
+.cdc-nb-error-button {
+    cursor: pointer;
+}
+
+.cdc-nb-error-content {
+    max-height: 60vh;
+    overflow: auto;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+.cdc-status-expired {
+    color: #000 !important;
+}
+
 .cdc-action-button {
     align-items: center;
     display: inline-flex;

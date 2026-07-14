@@ -106,6 +106,61 @@ class AccessOwnershipFeatureTest extends TestCase
         $this->assertDatabaseHas('clientes', ['id' => 10, 'idciudad' => 1]);
     }
 
+    public function test_client_update_preserves_immutable_document_number()
+    {
+        DB::table('personas')->where('id', 10)->update([
+            'num_documento' => 'FOLIO-CLIENTE-10',
+        ]);
+
+        $payload = [
+            'id' => 10,
+            'nombre' => 'Cliente A Editado',
+            'tipo_documento' => 'CLIENTE',
+            'direccion' => 'Direccion actualizada',
+            'idciudad' => 1,
+            'telefono' => '6621234567',
+            'email' => 'cliente-editado@example.com',
+            'contacto' => 'Contacto Editado',
+            'telefono_contacto' => '6627654321',
+            'email_contacto' => 'contacto-editado@example.com',
+            'rfc' => 'A010101AAA',
+            'razon_social' => 'Cliente A Editado SA',
+            'forma_pago' => 3,
+            'plazo' => 0,
+            'regimen' => '601',
+            'banco' => '',
+            'cuenta' => '',
+            'clabe' => '',
+            'cuenta_sucursal' => '',
+            'cuenta_ciudad' => '',
+        ];
+
+        $this->actingAs($this->clientAUser())
+            ->put('/cliente/actualizar', $payload, $this->ajaxHeaders())
+            ->assertOk();
+
+        $this->assertDatabaseHas('personas', [
+            'id' => 10,
+            'nombre' => 'Cliente A Editado',
+            'num_documento' => 'FOLIO-CLIENTE-10',
+        ]);
+        $this->assertDatabaseHas('clientes', [
+            'id' => 10,
+            'razon_social' => 'Cliente A Editado SA',
+        ]);
+
+        $payload['num_documento'] = 'FOLIO-NO-PERMITIDO';
+
+        $this->actingAs($this->clientAUser())
+            ->put('/cliente/actualizar', $payload, $this->ajaxHeaders())
+            ->assertOk();
+
+        $this->assertSame(
+            'FOLIO-CLIENTE-10',
+            DB::table('personas')->where('id', 10)->value('num_documento')
+        );
+    }
+
     public function test_client_cannot_update_another_clients_customer()
     {
         $this->actingAs($this->clientAUser())

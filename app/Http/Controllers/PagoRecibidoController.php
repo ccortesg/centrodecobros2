@@ -21,6 +21,8 @@ class PagoRecibidoController extends Controller
             'referencia',
             'monto',
             'canal',
+            'foliocpagos',
+            'autorizacion',
         ];
     }
 
@@ -56,6 +58,8 @@ class PagoRecibidoController extends Controller
                 'respuestas.fecha as fecha',
                 DB::raw("COALESCE(clientes.razon_social, transacciones.ClientReference, '') as cliente"),
                 DB::raw("COALESCE(transacciones.ClientReference, transacciones.Reference, '') as referencia"),
+                'respuestas.foliocpagos as foliocpagos',
+                'respuestas.auth as autorizacion',
                 DB::raw('COALESCE(respuestas.amount, transacciones.Amount / 100.0, 0) as monto'),
                 DB::raw("CASE transacciones.tipo WHEN 1 THEN 'Liga de pago' WHEN 2 THEN 'Domiciliacion' WHEN 3 THEN 'Caja' WHEN 4 THEN 'Terminal' ELSE 'Otro' END as canal"),
                 'transacciones.idusuario as idusuario',
@@ -80,6 +84,8 @@ class PagoRecibidoController extends Controller
                 'pagospei.fecha as fecha',
                 DB::raw("COALESCE(clientes.razon_social, transacciones.ClientReference, '') as cliente"),
                 DB::raw("COALESCE(pagospei.clabe, transacciones.Clabe, transacciones.ClientReference, '') as referencia"),
+                DB::raw('NULL as foliocpagos'),
+                'pagospei.autorizacion as autorizacion',
                 DB::raw('COALESCE(pagospei.monto, transacciones.Amount, 0) / 100.0 as monto'),
                 DB::raw("'SPEI' as canal"),
                 'transacciones.idusuario as idusuario',
@@ -108,6 +114,8 @@ class PagoRecibidoController extends Controller
                 'transaccionesDom.fecha as fecha',
                 DB::raw("COALESCE(clientes.razon_social, transacciones.ClientReference, '') as cliente"),
                 DB::raw("COALESCE(transaccionesDom.response_reference, transaccionesDom.Reference, transacciones.Reference, '') as referencia"),
+                'transaccionesDom.foliocpagos as foliocpagos',
+                'transaccionesDom.auth as autorizacion',
                 DB::raw('COALESCE(transaccionesDom.Amount, transacciones.Amount, 0) / 100.0 as monto'),
                 DB::raw("'Cargo Recurrente' as canal"),
                 'transaccionesDom.idusuario as idusuario',

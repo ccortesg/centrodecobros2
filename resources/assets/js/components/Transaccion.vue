@@ -209,7 +209,7 @@
                                             <span class="badge badge-success">Pagado</span>
                                         </div>
                                         <div v-else-if="(transaccion.condicion==4)">
-                                            <span class="badge badge-warning">Vencido</span>
+                                            <span class="badge badge-danger cdc-status-expired">Vencido</span>
                                         </div>
                                         <div v-else-if="(transaccion.condicion==5)">
                                             <span class="badge badge-danger">Error</span>

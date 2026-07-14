@@ -25,6 +25,8 @@
                                       <option value="ClientReference">Ref. Cliente</option>
                                       <option value="Reference">Ref. Transacción</option>
                                       <option value="reference">Ref. Respuesta</option>
+                                      <option value="foliocpagos">Folio Operación</option>
+                                      <option value="autorizacion">Núm. Autorización</option>
                                       <option value="cliente_nombre">Cliente</option>
                                     </select>
                                     <input type="text" v-model="buscar" @keyup.enter="listarRespuesta(1,buscar,criterio)" class="form-control" placeholder="Texto a buscar">
@@ -58,16 +60,14 @@
                                     <th class="text-center">Folio</th>
                                     <th class="text-center">Fecha</th>
                                     <th class="text-center">Cliente</th>
-                                    <th class="text-center">Referencia</th>
-                                    <th class="text-center">Ref. Transacción</th>
+                                    <th class="text-center">Referencia / Ref. Transacción</th>
                                     <th class="text-center">Ref. Respuesta</th>
                                     <th class="text-center">FolioC Pagos</th>
                                     <th class="text-center">Auth</th>
                                     <th class="text-center">CD Response</th>
                                     <th class="text-center">Amount</th>
                                     <th class="text-center">NB Error</th>
-                                    <th class="text-center">Time</th>
-                                    <th class="text-center">Date</th>
+                                    <th class="text-center">Date / Time</th>
                                     <th class="text-center">NB Company</th>
                                     <th class="text-center">Status
                                         <select v-model="filtroStatus" @change="listarRespuesta(1,buscar,criterio)">
@@ -97,8 +97,12 @@
                                         </span>
                                     </td>
                                     <td v-text="respuesta.nombre_cliente" class="text-center"></td>
-                                    <td v-text="respuesta.cliente_reference" class="text-center"></td>
-                                    <td v-text="respuesta.transaccion_reference" class="text-center"></td>
+                                    <td class="text-center">
+                                        <span class="cdc-value-stack">
+                                            <span v-text="respuesta.cliente_reference"></span>
+                                            <span v-text="respuesta.transaccion_reference"></span>
+                                        </span>
+                                    </td>
                                     <td v-text="respuesta.reference" class="text-center"></td>
                                     <td v-text="respuesta.foliocpagos" class="text-center"></td>
                                     <td v-text="respuesta.auth" class="text-center"></td>
@@ -106,9 +110,24 @@
                                     <td class="text-center">
                                         {{ $formatCurrency(respuesta.amount) }}
                                     </td>
-                                    <td v-text="respuesta.nb_error" class="text-center"></td>
-                                    <td v-text="respuesta.time" class="text-center"></td>                       
-                                    <td class="text-center">{{ $formatDateMx(respuesta.date) }}</td>
+                                    <td class="text-center">
+                                        <button
+                                            v-if="tieneNbError(respuesta.nb_error)"
+                                            type="button"
+                                            class="btn btn-info btn-sm cdc-action-button cdc-nb-error-button"
+                                            :title="respuesta.nb_error"
+                                            aria-label="Leer contenido de NB Error"
+                                            @click="abrirModalNbError(respuesta.nb_error)"
+                                        >
+                                            <i class="fa fa-book"></i>
+                                        </button>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="cdc-date-stack">
+                                            <span>{{ $formatDateMx(respuesta.date) }}</span>
+                                            <span class="cdc-date-stack__time" v-text="respuesta.time"></span>
+                                        </span>
+                                    </td>
                                     <td v-text="respuesta.nb_company" class="text-center"></td>
                                     <td v-text="respuesta.status" class="text-center"></td>
                                 </tr>                                
@@ -308,6 +327,24 @@
                 <!-- /.modal-dialog -->
             </div>
             <!--Fin del modal-->
+            <div class="modal fade" tabindex="-1" :class="{'mostrar' : modalNbError}" role="dialog" aria-labelledby="modalNbErrorLabel" style="overflow-y: scroll;display: none;" :aria-hidden="modalNbError ? 'false' : 'true'">
+                <div class="modal-dialog modal-primary" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h4 id="modalNbErrorLabel" class="modal-title">Detalle NB Error</h4>
+                            <button type="button" class="close" @click="cerrarModalNbError()" aria-label="Cerrar">
+                                <span aria-hidden="true">×</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="cdc-nb-error-content" v-text="nbErrorDetalle"></div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @click="cerrarModalNbError()">Cerrar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </main>
 </template>
 <script>
@@ -344,6 +381,8 @@
                 cc_mask : '',
                 arrayRespuesta : [],                
                 modal : 0,
+                modalNbError: 0,
+                nbErrorDetalle: '',
                 tituloModal : '',
                 tipoAccion : 0,
                 errorRespuesta : 0,
@@ -374,6 +413,21 @@
             }
         },
         methods : {
+            tieneNbError(valor) {
+                return String(valor || '').trim() !== '';
+            },
+            abrirModalNbError(contenido) {
+                if (!this.tieneNbError(contenido)) {
+                    return;
+                }
+
+                this.nbErrorDetalle = String(contenido);
+                this.modalNbError = 1;
+            },
+            cerrarModalNbError() {
+                this.modalNbError = 0;
+                this.nbErrorDetalle = '';
+            },
             formatearFechaInput(date) {
                 return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
             },

@@ -21,6 +21,8 @@
                                     <option value="folio">Folio</option>
                                     <option value="cliente">Cliente</option>
                                     <option value="referencia">Referencia</option>
+                                    <option value="foliocpagos">Folio Operación</option>
+                                    <option value="autorizacion">Núm. Autorización</option>
                                     <option value="canal">Canal</option>
                                 </select>
                                 <input type="text" v-model="buscar" @keyup.enter="listarPagos(1,buscar,criterio)" class="form-control" placeholder="Texto a buscar">

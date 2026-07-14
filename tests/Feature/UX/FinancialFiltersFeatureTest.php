@@ -297,6 +297,37 @@ class FinancialFiltersFeatureTest extends TestCase
         ]);
     }
 
+    public function test_respuesta_filters_by_operation_folio_and_authorization_number()
+    {
+        DB::table('respuestas')->where('id', 1)->update([
+            'foliocpagos' => 'OPERACION-RESPUESTA-A',
+            'auth' => 'AUTORIZACION-RESPUESTA-A',
+        ]);
+
+        $folioResponse = $this->actingAs($this->adminUser())
+            ->get('/respuesta?tipo=1&offset=50&buscar=OPERACION-RESPUESTA-A&criterio=foliocpagos&status=99', $this->ajaxHeaders())
+            ->assertOk();
+
+        $this->assertSame(1, (int) $folioResponse->json('pagination.total'));
+        $folioResponse->assertJsonFragment([
+            'id' => 1,
+            'foliocpagos' => 'OPERACION-RESPUESTA-A',
+        ]);
+
+        $authorizationResponse = $this->actingAs($this->adminUser())
+            ->get('/respuesta?tipo=1&offset=50&buscar=AUTORIZACION-RESPUESTA-A&criterio=autorizacion&status=99', $this->ajaxHeaders())
+            ->assertOk();
+
+        $this->assertSame(1, (int) $authorizationResponse->json('pagination.total'));
+        $authorizationResponse->assertJsonFragment([
+            'id' => 1,
+            'auth' => 'AUTORIZACION-RESPUESTA-A',
+        ]);
+
+        $export = new \App\Exports\RespuestaExport(1, 'AUTORIZACION-RESPUESTA-A', 'autorizacion');
+        $this->assertSame([1], $export->collection()->pluck('id')->all());
+    }
+
     public function test_respuesta_filters_by_response_date_range()
     {
         DB::table('respuestas')->whereIn('id', [1, 2])->update(['fecha' => '2026-05-01 10:00:00']);

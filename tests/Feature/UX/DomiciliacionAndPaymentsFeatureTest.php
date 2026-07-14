@@ -152,6 +152,43 @@ class DomiciliacionAndPaymentsFeatureTest extends TestCase
         $this->assertStringNotContainsString('Cliente B SA', $content);
     }
 
+    public function test_pagos_recibidos_filters_operation_folio_and_authorization_across_sources()
+    {
+        DB::table('respuestas')->where('id', 1)->update([
+            'foliocpagos' => 'OPERACION-RESPUESTA-A',
+            'auth' => 'AUTORIZACION-RESPUESTA-A',
+        ]);
+        DB::table('transaccionesDom')->where('id', 1)->update([
+            'foliocpagos' => 'OPERACION-RECURRENTE-A',
+            'auth' => 'AUTORIZACION-RECURRENTE-A',
+            'status' => 'approved',
+        ]);
+        DB::table('pagospei')->where('id', 1)->update([
+            'autorizacion' => 'AUTORIZACION-SPEI-A',
+        ]);
+
+        $cases = [
+            ['foliocpagos', 'OPERACION-RESPUESTA-A', 'respuesta'],
+            ['autorizacion', 'AUTORIZACION-RESPUESTA-A', 'respuesta'],
+            ['foliocpagos', 'OPERACION-RECURRENTE-A', 'transaccionDom'],
+            ['autorizacion', 'AUTORIZACION-RECURRENTE-A', 'transaccionDom'],
+            ['autorizacion', 'AUTORIZACION-SPEI-A', 'pagospei'],
+        ];
+
+        foreach ($cases as [$criterio, $buscar, $sourceType]) {
+            $response = $this->actingAs($this->adminUser())
+                ->get('/pagos-recibidos?offset=50&buscar=' . $buscar . '&criterio=' . $criterio . '&status=99', $this->ajaxHeaders())
+                ->assertOk();
+
+            $this->assertSame(1, (int) $response->json('pagination.total'));
+            $this->assertSame($sourceType, $response->json('pagos.data.0.source_type'));
+        }
+
+        $this->actingAs($this->adminUser())
+            ->get('/pagos-recibidos/exportar?buscar=OPERACION-RESPUESTA-A&criterio=foliocpagos&status=99', $this->ajaxHeaders())
+            ->assertOk();
+    }
+
     public function test_client_can_access_active_domiciliations_scoped_to_own_records()
     {
         $response = $this->actingAs($this->clientAUser())

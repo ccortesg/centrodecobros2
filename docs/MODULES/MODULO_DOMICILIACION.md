@@ -52,6 +52,7 @@ Gestionar generacion de ligas de domiciliacion, cargos recurrentes, cancelacione
 - Desde `Domiciliación Activa`, el cargo manual reutiliza `POST transaccionDom/registrar`; cuando el cargo manual queda aprobado, avanza `ProximoCargo` con la frecuencia configurada de la domiciliacion.
 - Desde `Domiciliación Activa`, la accion de calendario permite actualizar manualmente `ProximoCargo` con `PUT transaccion/proximo-cargo`.
 - La cancelacion desde `Domiciliación Activa` reutiliza `PUT transaccion/rechazar`; si la cancelacion queda persistida, el endpoint interno devuelve `error=""` aunque Pagadetodo haya entregado un mensaje tecnico en una excepcion controlada.
+- Las acciones directas `Cancelar domiciliación` y `Realizar cargo recurrente manual` muestran confirmacion y no ejecutan Axios si el usuario cancela. El calendario no agrega un segundo dialogo porque ya abre un modal de captura y validacion.
 - La exportacion de `Domiciliación Activa` descarga `domiciliaciones_activas.csv` y reutiliza los filtros del listado: texto, criterio, status, ownership, productivo y existencia de respuesta aprobada.
 
 ## Cargos Recurrentes listado
