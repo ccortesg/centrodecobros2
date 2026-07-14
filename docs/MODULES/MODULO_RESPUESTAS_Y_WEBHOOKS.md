@@ -66,10 +66,11 @@ Filtro de fechas:
 Presentacion compacta del listado:
 
 - En los encabezados `Opciones` y `Status`, el select aparece centrado en el primer renglón y el título en el segundo. El resto de encabezados se alinea horizontalmente al centro y verticalmente al borde inferior de la celda.
-- `Referencia` y `Ref. Transacción` comparten una columna, en dos renglones del mismo tamaño.
-- `Date` y `Time` comparten una columna; `Time` aparece en el segundo renglón con tipografia menor.
+- `Referencia` y `Ref. Transacción` comparten una columna, en dos renglones del mismo tamaño; el encabezado también se divide en esos dos renglones.
+- `Folio Operación` se muestra como etiqueta funcional de `respuestas.foliocpagos`, con el encabezado dividido en dos renglones. `CD Response` se abrevia visualmente como `CD Resp.`.
+- `Date` y `Time` comparten una columna y un encabezado de dos renglones; `Time` aparece con tipografia menor. `Date` usa el formato visual mexicano cuando el valor es reconocible y conserva el texto original recibido cuando el formato externo no puede interpretarse.
 - `NB Error` no despliega texto extenso en la tabla. Cuando existe contenido muestra un icono de libro con tooltip nativo y un modal de detalle; cuando está vacío, la celda permanece vacía.
-- La columna `Status` conserva el texto de origen y usa el contrato visual financiero: `approved` se muestra con badge verde de Activo, `denied` con badge rojo y texto negro de Vencido, y `error` con badge amarillo de Pendiente.
+- La columna `Status` conserva internamente los valores de origen y usa el contrato visual financiero: `approved` se presenta como `Aprobado` con badge verde de Activo, `denied` como `Denegado` con badge rojo y texto negro de Vencido, y `error` conserva su badge amarillo de Pendiente.
 
 ## Acceso por rol
 

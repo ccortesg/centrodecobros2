@@ -10,12 +10,25 @@ class FinancialUxSourceTest extends TestCase
     {
         $source = file_get_contents(__DIR__ . '/../../resources/assets/js/components/Respuesta.vue');
 
-        $this->assertStringContainsString('Referencia / Ref. Transacción', $source);
-        $this->assertStringContainsString('Date / Time', $source);
+        $this->assertMatchesRegularExpression('/<span>Referencia \/<\/span>\s*<span>Ref\. Transacción<\/span>/s', $source);
+        $this->assertMatchesRegularExpression('/<span>Date \/<\/span>\s*<span>Time<\/span>/s', $source);
+        $this->assertMatchesRegularExpression('/<span>Folio<\/span>\s*<span>Operación<\/span>/s', $source);
+        $this->assertStringContainsString('CD Resp.', $source);
+        $this->assertStringContainsString('$formatDateMx(respuesta.date) || respuesta.date', $source);
         $this->assertStringContainsString('fa fa-book', $source);
         $this->assertStringContainsString(':title="respuesta.nb_error"', $source);
         $this->assertStringContainsString('Detalle NB Error', $source);
         $this->assertStringContainsString('v-text="nbErrorDetalle"', $source);
+    }
+
+    public function test_response_table_translates_known_statuses_without_changing_their_values(): void
+    {
+        $source = file_get_contents(__DIR__ . '/../../resources/assets/js/components/Respuesta.vue');
+
+        $this->assertStringContainsString("respuesta.status === 'approved'", $source);
+        $this->assertStringContainsString('badge badge-success">Aprobado</span>', $source);
+        $this->assertStringContainsString("respuesta.status === 'denied'", $source);
+        $this->assertStringContainsString('badge badge-danger cdc-status-expired">Denegado</span>', $source);
     }
 
     public function test_response_table_stacks_header_filters_above_bottom_aligned_titles(): void

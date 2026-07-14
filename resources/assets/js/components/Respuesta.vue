@@ -63,14 +63,29 @@
                                     <th class="text-center">Folio</th>
                                     <th class="text-center">Fecha</th>
                                     <th class="text-center">Cliente</th>
-                                    <th class="text-center">Referencia / Ref. Transacción</th>
+                                    <th class="text-center">
+                                        <span class="cdc-header-label-stack">
+                                            <span>Referencia /</span>
+                                            <span>Ref. Transacción</span>
+                                        </span>
+                                    </th>
                                     <th class="text-center">Ref. Respuesta</th>
-                                    <th class="text-center">FolioC Pagos</th>
+                                    <th class="text-center">
+                                        <span class="cdc-header-label-stack">
+                                            <span>Folio</span>
+                                            <span>Operación</span>
+                                        </span>
+                                    </th>
                                     <th class="text-center">Auth</th>
-                                    <th class="text-center">CD Response</th>
+                                    <th class="text-center">CD Resp.</th>
                                     <th class="text-center">Amount</th>
                                     <th class="text-center">NB Error</th>
-                                    <th class="text-center">Date / Time</th>
+                                    <th class="text-center">
+                                        <span class="cdc-header-label-stack">
+                                            <span>Date /</span>
+                                            <span>Time</span>
+                                        </span>
+                                    </th>
                                     <th class="text-center">NB Company</th>
                                     <th class="text-center">
                                         <div class="cdc-header-control-stack">
@@ -130,14 +145,14 @@
                                     </td>
                                     <td class="text-center">
                                         <span class="cdc-date-stack">
-                                            <span>{{ $formatDateMx(respuesta.date) }}</span>
+                                            <span>{{ $formatDateMx(respuesta.date) || respuesta.date }}</span>
                                             <span class="cdc-date-stack__time" v-text="respuesta.time"></span>
                                         </span>
                                     </td>
                                     <td v-text="respuesta.nb_company" class="text-center"></td>
                                     <td class="text-center">
-                                        <span v-if="respuesta.status === 'approved'" class="badge badge-success">approved</span>
-                                        <span v-else-if="respuesta.status === 'denied'" class="badge badge-danger cdc-status-expired">denied</span>
+                                        <span v-if="respuesta.status === 'approved'" class="badge badge-success">Aprobado</span>
+                                        <span v-else-if="respuesta.status === 'denied'" class="badge badge-danger cdc-status-expired">Denegado</span>
                                         <span v-else-if="respuesta.status === 'error'" class="badge badge-warning">error</span>
                                         <span v-else v-text="respuesta.status"></span>
                                     </td>

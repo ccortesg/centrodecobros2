@@ -65,6 +65,14 @@
     display: block;
 }
 
+.cdc-header-label-stack {
+    align-items: center;
+    display: inline-flex;
+    flex-direction: column;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
 .cdc-table-shell > .cdc-responsive-table {
     min-width: max-content;
 }
