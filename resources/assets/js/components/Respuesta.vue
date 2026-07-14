@@ -129,7 +129,12 @@
                                         </span>
                                     </td>
                                     <td v-text="respuesta.nb_company" class="text-center"></td>
-                                    <td v-text="respuesta.status" class="text-center"></td>
+                                    <td class="text-center">
+                                        <span v-if="respuesta.status === 'approved'" class="badge badge-success">approved</span>
+                                        <span v-else-if="respuesta.status === 'denied'" class="badge badge-danger cdc-status-expired">denied</span>
+                                        <span v-else-if="respuesta.status === 'error'" class="badge badge-warning">error</span>
+                                        <span v-else v-text="respuesta.status"></span>
+                                    </td>
                                 </tr>                                
                             </tbody>
                         </table>

@@ -23,7 +23,9 @@
                                 <div class="input-group">
                                     <select class="form-control col-lg-3 col-md-3 col-sm-4" v-model="criterio">
                                         <option value="ClientReference">Referencia</option>
-                                      <option value="Reference">Ref. Transacción</option>                                      
+                                      <option value="Reference">Ref. Transacción</option>
+                                      <option value="foliocpagos">Folio Operación</option>
+                                      <option value="auth">Núm. Autorización</option>
                                       <option value="cliente_nombre">Cliente</option>
                                     </select>
                                     <input type="text" v-model="buscar" @keyup.enter="listarTransaccionDom(1,buscar,criterio)" class="form-control" placeholder="Texto a buscar">
@@ -104,7 +106,12 @@
                                     <td v-text="transaccionDom.nb_company" class="text-center"></td>
                                     <td v-if="esAdmin" v-text="transaccionDom.code" class="text-center"></td>
                                     <td v-if="esAdmin" v-text="transaccionDom.message" class="text-center"></td>
-                                    <td v-text="transaccionDom.status" class="text-center"></td>
+                                    <td class="text-center">
+                                        <span v-if="transaccionDom.status === 'approved'" class="badge badge-success">approved</span>
+                                        <span v-else-if="transaccionDom.status === 'denied'" class="badge badge-danger cdc-status-expired">denied</span>
+                                        <span v-else-if="transaccionDom.status === 'error'" class="badge badge-warning">error</span>
+                                        <span v-else v-text="transaccionDom.status"></span>
+                                    </td>
                                     <td v-if="esAdmin">
                                         <div v-if="transaccionDom.productivo==1">
                                             <span class="badge badge-success">Si</span>

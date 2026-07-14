@@ -354,6 +354,37 @@ class FinancialFiltersFeatureTest extends TestCase
         }
     }
 
+    public function test_transaccion_dom_filters_by_operation_folio_and_authorization_number()
+    {
+        DB::table('transaccionesDom')->where('id', 1)->update([
+            'foliocpagos' => 'OPERACION-RECURRENTE-A',
+            'auth' => 'AUTORIZACION-RECURRENTE-A',
+        ]);
+
+        $folioResponse = $this->actingAs($this->adminUser())
+            ->get('/transaccionDom?offset=50&buscar=OPERACION-RECURRENTE-A&criterio=foliocpagos&status=99', $this->ajaxHeaders())
+            ->assertOk();
+
+        $this->assertSame(1, (int) $folioResponse->json('pagination.total'));
+        $folioResponse->assertJsonFragment([
+            'id' => 1,
+            'foliocpagos' => 'OPERACION-RECURRENTE-A',
+        ]);
+
+        $authorizationResponse = $this->actingAs($this->adminUser())
+            ->get('/transaccionDom?offset=50&buscar=AUTORIZACION-RECURRENTE-A&criterio=auth&status=99', $this->ajaxHeaders())
+            ->assertOk();
+
+        $this->assertSame(1, (int) $authorizationResponse->json('pagination.total'));
+        $authorizationResponse->assertJsonFragment([
+            'id' => 1,
+            'auth' => 'AUTORIZACION-RECURRENTE-A',
+        ]);
+
+        $export = new \App\Exports\TransaccionDomExport('AUTORIZACION-RECURRENTE-A', 'auth');
+        $this->assertSame([1], $export->collection()->pluck('id')->all());
+    }
+
     public function test_transaccion_dom_filters_by_charge_date_range()
     {
         DB::table('transaccionesDom')->update(['fecha' => '2026-05-01 10:00:00']);

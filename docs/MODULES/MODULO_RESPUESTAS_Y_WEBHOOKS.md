@@ -68,6 +68,7 @@ Presentacion compacta del listado:
 - `Referencia` y `Ref. Transacción` comparten una columna, en dos renglones del mismo tamaño.
 - `Date` y `Time` comparten una columna; `Time` aparece en el segundo renglón con tipografia menor.
 - `NB Error` no despliega texto extenso en la tabla. Cuando existe contenido muestra un icono de libro con tooltip nativo y un modal de detalle; cuando está vacío, la celda permanece vacía.
+- La columna `Status` conserva el texto de origen y usa el contrato visual financiero: `approved` se muestra con badge verde de Activo, `denied` con badge rojo y texto negro de Vencido, y `error` con badge amarillo de Pendiente.
 
 ## Acceso por rol
 

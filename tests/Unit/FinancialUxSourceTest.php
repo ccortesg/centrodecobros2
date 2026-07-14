@@ -28,6 +28,29 @@ class FinancialUxSourceTest extends TestCase
         $this->assertStringContainsString('color: #000 !important;', $styles);
     }
 
+    public function test_response_and_recurring_charge_statuses_use_financial_badge_contract(): void
+    {
+        $respuesta = file_get_contents(__DIR__ . '/../../resources/assets/js/components/Respuesta.vue');
+        $transaccionDom = file_get_contents(__DIR__ . '/../../resources/assets/js/components/TransaccionDom.vue');
+
+        foreach ([$respuesta, $transaccionDom] as $source) {
+            $this->assertStringContainsString("status === 'approved'", $source);
+            $this->assertStringContainsString('badge badge-success', $source);
+            $this->assertStringContainsString("status === 'denied'", $source);
+            $this->assertStringContainsString('badge badge-danger cdc-status-expired', $source);
+            $this->assertStringContainsString("status === 'error'", $source);
+            $this->assertStringContainsString('badge badge-warning', $source);
+        }
+    }
+
+    public function test_recurring_charge_search_exposes_operation_folio_and_authorization(): void
+    {
+        $source = file_get_contents(__DIR__ . '/../../resources/assets/js/components/TransaccionDom.vue');
+
+        $this->assertStringContainsString('<option value="foliocpagos">Folio Operación</option>', $source);
+        $this->assertStringContainsString('<option value="auth">Núm. Autorización</option>', $source);
+    }
+
     public function test_direct_financial_actions_guard_http_requests_with_confirmation(): void
     {
         $transaccion = file_get_contents(__DIR__ . '/../../resources/assets/js/components/Transaccion.vue');

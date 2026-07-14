@@ -57,6 +57,9 @@ Gestionar generacion de ligas de domiciliacion, cargos recurrentes, cancelacione
 
 ## Cargos Recurrentes listado
 
+- La búsqueda por texto incluye `Folio Operación` (`transaccionesDom.foliocpagos`) y `Núm. Autorización` (`transaccionesDom.auth`); los mismos criterios se respetan al exportar.
+- La columna `Status` conserva los valores recibidos y aplica el contrato visual financiero: `approved` usa el badge verde de Activo, `denied` el badge rojo con texto negro de Vencido y `error` el badge amarillo de Pendiente.
+
 - `TransaccionDom.vue` lista intentos/cargos recurrentes desde `transaccionesDom`.
 - `Desde` y `Hasta` filtran `transaccionesDom.fecha`.
 - Al entrar al modulo, el frontend usa el rango de los ultimos 30 dias, con la fecha actual como `Hasta`.
