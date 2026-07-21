@@ -1,6 +1,21 @@
 # Modulo de Notificaciones Webhook Configurables
 
-Ultima actualizacion: 2026-07-10
+Ultima actualizacion: 2026-07-14
+
+## Estado validado V1.1
+
+- El payload `soportetech_v1_1` se limita a `channel=donation`; SPEI, terminal y
+  registros de eventos no pueden configurarse en este formato.
+- El canal `event` conserva `legacy_exact` con
+  `payment_link.payment.approved` y body exacto `folio`/`monto`.
+- El modo `hybrid` evita entrega doble: solo usa callback legacy para tipos sin
+  una suscripcion V1.1 activa.
+- Pruebas focalizadas: `WebhookNotificationFeatureTest` 25/106,
+  `WebhookReplayResponseCommandTest` 4/25 y
+  `DomiciliacionAndPaymentsFeatureTest` 30/117.
+- Suite total actual: 184 tests y 820 assertions ejecutadas. Permanecen dos
+  fallos ambientales de smoke por columnas/tablas historicas ausentes en la
+  MySQL local; las 59 pruebas focalizadas de webhook/replay/domiciliacion pasan.
 
 ## Objetivo
 
@@ -12,7 +27,8 @@ Sustituir gradualmente los callbacks fijos de `users.ligaPago` y `users.ligaRecu
 - criterio de confirmacion;
 - limite de solicitudes por minuto;
 - autenticacion opcional HMAC-SHA256;
-- modo de transicion `legacy`, `shadow`, `active` o `disabled`.
+- canal `donation|event|generic`;
+- modo de transicion `legacy`, `shadow`, `hybrid`, `active` o `disabled`.
 
 No cambia rutas, payloads ni contratos de Pagadetodo. Tampoco modifica la frecuencia del scheduler financiero.
 
@@ -33,6 +49,7 @@ Ambas opciones viven bajo `Integraciones`, despues de los tres modulos de audito
 | --- | --- | --- | --- |
 | `legacy` | Si | No crea eventos | Comportamiento anterior sin cambios. |
 | `shadow` | Si | Crea evento y entrega `shadow`, pero no hace HTTP | Comparacion previa sin interrumpir notificaciones vigentes. |
+| `hybrid` | Solo para tipos sin suscripcion activa | Encola tipos ya migrados | Rollout por familias sin entrega doble. |
 | `active` | No | Encola y entrega por el nuevo motor | Operacion final en background. |
 | `disabled` | No | No crea ni envia | Suspender notificaciones de ese cliente. |
 
@@ -101,6 +118,53 @@ Envia un envelope:
 
 El payload de entrega conserva los valores completos recibidos por Centro de Cobros, incluidos los campos de tarjeta ya protegidos por el sistema de origen y la respuesta cruda de cargos recurrentes. No se enmascara ni se elimina informacion en el cuerpo HTTP enviado.
 
+Este modo se considera legacy y no debe seleccionarse para el endpoint unificado
+de Donar con Causa.
+
+Para `channel=donation`, el modo legacy se endurece sin cambiar la ruta temporal:
+
+- `folio` usa `transacciones.ClientReference` y conserva `dcc:donation:{id}`;
+- `monto` se reconstruye como `transacciones.Amount / 100` en MXN;
+- se agrega `idtransaccion` para correlacion;
+- se eliminan PAN, titular, vencimiento, token y correo;
+- la entrega solicita JSON, no sigue redirects y solo confirma
+  `code=success`.
+
+### `soportetech_v1_1`
+
+Se permite exclusivamente en endpoints `channel=donation`. El envelope conserva
+`event_id`, `event_type`, `occurred_at` y `source`, pero `data` se reconstruye
+desde registros persistidos, no desde la respuesta cruda:
+
+- `schema_version=1.1`, `resource_type=donation`;
+- `client_reference=dcc:donation:{id}`;
+- `supporttech_transaction_id=transacciones.id`;
+- `amount_minor` entero en centavos;
+- referencias estables de suscripcion/cargo;
+- estado, codigo y mensaje sanitizados;
+- opcionalmente marca y ultimos cuatro digitos.
+
+V1.1 no envia token, PAN, titular, vencimiento, credenciales ni respuesta cruda.
+`SupportTechV11PayloadBuilder` falla cerrado cuando no puede construir la
+correlacion o unidad monetaria exigida.
+
+Para evitar una suscripcion `pending` sin evento de activacion, la configuracion
+solo admite `domiciliation_link.payment.approved` cuando el mismo endpoint
+incluye `domiciliation.activated` y `domiciliation.activation_failed`.
+
+### Canal de eventos
+
+`channel=event` exige `payload_mode=legacy_exact` y una unica suscripcion
+`payment_link.payment.approved`. El body es exactamente:
+
+```json
+{"folio":1234,"monto":500.00}
+```
+
+Este canal conserva `/api/aplicaPagoB`, usa cuenta/secreto independientes y no
+participa en el endpoint V1.1. No se envian rechazos porque el body legacy no
+incluye estado.
+
 La sanitizacion de `AuditSanitizer` se aplica exclusivamente a bitacoras, detalle administrativo y exportaciones. No se aplica a `webhook_deliveries.raw_body` antes de enviar; este campo se cifra con el cast de Laravel.
 
 ## HMAC-SHA256
@@ -112,6 +176,7 @@ Cada peticion firmada incluye:
 ```text
 X-Soportetech-Timestamp: <Unix timestamp UTC en segundos>
 X-Soportetech-Event-Id: <UUID estable del evento>
+X-Soportetech-Event-Type: <tipo exacto del evento>
 X-Soportetech-Signature: sha256=<hexadecimal minuscula>
 ```
 
@@ -131,7 +196,7 @@ Reglas acordadas para `app.donarconcausa.org.mx`:
 
 - HTTPS obligatorio;
 - tolerancia temporal del receptor: 300 segundos;
-- proteccion anti-replay: 10 minutos;
+- idempotencia durable por `event_id` y hash del body;
 - limite receptor: 30 solicitudes por minuto por IP;
 - limite emisor recomendado/configurado: 25 por minuto por host, con maximo duro de 30.
 
@@ -175,7 +240,7 @@ Un fallo al crear/auditar/encolar un evento se registra como warning y no revier
 | Tabla | Relacion/uso |
 | --- | --- |
 | `webhook_user_settings` | Una configuracion por `users.id`. |
-| `webhook_endpoints` | Varios endpoints por usuario; URL cifrada y hash para unicidad. |
+| `webhook_endpoints` | Varios endpoints por usuario; URL cifrada, hash para unicidad y canal `generic|donation|event`. |
 | `webhook_endpoint_subscriptions` | Eventos/origen habilitados por endpoint. |
 | `webhook_events` | Evento de negocio idempotente; payload cifrado. |
 | `webhook_deliveries` | Una entrega por evento/endpoint; cuerpo exacto cifrado. |
@@ -184,6 +249,19 @@ Un fallo al crear/auditar/encolar un evento se registra como warning y no revier
 | `jobs` / `failed_jobs` | Infraestructura Laravel Database Queue. |
 
 `cancelacionesDom.idtransaccion` y `cancelacionesLector.idtransaccion` agregan correlacion explicita con la transaccion origen.
+
+## Replay controlado de una respuesta
+
+`php artisan webhooks:replay-response {response-id} --dry-run` valida sin
+modificar: respuesta aprobada, transaccion tipo liga unica, referencia
+`dcc:donation:{id}`, monto positivo, modo `active|hybrid` y endpoint
+`donation/legacy_exact`. Sin `--dry-run` publica el evento con clave
+`payment_link.payment.approved:respuesta:{id}`. Repetirlo no crea otro evento y
+`respuestas.enviada` se actualiza solamente despues del ACK exitoso.
+
+La migracion `2026_07_14_120000` agrega el canal de endpoint y campos de ciclo de
+vida/cancelacion a `transacciones`: estado, motivo, clave idempotente, numero de
+intentos y fechas de solicitud/ultimo intento/cancelacion.
 
 ## Rutas administrativas
 
@@ -226,7 +304,7 @@ Secuencia segura por cliente:
 ## Riesgos residuales
 
 - El JOIN del cron de cargos recurrentes puede duplicar domiciliaciones si existen varias respuestas aprobadas. No se modifico por decision del propietario; sigue como pendiente financiero separado.
-- El payload real no se sanitiza por requerimiento funcional. La confidencialidad depende de HTTPS, control del endpoint y HMAC cuando se habilite.
+- Los payloads genericos y `soportetech_v1` conservan el contrato legacy. Los canales `donation` V1.1 y `donation/legacy_exact` eliminan datos sensibles antes de entregar. La confidencialidad del resto depende de HTTPS, control del endpoint y HMAC.
 - Database Queue requiere un worker persistente; activar un cliente sin worker deja entregas pendientes.
 - El crecimiento de eventos/intentos requiere una politica de retencion futura. No se agrego scheduler de purga.
 - Los modos son por cliente, no por endpoint. Cambiar a `active` afecta todas sus suscripciones activas.

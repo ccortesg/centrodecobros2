@@ -41,9 +41,23 @@ class WebhookEventPublisher
         }
     }
 
-    public function shouldUseLegacy(?User $user): bool
+    public function shouldUseLegacy(?User $user, ?string $eventType = null): bool
     {
-        return in_array($this->modeFor($user), ['legacy', 'shadow'], true);
+        $mode = $this->modeFor($user);
+        if (in_array($mode, ['legacy', 'shadow'], true)) {
+            return true;
+        }
+        if ($mode !== 'hybrid' || $user === null || $eventType === null) {
+            return false;
+        }
+
+        return !\App\WebhookEndpoint::query()
+            ->where('idusuario', $user->id)
+            ->where('active', true)
+            ->whereHas('subscriptions', function ($query) use ($eventType) {
+                $query->where('active', true)->where('event_type', $eventType);
+            })
+            ->exists();
     }
 
     public function publish(?User $user, string $eventType, array $legacyPayload, array $context = []): ?WebhookEvent

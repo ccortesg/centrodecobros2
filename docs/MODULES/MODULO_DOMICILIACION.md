@@ -1,6 +1,6 @@
 # Modulo: Domiciliacion y cargos recurrentes
 
-Ultima actualizacion: 2026-07-10
+Ultima actualizacion: 2026-07-14
 
 ## Proposito
 
@@ -45,6 +45,9 @@ Gestionar generacion de ligas de domiciliacion, cargos recurrentes, cancelacione
 - Si vence sin respuesta aprobada, el comando diario `transacciones:sincronizar-status` la marca `condicion=4` (`Vencido`) a partir de las 00:05 de Hermosillo.
 - Cargo recurrente: genera/actualiza registros en `transaccionesDom`.
 - Cancelacion: registra cancelacion e interactua con Pagadetodo si aplica.
+- Rechazos consecutivos: una aprobacion reinicia `intentos=0`; un rechazo/error
+  incrementa bajo bloqueo. Al alcanzar el limite configurable, detiene cargos y
+  solicita cancelacion idempotente.
 - Callback cliente: en `legacy/shadow`, solo el cargo automatico usa `users.ligaRecurrente`; en `active`, cargos manuales/API/automaticos pueden notificarse por suscripcion.
 - Scheduler diario ejecuta `TransaccionDomController@ejecutarCron`.
 - El comando diario de reconciliacion registra duracion y filas afectadas; no realiza llamadas a Pagadetodo ni cargos.
@@ -81,6 +84,12 @@ Campos de control agregados a `transacciones`:
 
 - `ProximoCargoBase`: fecha base/auditoria de la primera fecha de proximo cargo configurada.
 - `intentos`: conteo de cargos recurrentes fallidos asociados a la domiciliacion.
+- `domiciliation_status`: `active|cancellation_pending|cancelled` para el control
+  operativo de la cancelacion automatica.
+- `cancellation_reason` y `cancellation_idempotency_key`: causa y clave estable
+  `st:cancel:{transacciones.id}`.
+- `cancellation_attempts`, `cancellation_requested_at`,
+  `cancellation_last_attempt_at`, `cancelled_at`: auditoria y reintento durable.
 
 ## Acceso por rol
 
@@ -121,7 +130,19 @@ Campos de control agregados a `transacciones`:
 - Guarda cada intento en `transaccionesDom`.
 - Si el cargo responde `code=00` y `status=approved`, calcula el siguiente `ProximoCargo` desde la fecha programada vigente, no desde la fecha real de ejecucion.
 - Si falla, reprograma al dia siguiente.
-- `intentos` se sincroniza con los `transaccionesDom` fallidos (`code != 00`) y se reinicia a `0` cuando el cargo es aprobado.
+- `intentos` cuenta rechazos consecutivos y se reinicia a `0` cuando el cargo es aprobado.
+- Al tercer rechazo (default `DOMICILIATION_MAX_REJECTED_ATTEMPTS=3`) se establece
+  `condicion=0`, `domiciliation_status=cancellation_pending` y se invoca
+  `CancelarDomiciliacion` con la misma referencia estable. Mientras permanezca
+  pendiente no se selecciona para nuevos cargos.
+- Solo una respuesta de proveedor exitosa y una persistencia local confirmada
+  cambian a `condicion=2`, `domiciliation_status=cancelled` y emiten
+  `domiciliation.cancelled`. Cualquier fallo emite
+  `domiciliation.cancellation_failed` y se reintenta al inicio del cron.
+- La llamada al proveedor usa un claim bajo `lockForUpdate`. Mientras
+  `cancellation_last_attempt_at` este dentro de
+  `DOMICILIATION_CANCELLATION_RETRY_SECONDS` (default 300), otra solicitud
+  recibe `202 pending` y no repite la llamada.
 - `ProximoCargoBase` se conserva como ancla/auditoria de la primera fecha configurada; no sustituye el avance desde la fecha programada vigente.
 - El cargo manual aprobado desde `Domiciliación Activa` usa la misma regla de avance de frecuencia, pero el endpoint publico `CargoDomiciliacion` conserva su contrato externo y no fue modificado para cambiar `ProximoCargo`.
 
@@ -133,6 +154,9 @@ Campos de control agregados a `transacciones`:
 - Scheduler solo en ambiente controlado, nunca contra produccion sin autorizacion.
 - Browser QA para `Domiciliación Activa`: filtros, total de registros, cancelar y cargo manual con Pagadetodo mock local o servidor/IP autorizado.
 - Al probar cancelacion, validar que falta de token aprobado responda 422 controlado y no cambie `transacciones.condicion`.
+- Probar el tercer rechazo desde un fixture independiente: un unico intento de
+  cancelacion, contador `3`, estado terminal, bitacora `cancelacionesDom` y
+  eventos webhook sin duplicados.
 - Validar exportacion CSV con filtro admin/cliente y confirmar que no incluya domiciliaciones ajenas ni sin respuesta aprobada.
 
 ## Pendientes y mejoras

@@ -1,6 +1,6 @@
 # Integraciones externas
 
-Ultima actualizacion: 2026-07-10
+Ultima actualizacion: 2026-07-14
 
 ## 1. Pagadetodo
 
@@ -64,15 +64,21 @@ Estas rutas no usan prefijo `/api`:
 
 - El flujo legacy conserva `users.ligaPago` y `users.ligaRecurrente`.
 - El motor configurable vive en `WebhookEventPublisher`, `WebhookFanoutService`, `DeliverWebhookJob` y `WebhookDeliveryService`.
-- Modos por cliente: `legacy`, `shadow`, `active`, `disabled`.
+- Modos por cliente: `legacy`, `shadow`, `hybrid`, `active`, `disabled`.
 - `shadow` conserva el callback legacy y genera entregas de simulacion sin hacer una segunda llamada HTTP.
+- `hybrid` usa V1.1 solo para tipos con suscripcion activa y conserva callback legacy para el resto, sin entrega doble.
 - `active` reemplaza el callback legacy por Database Queue.
 - Se cubren pagos/rechazos de liga unica, domiciliacion, cargos recurrentes manual/API/automaticos, cancelaciones, SPEI y terminal.
-- Los payloads reales se transmiten completos; la sanitizacion solo afecta bitacoras/UI/export.
+- `soportetech_v1` conserva payload completo como compatibilidad legacy.
+- `soportetech_v1_1` es exclusivo del canal donaciones y se reconstruye desde persistencia: centavos, referencias estables y sin token, PAN, titular, vencimiento, credenciales o respuesta cruda.
+- El canal eventos conserva endpoint/payload existente `POST /api/aplicaPagoB` con `folio`/`monto`; no usa el endpoint unificado.
+- El canal donaciones con `legacy_exact` conserva `folio=dcc:donation:{id}`, convierte `transacciones.Amount` de centavos a `monto` MXN e incluye `idtransaccion`. Se eliminan PAN, titular, vencimiento, token y correo antes de la entrega.
+- `webhooks:replay-response` republica respuestas aprobadas de pago unico con la misma clave idempotente; requiere modo `active|hybrid` y endpoint de donaciones configurado.
 - URL valida y HTTPS son obligatorios. No existe allowlist de host por decision funcional.
 - HMAC-SHA256 opcional por cliente usa `timestamp.event_id.raw_request_body` y los headers `X-Soportetech-*`.
-- El primer receptor acordado es `app.donarconcausa.org.mx`, con tolerancia de 300 segundos, anti-replay de 10 minutos y maximo receptor de 30 solicitudes/minuto/IP.
+- El receptor acordado usa tolerancia de 300 segundos, inbox idempotente durable y maximo de 30 solicitudes/minuto/IP.
 - Detalle completo: `docs/MODULES/MODULO_NOTIFICACIONES_WEBHOOK_CONFIGURABLES.md`.
+- Guia para desarrollar la plataforma receptora: `docs/SOPORTETECH_V1_WEBHOOK_RECEIVER_GUIDE.md`.
 
 ## 3. Realtime Pusher/Echo
 

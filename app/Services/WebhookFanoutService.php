@@ -87,7 +87,15 @@ class WebhookFanoutService
     {
         $payload = $event->payload ?: [];
 
-        if ($endpoint->payload_mode === 'soportetech_v1') {
+        if ($endpoint->payload_mode === 'soportetech_v1_1') {
+            $body = [
+                'event_id' => $event->id,
+                'event_type' => $event->event_type,
+                'occurred_at' => $event->occurred_at->toIso8601String(),
+                'source' => $event->source_context,
+                'data' => app(SupportTechV11PayloadBuilder::class)->build($event),
+            ];
+        } elseif ($endpoint->payload_mode === 'soportetech_v1') {
             $body = [
                 'event_id' => $event->id,
                 'event_type' => $event->event_type,
@@ -95,6 +103,35 @@ class WebhookFanoutService
                 'source' => $event->source_context,
                 'data' => $payload['source_payload'] ?? $payload['legacy_payload'] ?? [],
             ];
+        } elseif ($endpoint->channel === 'event') {
+            $transaction = $event->idtransaccion ? \App\Transaccion::find($event->idtransaccion) : null;
+            if (!$transaction) {
+                throw new \RuntimeException('No se encontro la transaccion del pago de evento.');
+            }
+            $body = [
+                'folio' => is_numeric($transaction->ClientReference)
+                    ? (int) $transaction->ClientReference
+                    : $transaction->ClientReference,
+                'monto' => round(((float) $transaction->Amount) / 100, 2),
+            ];
+        } elseif ($endpoint->channel === 'donation') {
+            $transaction = $event->idtransaccion ? \App\Transaccion::find($event->idtransaccion) : null;
+            if (!$transaction) {
+                throw new \RuntimeException('No se encontro la transaccion de la donacion.');
+            }
+            $body = $payload['legacy_payload'] ?? [];
+            $body['folio'] = $transaction->ClientReference;
+            $body['monto'] = round(((float) $transaction->Amount) / 100, 2);
+            $body['idtransaccion'] = $transaction->id;
+            $body['card_brand'] = $body['card_brand'] ?? ($body['cc_type'] ?? null);
+            $digits = preg_replace('/\D+/', '', (string) ($body['card_last_four'] ?? $body['cc_mask'] ?? $body['cc_number'] ?? ''));
+            $body['card_last_four'] = $digits === '' ? null : substr($digits, -4);
+            foreach (['cc_name', 'cc_number', 'cc_expmonth', 'cc_expyear', 'number_tkn', 'email'] as $field) {
+                unset($body[$field]);
+            }
+            $body = array_filter($body, static function ($value) {
+                return $value !== null && $value !== '';
+            });
         } else {
             $body = $payload['legacy_payload'] ?? [];
         }

@@ -1,6 +1,6 @@
 # Arquitectura real del sistema
 
-Ultima actualizacion: 2026-07-10
+Ultima actualizacion: 2026-07-14
 
 ## 1. Vista general
 
@@ -36,7 +36,7 @@ Ultima actualizacion: 2026-07-10
 
 - Pagadetodo via Guzzle y endpoints configurados en `config/services.php`.
 - Auditoria de integraciones via `ApiAuditLogger`, `AuditSanitizer` y middleware `LogIncomingApiRequest`.
-- Webhooks cliente mediante publicacion idempotente, fanout por suscripcion y jobs Laravel en la cola `webhooks`.
+- Webhooks cliente mediante publicacion idempotente, fanout por suscripcion y jobs Laravel en la cola `webhooks`; V1.1 reconstruye payloads de donacion desde persistencia y separa el canal de eventos.
 - Pusher/Echo para notificaciones si existen variables `VITE_PUSHER_*` y broadcasting configurado.
 - SMTP/Postmark para correo.
 - TeleSign queda como dependencia historica residual; el flujo publico OTP/SMS fue retirado.
@@ -63,6 +63,13 @@ Ultima actualizacion: 2026-07-10
 - El frontend y backend dependen de nombres exactos de campos historicos.
 - La auditoria de integraciones es aditiva: no cambia payloads externos y guarda headers/payloads sanitizados.
 - El motor webhook separa evento (`webhook_events`), entrega (`webhook_deliveries`) e intento (`webhook_delivery_attempts`). El cuerpo real se cifra y permanece inmutable por entrega; la auditoria conserva una copia sanitizada.
+- `WebhookEndpoint.channel` impide mezclar donaciones (`soportetech_v1_1`) y
+  eventos (`legacy_exact`). `WebhookEventPublisher` soporta modo `hybrid`: el
+  callback legacy se conserva solo para tipos sin suscripcion activa, evitando
+  entrega doble durante el rollout.
+- `SupportTechV11PayloadBuilder` es la frontera del contrato externo: correlacion
+  `dcc:donation`, unidades menores, referencias estables y exclusiones de datos
+  sensibles. El evento de boleto mantiene el body exacto `folio`/`monto`.
 
 ## 5. Flujo principal
 
@@ -73,7 +80,10 @@ Ultima actualizacion: 2026-07-10
 5. Reportes/exportaciones consultan datos acotados por rol.
 6. Webhooks `Service/*` actualizan respuestas, transacciones SPEI o callbacks segun contrato.
 7. Las llamadas entrantes/salientes y accesos de usuario se registran en bitacoras administrativas sanitizadas.
-8. En modo `active`, un evento financiero persistido produce un evento idempotente, fanout por endpoint y entrega asyncrona con reintentos/HMAC opcional.
+8. En modo `hybrid|active`, un evento financiero persistido produce un evento idempotente, fanout por endpoint y entrega asyncrona con reintentos/HMAC.
+9. Los cargos recurrentes fallidos actualizan el contador bajo bloqueo; el
+   tercer rechazo detiene cargos e inicia una cancelacion idempotente antes de
+   emitir el estado terminal.
 
 ## 6. Diagnostico arquitectonico
 

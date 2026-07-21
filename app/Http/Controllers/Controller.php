@@ -162,14 +162,61 @@ class Controller extends BaseController
     protected function postJsonAuditado($url, array $params, array $context = [])
     {
         $startedAt = microtime(true);
-        $client = new \GuzzleHttp\Client();
+        $client = app(\GuzzleHttp\Client::class);
         $response = null;
+        $requestOptions = [\GuzzleHttp\RequestOptions::JSON => $params];
+        $auditContext = $context;
+
+        if (isset($context['webhook_event_id'])) {
+            $rawBody = json_encode(
+                $params,
+                JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION | JSON_THROW_ON_ERROR
+            );
+            $headers = [
+                'Accept' => 'application/json',
+                'Content-Type' => 'application/json',
+                'X-Soportetech-Event-Id' => (string) $context['webhook_event_id'],
+                'X-Soportetech-Event-Type' => (string) ($context['webhook_event_type'] ?? 'legacy.callback'),
+            ];
+            $settings = null;
+            if (isset($context['webhook_user_id'])) {
+                try {
+                    $settings = \App\WebhookUserSetting::where('idusuario', $context['webhook_user_id'])->first();
+                } catch (\Throwable $exception) {
+                    $settings = null;
+                }
+            }
+            if ($settings && $settings->hmac_enabled && trim((string) $settings->hmac_secret) !== '') {
+                $timestamp = now('UTC')->timestamp;
+                $headers['X-Soportetech-Timestamp'] = (string) $timestamp;
+                $headers['X-Soportetech-Signature'] = app(\App\Services\WebhookSigner::class)->signature(
+                    (string) $settings->hmac_secret,
+                    $timestamp,
+                    (string) $context['webhook_event_id'],
+                    $rawBody
+                );
+            }
+
+            $requestOptions = [
+                'headers' => $headers,
+                'body' => $rawBody,
+                'allow_redirects' => false,
+                'http_errors' => false,
+            ];
+            $auditContext['request_headers'] = $headers;
+        }
+
+        unset(
+            $auditContext['webhook_event_id'],
+            $auditContext['webhook_event_type'],
+            $auditContext['webhook_user_id']
+        );
 
         try {
-            $response = $client->request('POST', $url, [\GuzzleHttp\RequestOptions::JSON => $params]);
+            $response = $client->request('POST', $url, $requestOptions);
             app(\App\Services\ApiAuditLogger::class)->recordOutgoing($url, $params, $response, null, $startedAt, array_merge([
                 'method' => 'POST',
-            ], $context));
+            ], $auditContext));
 
             return $response;
         } catch (\Throwable $e) {
@@ -179,7 +226,7 @@ class Controller extends BaseController
 
             app(\App\Services\ApiAuditLogger::class)->recordOutgoing($url, $params, $response, $e, $startedAt, array_merge([
                 'method' => 'POST',
-            ], $context));
+            ], $auditContext));
 
             throw $e;
         }

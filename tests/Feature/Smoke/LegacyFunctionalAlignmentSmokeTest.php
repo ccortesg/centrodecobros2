@@ -2,11 +2,18 @@
 
 namespace Tests\Feature\Smoke;
 
+use App\Http\Middleware\VerifyCsrfToken;
 use App\User;
 use Tests\TestCase;
 
 class LegacyFunctionalAlignmentSmokeTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->withoutMiddleware(VerifyCsrfToken::class);
+    }
+
     private function activeAdmin(): User
     {
         $admin = User::where('condicion', 1)->where('idrol', 1)->orderBy('id')->first();

@@ -11,6 +11,8 @@ return [
     'retry_delays' => [60, 300, 900, 3600, 10800, 21600, 43200],
     'default_rate_limit' => (int) env('WEBHOOK_RATE_LIMIT_PER_MINUTE', 25),
     'maximum_rate_limit' => 30,
+    'max_rejected_attempts' => (int) env('DOMICILIATION_MAX_REJECTED_ATTEMPTS', 3),
+    'cancellation_retry_seconds' => (int) env('DOMICILIATION_CANCELLATION_RETRY_SECONDS', 300),
     'events' => [
         'payment_link.payment.approved' => ['label' => 'Pago aprobado de liga unica', 'group' => 'Liga de Pago Unica'],
         'payment_link.payment.rejected' => ['label' => 'Pago rechazado de liga unica', 'group' => 'Liga de Pago Unica'],

@@ -122,7 +122,8 @@ class RespuestaController extends Controller
     {
         $payload = $data;
         $payload['folio'] = $transaccion->ClientReference;
-        $payload['monto'] = (float) ($data['amount'] ?? 0);
+        $payload['monto'] = round(((float) $transaccion->Amount) / 100, 2);
+        $payload['idtransaccion'] = $transaccion->id;
         $payload['reference'] = $data['reference'] ?? '';
         $payload['foliocpagos'] = $lector ? ($data['folio'] ?? '') : ($data['foliocpagos'] ?? '');
         $payload['auth'] = $data['auth'] ?? '';
@@ -135,6 +136,15 @@ class RespuestaController extends Controller
         $payload['id_url'] = $data['id_url'] ?? '';
         $payload['email'] = $data['email'] ?? '';
         $payload['payment_type'] = $data['payment_type'] ?? '';
+
+        if (preg_match('/^dcc:donation:[1-9][0-9]*$/', (string) $transaccion->ClientReference)) {
+            $payload['card_brand'] = $payload['cc_type'] ?: null;
+            $digits = preg_replace('/\D+/', '', (string) ($data['cc_mask'] ?? $payload['cc_number']));
+            $payload['card_last_four'] = $digits === '' ? null : substr($digits, -4);
+            foreach (['cc_name', 'cc_number', 'cc_expmonth', 'cc_expyear', 'number_tkn', 'email'] as $field) {
+                unset($payload[$field]);
+            }
+        }
 
         return $payload;
     }
@@ -153,7 +163,8 @@ class RespuestaController extends Controller
         $payload = $this->payloadWebhookRespuesta($transaccion, $data, $lector);
         $publisher = app(WebhookEventPublisher::class);
 
-        foreach ($this->eventosWebhookRespuesta($transaccion, $respuesta) as $eventType) {
+        $eventTypes = $this->eventosWebhookRespuesta($transaccion, $respuesta);
+        foreach ($eventTypes as $eventType) {
             $publisher->publish($usuario, $eventType, $payload, [
                 'idtransaccion' => $transaccion->id,
                 'source_type' => 'respuesta',
@@ -168,7 +179,7 @@ class RespuestaController extends Controller
         if ((string) $respuesta->status !== 'approved'
             || $usuario === null
             || !$usuario->notificaPago
-            || !$publisher->shouldUseLegacy($usuario)) {
+            || !$publisher->shouldUseLegacy($usuario, $eventTypes[0] ?? null)) {
             return;
         }
 
@@ -180,12 +191,21 @@ class RespuestaController extends Controller
                 'idtransaccion' => $transaccion->id,
                 'productivo' => $transaccion->productivo,
                 'correlation_reference' => $transaccion->ClientReference,
+                'webhook_event_id' => ($eventTypes[0] ?? 'legacy.callback') . ':respuesta:' . $respuesta->id,
+                'webhook_event_type' => $eventTypes[0] ?? 'legacy.callback',
+                'webhook_user_id' => $usuario->id,
             ]);
             $decoded = json_decode((string) $response->getBody(), true);
 
             if (is_array($decoded) && strtolower((string) ($decoded['code'] ?? '')) === 'success') {
                 $respuesta->enviada = 1;
                 $respuesta->save();
+            } else {
+                Log::warning('El receptor no confirmo el callback de pago.', [
+                    'transaction_id' => $transaccion->id,
+                    'response_id' => $respuesta->id,
+                    'status_code' => $response->getStatusCode(),
+                ]);
             }
         } catch (Throwable $exception) {
             Log::info('Fallo el envio de la respuesta de la transaccion ' . $transaccion->id, [

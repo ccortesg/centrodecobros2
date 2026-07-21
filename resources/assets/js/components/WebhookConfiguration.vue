@@ -41,6 +41,7 @@
                             <select id="webhook-mode" v-model="setting.mode" class="form-control">
                                 <option value="legacy">Legacy</option>
                                 <option value="shadow">Shadow</option>
+                                <option value="hybrid">Hybrid</option>
                                 <option value="active">Active</option>
                                 <option value="disabled">Disabled</option>
                             </select>
@@ -155,21 +156,30 @@
                         </div>
 
                         <div class="form-group row">
-                            <div class="col-md-4">
+                            <div class="col-md-3">
+                                <label for="endpoint-channel">Canal</label>
+                                <select id="endpoint-channel" v-model="endpointForm.channel" class="form-control">
+                                    <option value="generic">Genérico</option>
+                                    <option value="donation">Donaciones</option>
+                                    <option value="event">Eventos</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
                                 <label for="payload-mode">Formato del payload</label>
                                 <select id="payload-mode" v-model="endpointForm.payload_mode" class="form-control">
                                     <option value="legacy_exact">Legacy exact</option>
                                     <option value="soportetech_v1">Soportetech v1</option>
+                                    <option value="soportetech_v1_1">Soportetech v1.1</option>
                                 </select>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label for="ack-mode">Confirmación</label>
                                 <select id="ack-mode" v-model="endpointForm.ack_mode" class="form-control">
                                     <option value="legacy_code_success">code = success</option>
                                     <option value="http_2xx">HTTP 2xx</option>
                                 </select>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label for="rate-limit">Peticiones por minuto</label>
                                 <input id="rate-limit" v-model.number="endpointForm.rate_limit_per_minute" type="number" class="form-control" min="1" max="30">
                             </div>
@@ -270,7 +280,8 @@ export default {
                 name: '',
                 url: '',
                 active: true,
-                payload_mode: 'soportetech_v1',
+                channel: 'donation',
+                payload_mode: 'soportetech_v1_1',
                 ack_mode: 'http_2xx',
                 rate_limit_per_minute: 25
             },
@@ -306,7 +317,8 @@ export default {
                 name: '',
                 url: '',
                 active: true,
-                payload_mode: 'soportetech_v1',
+                channel: 'donation',
+                payload_mode: 'soportetech_v1_1',
                 ack_mode: 'http_2xx',
                 rate_limit_per_minute: 25
             };
@@ -362,6 +374,7 @@ export default {
                     name: endpoint.name,
                     url: endpoint.url,
                     active: Boolean(endpoint.active),
+                    channel: endpoint.channel || 'generic',
                     payload_mode: endpoint.payload_mode,
                     ack_mode: endpoint.ack_mode,
                     rate_limit_per_minute: Number(endpoint.rate_limit_per_minute)
@@ -447,6 +460,7 @@ export default {
             });
         },
         payloadModeLabel(mode) {
+            if (mode === 'soportetech_v1_1') return 'Soportetech v1.1';
             return mode === 'soportetech_v1' ? 'Soportetech v1' : 'Legacy exact';
         },
         ackModeLabel(mode) {

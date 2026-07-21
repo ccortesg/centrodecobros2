@@ -76,7 +76,7 @@ class WebhookNotificationController extends Controller
                     $query->where('idrol', 2);
                 }),
             ],
-            'mode' => ['required', Rule::in(['legacy', 'shadow', 'active', 'disabled'])],
+            'mode' => ['required', Rule::in(['legacy', 'shadow', 'hybrid', 'active', 'disabled'])],
             'hmac_enabled' => 'required|boolean',
             'hmac_secret' => 'nullable|string|min:32|max:255',
             'rotate_secret' => 'nullable|boolean',
@@ -301,7 +301,7 @@ class WebhookNotificationController extends Controller
         $endpoint = WebhookEndpoint::findOrFail($id);
         $setting = WebhookUserSetting::where('idusuario', $endpoint->idusuario)->first();
 
-        if (!$endpoint->active || !$setting || !in_array($setting->mode, ['shadow', 'active'], true)) {
+        if (!$endpoint->active || !$setting || !in_array($setting->mode, ['shadow', 'hybrid', 'active'], true)) {
             return response()->json([
                 'status' => 'error',
                 'msg' => 'El endpoint debe estar activo y el cliente en modo shadow o active.',
@@ -390,13 +390,15 @@ class WebhookNotificationController extends Controller
             'name' => 'required|string|max:120',
             'url' => 'required|string|max:2048',
             'active' => 'required|boolean',
-            'payload_mode' => ['required', Rule::in(['legacy_exact', 'soportetech_v1'])],
+            'channel' => ['nullable', Rule::in(['generic', 'donation', 'event'])],
+            'payload_mode' => ['required', Rule::in(['legacy_exact', 'soportetech_v1', 'soportetech_v1_1'])],
             'ack_mode' => ['required', Rule::in(['legacy_code_success', 'http_2xx'])],
             'rate_limit_per_minute' => 'required|integer|min:1|max:' . config('webhooks.maximum_rate_limit', 30),
             'subscriptions' => 'required|array|min:1',
             'subscriptions.*.event_type' => 'required|string|max:120',
             'subscriptions.*.source_filter' => ['required', Rule::in(['all', 'manual', 'api', 'automatic'])],
         ]);
+        $data['channel'] = $data['channel'] ?? 'generic';
 
         if ($error = $urlValidator->validate($data['url'])) {
             throw new HttpResponseException(response()->json(['status' => 'error', 'msg' => $error], 422));
@@ -412,6 +414,45 @@ class WebhookNotificationController extends Controller
                 throw new HttpResponseException(response()->json([
                     'status' => 'error',
                     'msg' => 'El evento de prueba no admite suscripcion.',
+                ], 422));
+            }
+        }
+
+        if ($data['payload_mode'] === 'soportetech_v1_1' && $data['channel'] !== 'donation') {
+            throw new HttpResponseException(response()->json([
+                'status' => 'error',
+                'msg' => 'SOPORTETECH V1.1 solo puede utilizarse en el canal de donaciones.',
+            ], 422));
+        }
+
+        if ($data['payload_mode'] === 'soportetech_v1_1') {
+            $v11EventTypes = collect($data['subscriptions'])->pluck('event_type')->unique();
+            $unsupported = $v11EventTypes
+                ->reject(fn ($eventType) => in_array($eventType, \App\Services\SupportTechV11PayloadBuilder::EVENTS, true));
+            if ($unsupported->isNotEmpty()) {
+                throw new HttpResponseException(response()->json([
+                    'status' => 'error',
+                    'msg' => 'SOPORTETECH V1.1 solo admite eventos de donaciones y domiciliaciones.',
+                ], 422));
+            }
+
+            if ($v11EventTypes->contains('domiciliation_link.payment.approved')
+                && collect(['domiciliation.activated', 'domiciliation.activation_failed'])
+                    ->diff($v11EventTypes)->isNotEmpty()) {
+                throw new HttpResponseException(response()->json([
+                    'status' => 'error',
+                    'msg' => 'El pago inicial aprobado debe migrarse junto con ambos resultados de activacion.',
+                ], 422));
+            }
+        }
+
+        if ($data['channel'] === 'event') {
+            $eventTypes = collect($data['subscriptions'])->pluck('event_type')->unique()->values()->all();
+            if ($data['payload_mode'] !== 'legacy_exact'
+                || $eventTypes !== ['payment_link.payment.approved']) {
+                throw new HttpResponseException(response()->json([
+                    'status' => 'error',
+                    'msg' => 'El canal de eventos conserva legacy_exact y solo payment_link.payment.approved.',
                 ], 422));
             }
         }
@@ -445,6 +486,7 @@ class WebhookNotificationController extends Controller
             'url_hash' => hash('sha256', $url),
             'host' => strtolower((string) parse_url($url, PHP_URL_HOST)),
             'active' => (bool) $data['active'],
+            'channel' => $data['channel'],
             'payload_mode' => $data['payload_mode'],
             'ack_mode' => $data['ack_mode'],
             'rate_limit_per_minute' => (int) $data['rate_limit_per_minute'],

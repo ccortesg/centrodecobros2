@@ -40,6 +40,13 @@ class Transaccion extends Model
                         'ProximoCargo',
                         'ProximoCargoBase',
                         'intentos',
+                        'domiciliation_status',
+                        'cancellation_reason',
+                        'cancellation_idempotency_key',
+                        'cancellation_attempts',
+                        'cancellation_requested_at',
+                        'cancellation_last_attempt_at',
+                        'cancelled_at',
                         'condicion',
                         'productivo'
                         ];

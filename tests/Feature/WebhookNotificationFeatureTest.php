@@ -139,6 +139,36 @@ class WebhookNotificationFeatureTest extends TestCase
             ->assertJsonPath('status', 'error');
     }
 
+    public function test_v11_endpoint_rejects_non_donation_event_families(): void
+    {
+        $payload = $this->endpointPayload(
+            'https://app.donarconcausa.org.mx/api/webhooks/soportetech/v1',
+            [['event_type' => 'spei.payment.approved', 'source_filter' => 'all']]
+        );
+        $payload['channel'] = 'donation';
+        $payload['payload_mode'] = 'soportetech_v1_1';
+
+        $this->actingAs($this->adminUser())
+            ->postJson('/integraciones/webhooks/endpoints', $payload)
+            ->assertStatus(422)
+            ->assertJsonPath('status', 'error');
+    }
+
+    public function test_v11_initial_domiciliation_payment_requires_both_activation_results(): void
+    {
+        $payload = $this->endpointPayload(
+            'https://app.donarconcausa.org.mx/api/webhooks/soportetech/v1',
+            [['event_type' => 'domiciliation_link.payment.approved', 'source_filter' => 'all']]
+        );
+        $payload['channel'] = 'donation';
+        $payload['payload_mode'] = 'soportetech_v1_1';
+
+        $this->actingAs($this->adminUser())
+            ->postJson('/integraciones/webhooks/endpoints', $payload)
+            ->assertStatus(422)
+            ->assertJsonPath('status', 'error');
+    }
+
     public function test_existing_endpoint_cannot_be_reassigned_to_another_client(): void
     {
         $endpoint = $this->createEndpoint('payment_link.payment.approved');
@@ -324,6 +354,162 @@ class WebhookNotificationFeatureTest extends TestCase
         );
     }
 
+    public function test_v11_delivery_uses_persisted_correlations_minor_units_and_excludes_sensitive_data(): void
+    {
+        $history = [];
+        $mock = new MockHandler([
+            new Response(200, ['Content-Type' => 'application/json'], '{"code":"success"}'),
+        ]);
+        $stack = HandlerStack::create($mock);
+        $stack->push(Middleware::history($history));
+        $this->app->instance(Client::class, new Client(['handler' => $stack]));
+
+        $this->configureClient('active', true, 'donar-con-causa-v11-shared-secret-value');
+        $this->createEndpoint(
+            'payment_link.payment.approved',
+            'soportetech_v1_1',
+            'http_2xx',
+            'all',
+            'donation'
+        );
+        DB::table('transacciones')->where('id', 100)->update([
+            'ClientReference' => 'dcc:donation:7001',
+            'responseReference' => 'V11-PAYMENT',
+            'Amount' => 15550,
+        ]);
+
+        $this->postJson('/Service/EntregarPagoLiga', [
+            'reference' => 'V11-PAYMENT',
+            'response' => 'approved',
+            'amount' => 15550,
+            'cc_type' => 'VISA',
+            'cc_name' => 'NO ENVIAR',
+            'cc_number' => '4111111111114242',
+            'cc_expmonth' => '12',
+            'cc_expyear' => '30',
+        ])->assertOk();
+
+        $this->assertCount(1, $history);
+        $decoded = json_decode((string) $history[0]['request']->getBody(), true);
+        $this->assertSame('1.1', $decoded['data']['schema_version']);
+        $this->assertSame('donation', $decoded['data']['resource_type']);
+        $this->assertSame('dcc:donation:7001', $decoded['data']['client_reference']);
+        $this->assertSame(100, $decoded['data']['supporttech_transaction_id']);
+        $this->assertSame(15550, $decoded['data']['amount_minor']);
+        $this->assertSame('MXN', $decoded['data']['currency']);
+        $this->assertSame('VISA', $decoded['data']['card_brand']);
+        $this->assertSame('4242', $decoded['data']['card_last_four']);
+        $this->assertArrayNotHasKey('cc_number', $decoded['data']);
+        $this->assertArrayNotHasKey('cc_name', $decoded['data']);
+        $this->assertArrayNotHasKey('response', $decoded['data']);
+    }
+
+    public function test_legacy_donation_callback_is_signed_in_pesos_and_does_not_mark_failed_ack_as_sent(): void
+    {
+        $history = [];
+        $mock = new MockHandler([
+            new Response(422, ['Content-Type' => 'application/json'], '{"code":"error","reason":"amount_mismatch"}'),
+        ]);
+        $stack = HandlerStack::create($mock);
+        $stack->push(Middleware::history($history));
+        $this->app->instance(Client::class, new Client(['handler' => $stack]));
+
+        $secret = 'legacy-donation-shared-secret-value-2026';
+        $this->configureClient('legacy', true, $secret);
+        DB::table('users')->where('id', 2)->update([
+            'notificaPago' => 1,
+            'ligaPago' => 'https://app.donarconcausa.org.mx/api/aplicaPago',
+        ]);
+        DB::table('transacciones')->where('id', 100)->update([
+            'ClientReference' => 'dcc:donation:1111',
+            'responseReference' => 'LEGACY-DONATION',
+            'Amount' => 5000,
+        ]);
+
+        $this->postJson('/Service/EntregarPagoLiga', [
+            'reference' => 'LEGACY-DONATION',
+            'response' => 'approved',
+            'amount' => 5000,
+            'cc_type' => 'VISA',
+            'cc_name' => 'NO ENVIAR',
+            'cc_number' => '4111111111114242',
+            'cc_expmonth' => '12',
+            'cc_expyear' => '30',
+        ])->assertOk();
+
+        $this->assertCount(1, $history);
+        $request = $history[0]['request'];
+        $rawBody = (string) $request->getBody();
+        $body = json_decode($rawBody, true);
+        $this->assertSame('dcc:donation:1111', $body['folio']);
+        $this->assertSame(50.0, $body['monto']);
+        $this->assertSame(100, $body['idtransaccion']);
+        $this->assertArrayNotHasKey('cc_name', $body);
+        $this->assertArrayNotHasKey('cc_number', $body);
+        $this->assertSame('application/json', $request->getHeaderLine('Accept'));
+
+        $eventId = $request->getHeaderLine('X-Soportetech-Event-Id');
+        $timestamp = (int) $request->getHeaderLine('X-Soportetech-Timestamp');
+        $this->assertSame(
+            app(WebhookSigner::class)->signature($secret, $timestamp, $eventId, $rawBody),
+            $request->getHeaderLine('X-Soportetech-Signature')
+        );
+        $this->assertSame(0, (int) DB::table('respuestas')->where('idtransaccion', 100)->latest('id')->value('enviada'));
+    }
+
+    public function test_event_channel_keeps_exact_legacy_folio_and_peso_payload(): void
+    {
+        $history = [];
+        $mock = new MockHandler([
+            new Response(200, ['Content-Type' => 'application/json'], '{"code":"success"}'),
+        ]);
+        $stack = HandlerStack::create($mock);
+        $stack->push(Middleware::history($history));
+        $this->app->instance(Client::class, new Client(['handler' => $stack]));
+
+        $this->configureClient('active', true, 'event-channel-shared-secret-value-2026');
+        $this->createEndpoint(
+            'payment_link.payment.approved',
+            'legacy_exact',
+            'http_2xx',
+            'all',
+            'event'
+        );
+        DB::table('transacciones')->where('id', 100)->update([
+            'ClientReference' => '445',
+            'responseReference' => 'EVENT-PAYMENT',
+            'Amount' => 12550,
+        ]);
+
+        $this->postJson('/Service/EntregarPagoLiga', [
+            'reference' => 'EVENT-PAYMENT',
+            'response' => 'approved',
+            'amount' => 12550,
+        ])->assertOk();
+
+        $this->assertCount(1, $history);
+        $this->assertSame(
+            ['folio' => 445, 'monto' => 125.5],
+            json_decode((string) $history[0]['request']->getBody(), true)
+        );
+    }
+
+    public function test_hybrid_mode_uses_v11_only_for_subscribed_event_families(): void
+    {
+        $this->configureClient('hybrid', true, 'hybrid-shared-secret-value-2026');
+        $this->createEndpoint(
+            'payment_link.payment.approved',
+            'soportetech_v1_1',
+            'http_2xx',
+            'all',
+            'donation'
+        );
+        $publisher = app(WebhookEventPublisher::class);
+
+        $this->assertFalse($publisher->shouldUseLegacy($this->clientAUser(), 'payment_link.payment.approved'));
+        $this->assertTrue($publisher->shouldUseLegacy($this->clientAUser(), 'recurring_charge.approved'));
+    }
+
     public function test_delivery_detail_remains_available_after_endpoint_is_deleted(): void
     {
         $this->configureClient('shadow', false);
@@ -479,7 +665,8 @@ class WebhookNotificationFeatureTest extends TestCase
         string $eventType,
         string $payloadMode = 'legacy_exact',
         string $ackMode = 'http_2xx',
-        string $sourceFilter = 'all'
+        string $sourceFilter = 'all',
+        string $channel = 'generic'
     ): WebhookEndpoint {
         $url = 'https://app.donarconcausa.org.mx/webhooks/centro-de-cobros';
         $endpoint = WebhookEndpoint::create([
@@ -489,6 +676,7 @@ class WebhookNotificationFeatureTest extends TestCase
             'url_hash' => hash('sha256', $url),
             'host' => 'app.donarconcausa.org.mx',
             'active' => true,
+            'channel' => $channel,
             'payload_mode' => $payloadMode,
             'ack_mode' => $ackMode,
             'rate_limit_per_minute' => 25,

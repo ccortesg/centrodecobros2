@@ -18,6 +18,7 @@ class WebhookEndpoint extends Model
         'url_hash',
         'host',
         'active',
+        'channel',
         'payload_mode',
         'ack_mode',
         'rate_limit_per_minute',

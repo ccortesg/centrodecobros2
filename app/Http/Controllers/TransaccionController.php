@@ -2724,6 +2724,60 @@ class TransaccionController extends Controller
             }
         }
 
+        if ($transaccion) {
+            $claimState = 'claimed';
+            $transaccion = DB::transaction(function () use ($transaccion, $data, &$claimState) {
+                $locked = Transaccion::lockForUpdate()->findOrFail($transaccion->id);
+                if ($locked->domiciliation_status === 'cancelled') {
+                    $claimState = 'cancelled';
+
+                    return $locked;
+                }
+
+                $now = Carbon::now('America/Hermosillo');
+                $retrySeconds = max(30, (int) config('webhooks.cancellation_retry_seconds', 300));
+                if ($locked->domiciliation_status === 'cancellation_pending'
+                    && $locked->cancellation_last_attempt_at
+                    && Carbon::parse($locked->cancellation_last_attempt_at)->gt($now->copy()->subSeconds($retrySeconds))) {
+                    $claimState = 'in_progress';
+
+                    return $locked;
+                }
+
+                $locked->domiciliation_status = 'cancellation_pending';
+                $locked->cancellation_reason = $data['reason_code'] ?? $locked->cancellation_reason ?? 'other';
+                $locked->intentos = max(
+                    (int) $locked->intentos,
+                    (int) ($data['rejected_attempts'] ?? 0)
+                );
+                $locked->cancellation_idempotency_key = $locked->cancellation_idempotency_key
+                    ?: 'st:cancel:' . $locked->id;
+                $locked->cancellation_attempts = max(0, (int) $locked->cancellation_attempts) + 1;
+                $locked->cancellation_requested_at = $locked->cancellation_requested_at ?: $now;
+                $locked->cancellation_last_attempt_at = $now;
+                $locked->condicion = '0';
+                $locked->save();
+
+                return $locked->fresh();
+            }, 3);
+
+            if ($claimState === 'cancelled') {
+                return response()->json([
+                    'code' => 'success',
+                    'message' => 'La domiciliacion ya estaba cancelada.',
+                    'reference' => str_pad((string) $transaccion->id, 15, '0', STR_PAD_LEFT),
+                ], 200);
+            }
+
+            if ($claimState === 'in_progress') {
+                return response()->json([
+                    'code' => 'pending',
+                    'message' => 'La cancelacion ya se encuentra en proceso.',
+                    'reference' => str_pad((string) $transaccion->id, 15, '0', STR_PAD_LEFT),
+                ], 202);
+            }
+        }
+
         $max = 0;
         $User = "";
         $Password = "";
@@ -2761,13 +2815,17 @@ class TransaccionController extends Controller
             return $this->apiCancelacionDomError("53", "El folio no pudo ser asignado.");
         }
 
+        $cancellationReference = $transaccion
+            ? str_pad((string) $transaccion->id, 15, '0', STR_PAD_LEFT)
+            : str_pad($max, 15, '0', STR_PAD_LEFT);
+
         $params = array(
             "User" => $User,
             "Password" => $Password,
             "IntegrationID" => $IntegrationID,
             "BusinessID" => $BusinessID,
             "Token" => $Token,
-            "Tkn_reference" => str_pad($max, 15, '0', STR_PAD_LEFT),
+            "Tkn_reference" => $cancellationReference,
         );
 
         $error = "";
@@ -2810,13 +2868,35 @@ class TransaccionController extends Controller
                 [
                     'ClientReference' => $data['ClientReference'] ?? ($transaccion->ClientReference ?? null),
                     'Token' => $Token,
-                    'Tkn_reference' => str_pad($max, 15, '0', STR_PAD_LEFT),
+                    'Tkn_reference' => $cancellationReference,
                     'code' => $error_code ?: '54',
                     'message' => $error ?: 'Error al consultar servicio de cancelacion.',
+                    'reason_code' => $data['reason_code'] ?? 'other',
+                    'rejected_attempts' => (int) ($data['rejected_attempts'] ?? ($transaccion->intentos ?? 0)),
                 ]
             );
 
             return $this->apiCancelacionDomError($error_code ?: "54", $error ?: "Error al consultar servicio de cancelaciÃ³n.");
+        }
+
+        $providerCode = strtolower(trim((string) ($response_decode->code ?? $response_decode->Code ?? '')));
+        if (!in_array($providerCode, ['success', '00'], true)) {
+            $providerMessage = (string) ($response_decode->message ?? $response_decode->Message ?? 'El proveedor rechazo la cancelacion.');
+            $this->publicarEventoCancelacionTransaccion(
+                $usuario,
+                $transaccion,
+                'domiciliation.cancellation_failed',
+                [
+                    'ClientReference' => $data['ClientReference'] ?? ($transaccion->ClientReference ?? null),
+                    'Tkn_reference' => $cancellationReference,
+                    'code' => $providerCode ?: 'provider_error',
+                    'message' => $providerMessage,
+                    'reason_code' => $data['reason_code'] ?? 'other',
+                    'rejected_attempts' => (int) ($data['rejected_attempts'] ?? ($transaccion->intentos ?? 0)),
+                ]
+            );
+
+            return $this->apiCancelacionDomError($providerCode ?: '54', $providerMessage);
         }
 
         try{
@@ -2825,6 +2905,9 @@ class TransaccionController extends Controller
 
             if($transaccion != null) {
                 $transaccion->condicion = '2';
+                $transaccion->domiciliation_status = 'cancelled';
+                $transaccion->cancelled_at = $mytime;
+                $transaccion->cancellation_reason = $data['reason_code'] ?? $transaccion->cancellation_reason ?? 'other';
                 $transaccion->save();
             }
 
@@ -2836,7 +2919,7 @@ class TransaccionController extends Controller
             $cancelaciondom->IntegrationID = $IntegrationID;
             $cancelaciondom->BusinessID = $BusinessID;
             $cancelaciondom->Token = $Token;
-            $cancelaciondom->Tkn_reference = str_pad($max, 15, '0', STR_PAD_LEFT);
+            $cancelaciondom->Tkn_reference = $cancellationReference;
             if (Schema::hasColumn('cancelacionesDom', 'idtransaccion')) {
                 $cancelaciondom->idtransaccion = $transaccion->id ?? null;
             }
@@ -2857,9 +2940,11 @@ class TransaccionController extends Controller
                 [
                     'ClientReference' => $data['ClientReference'] ?? ($transaccion->ClientReference ?? null),
                     'Token' => $Token,
-                    'Tkn_reference' => str_pad($max, 15, '0', STR_PAD_LEFT),
+                    'Tkn_reference' => $cancellationReference,
                     'code' => 'persistence_error',
                     'message' => 'No se pudo guardar la cancelacion de domiciliacion.',
+                    'reason_code' => $data['reason_code'] ?? 'other',
+                    'rejected_attempts' => (int) ($data['rejected_attempts'] ?? ($transaccion->intentos ?? 0)),
                 ]
             );
 
@@ -2876,7 +2961,11 @@ class TransaccionController extends Controller
                 'Tkn_reference' => $cancelaciondom->Tkn_reference,
                 'code' => $cancelaciondom->code,
                 'message' => $cancelaciondom->message,
-                'response' => $response_body,
+                'reason_code' => $data['reason_code'] ?? ($transaccion->cancellation_reason ?? 'other'),
+                'rejected_attempts' => (int) ($data['rejected_attempts'] ?? ($transaccion->intentos ?? 0)),
+                'cancelled_at' => $transaccion && $transaccion->cancelled_at
+                    ? Carbon::parse($transaccion->cancelled_at)->toIso8601String()
+                    : Carbon::now('America/Hermosillo')->toIso8601String(),
             ],
             'cancelacionesDom',
             $cancelaciondom->id
@@ -2889,7 +2978,7 @@ class TransaccionController extends Controller
         return response()->json([
             'code' => $response_decode->code ?? $response_decode->Code ?? 'success',
             'message' => $response_decode->message ?? $response_decode->Message ?? 'CancelaciÃ³n registrada.',
-            'reference' => str_pad($max, 15, '0', STR_PAD_LEFT)
+            'reference' => $cancellationReference
         ], 200);
     }
 
@@ -3472,7 +3561,7 @@ class TransaccionController extends Controller
         $transaccion = Transaccion::find($pagospei->idtransaccion);
         $usuario = User::find($transaccion->idusuario);
 
-        if (!app(WebhookEventPublisher::class)->shouldUseLegacy($usuario)) {
+        if (!app(WebhookEventPublisher::class)->shouldUseLegacy($usuario, 'spei.payment.approved')) {
             return false;
         }
     

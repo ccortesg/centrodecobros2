@@ -132,16 +132,6 @@ class TransaccionDomController extends Controller
         return (string) $transaccionDom->code === '00' && (string) $transaccionDom->status === 'approved';
     }
 
-    private function contarIntentosFallidos($idtransaccion)
-    {
-        return TransaccionDom::where('idtransaccion', '=', $idtransaccion)
-            ->where(function ($query) {
-                $query->whereNull('code')
-                    ->orWhere('code', '<>', '00');
-            })
-            ->count();
-    }
-
     private function siguienteFechaProgramada($fechaBase, $frecuencia)
     {
         $newDate = Carbon::parse($fechaBase);
@@ -171,50 +161,116 @@ class TransaccionDomController extends Controller
 
     private function actualizarIntentosCargo(Transaccion $transaccion, TransaccionDom $transaccionDom, $actualizarProximoCargo = false)
     {
-        $tran = Transaccion::find($transaccion->id);
-        if (!$tran) {
-            return;
-        }
-
-        if ($this->cargoRecurrenteAprobado($transaccionDom)) {
-            $tran->intentos = 0;
-
-            if ($actualizarProximoCargo) {
-                $base = $tran->ProximoCargo ?: Carbon::now('America/Hermosillo')->toDateString();
-                $tran->ProximoCargo = $this->siguienteFechaProgramada($base, $tran->frecuencia)->toDateString();
+        return DB::transaction(function () use ($transaccion, $transaccionDom, $actualizarProximoCargo) {
+            $tran = Transaccion::lockForUpdate()->find($transaccion->id);
+            if (!$tran) {
+                return null;
             }
-        } else {
-            $tran->intentos = $this->contarIntentosFallidos($transaccion->id);
+
+            if ($this->cargoRecurrenteAprobado($transaccionDom)) {
+                $tran->intentos = 0;
+                if ($actualizarProximoCargo) {
+                    $base = $tran->ProximoCargo ?: Carbon::now('America/Hermosillo')->toDateString();
+                    $tran->ProximoCargo = $this->siguienteFechaProgramada($base, $tran->frecuencia)->toDateString();
+                }
+            } else {
+                $tran->intentos = max(0, (int) $tran->intentos) + 1;
+                $this->aplicarLimiteRechazos($tran);
+            }
+
+            if ($tran->ProximoCargo && !$tran->ProximoCargoBase) {
+                $tran->ProximoCargoBase = $tran->ProximoCargo;
+            }
+
+            $tran->save();
+
+            return $tran->fresh();
+        }, 3);
+    }
+
+    private function aplicarLimiteRechazos(Transaccion $transaccion): bool
+    {
+        if ((int) $transaccion->intentos < (int) config('webhooks.max_rejected_attempts', 3)) {
+            return false;
         }
 
-        if ($tran->ProximoCargo && !$tran->ProximoCargoBase) {
-            $tran->ProximoCargoBase = $tran->ProximoCargo;
-        }
+        $transaccion->condicion = '0';
+        $transaccion->domiciliation_status = 'cancellation_pending';
+        $transaccion->cancellation_reason = 'max_rejected_attempts';
+        $transaccion->cancellation_idempotency_key = $transaccion->cancellation_idempotency_key
+            ?: 'st:cancel:' . $transaccion->id;
+        $transaccion->cancellation_requested_at = $transaccion->cancellation_requested_at
+            ?: Carbon::now('America/Hermosillo');
 
-        $tran->save();
+        return true;
     }
 
     private function actualizarControlCronDomiciliacion(Transaccion $transaccion, TransaccionDom $transaccionDom)
     {
-        $tran = Transaccion::find($transaccion->id);
-        if (!$tran) {
-            return;
-        }
+        return DB::transaction(function () use ($transaccion, $transaccionDom) {
+            $tran = Transaccion::lockForUpdate()->find($transaccion->id);
+            if (!$tran) {
+                return null;
+            }
 
-        if ($tran->ProximoCargo && !$tran->ProximoCargoBase) {
-            $tran->ProximoCargoBase = $tran->ProximoCargo;
-        }
+            if ($tran->ProximoCargo && !$tran->ProximoCargoBase) {
+                $tran->ProximoCargoBase = $tran->ProximoCargo;
+            }
 
-        if ($this->cargoRecurrenteAprobado($transaccionDom)) {
-            $base = $tran->ProximoCargo ?: Carbon::now('America/Hermosillo')->toDateString();
-            $tran->ProximoCargo = $this->siguienteFechaProgramada($base, $tran->frecuencia)->toDateString();
-            $tran->intentos = 0;
-        } else {
-            $tran->ProximoCargo = Carbon::now('America/Hermosillo')->addDay()->toDateString();
-            $tran->intentos = $this->contarIntentosFallidos($transaccion->id);
-        }
+            if ($this->cargoRecurrenteAprobado($transaccionDom)) {
+                $base = $tran->ProximoCargo ?: Carbon::now('America/Hermosillo')->toDateString();
+                $tran->ProximoCargo = $this->siguienteFechaProgramada($base, $tran->frecuencia)->toDateString();
+                $tran->intentos = 0;
+                $tran->domiciliation_status = 'active';
+            } else {
+                $tran->intentos = max(0, (int) $tran->intentos) + 1;
+                if (!$this->aplicarLimiteRechazos($tran)) {
+                    $tran->ProximoCargo = Carbon::now('America/Hermosillo')->addDay()->toDateString();
+                }
+            }
 
-        $tran->save();
+            $tran->save();
+
+            return $tran->fresh();
+        }, 3);
+    }
+
+    private function solicitarCancelacionAutomatica(Transaccion $transaccion, User $usuario): void
+    {
+        $body = json_encode([
+            'User' => $usuario->usuario,
+            'Password' => $usuario->token,
+            'ClientReference' => $transaccion->ClientReference,
+            'reason_code' => 'max_rejected_attempts',
+            'rejected_attempts' => (int) $transaccion->intentos,
+        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        $request = Request::create('/CancelarDomiciliacion', 'POST', [], [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_ACCEPT' => 'application/json',
+        ], $body);
+        $response = app(TransaccionController::class)->cancelarDomAPI($request);
+
+        if ($response->getStatusCode() >= 400) {
+            Log::warning('La cancelacion automatica de domiciliacion quedo pendiente para reintento.', [
+                'idtransaccion' => $transaccion->id,
+                'http_status' => $response->getStatusCode(),
+            ]);
+        }
+    }
+
+    private function reintentarCancelacionesPendientes(): void
+    {
+        Transaccion::where('tipo', 2)
+            ->where('domiciliation_status', 'cancellation_pending')
+            ->orderBy('cancellation_last_attempt_at')
+            ->limit(50)
+            ->get()
+            ->each(function (Transaccion $transaccion) {
+                $usuario = User::find($transaccion->idusuario);
+                if ($usuario) {
+                    $this->solicitarCancelacionAutomatica($transaccion, $usuario);
+                }
+            });
     }
 
     private function eventoCargoRecurrente(TransaccionDom $transaccionDom)
@@ -320,7 +376,7 @@ class TransaccionDomController extends Controller
         if ($source !== 'automatic'
             || $usuario === null
             || !$usuario->notificaPago
-            || !$publisher->shouldUseLegacy($usuario)) {
+            || !$publisher->shouldUseLegacy($usuario, $eventType)) {
             return;
         }
 
@@ -585,16 +641,23 @@ class TransaccionDomController extends Controller
         }
 
         if ($cargoGuardado) {
+            $controlDomiciliacion = null;
             if ($error === '') {
-                $this->actualizarIntentosCargo($transaccion, $transaccionDom, true);
+                $controlDomiciliacion = $this->actualizarIntentosCargo($transaccion, $transaccionDom, true);
             }
 
+            $usuario = User::find($transaccion->idusuario);
             $this->procesarNotificacionCargoRecurrente(
                 $transaccion,
                 $transaccionDom,
-                User::find($transaccion->idusuario),
+                $usuario,
                 'manual'
             );
+            if ($controlDomiciliacion
+                && $controlDomiciliacion->domiciliation_status === 'cancellation_pending'
+                && $usuario) {
+                $this->solicitarCancelacionAutomatica($controlDomiciliacion, $usuario);
+            }
         }
 
         return [                
@@ -843,11 +906,16 @@ class TransaccionDomController extends Controller
         }
 
         if ($cargoGuardado) {
+            $controlDomiciliacion = null;
             if ($error === '') {
-                $this->actualizarIntentosCargo($transaccion, $transaccionDom);
+                $controlDomiciliacion = $this->actualizarIntentosCargo($transaccion, $transaccionDom);
             }
 
             $this->procesarNotificacionCargoRecurrente($transaccion, $transaccionDom, $usuario, 'api');
+            if ($controlDomiciliacion
+                && $controlDomiciliacion->domiciliation_status === 'cancellation_pending') {
+                $this->solicitarCancelacionAutomatica($controlDomiciliacion, $usuario);
+            }
         }
 
         if($error != ""){
@@ -892,6 +960,8 @@ class TransaccionDomController extends Controller
     }
 
     public function ejecutarCron(){
+
+        $this->reintentarCancelacionesPendientes();
 
         //Agregar en el query para los cargos recurrentes qeu solo obtenga los que sean para el día de hoy
         $transacciones = Transaccion::join('respuestas','respuestas.idtransaccion','transacciones.id')
@@ -1038,8 +1108,9 @@ class TransaccionDomController extends Controller
                 Log::info('Error al guardar el cargo recurrente. IdTransacción: '.$transaccion->id);            
             }
             
+            $controlDomiciliacion = null;
             try{
-                $this->actualizarControlCronDomiciliacion($transaccion, $transaccionDom);
+                $controlDomiciliacion = $this->actualizarControlCronDomiciliacion($transaccion, $transaccionDom);
             } catch (Exception $e){
                 Log::info('Error al guardar el control de cargo recurrente. IdTransacción: '.$transaccion->id);
             }
@@ -1051,6 +1122,11 @@ class TransaccionDomController extends Controller
                 $usuario,
                 'automatic'
             );
+
+            if ($controlDomiciliacion
+                && $controlDomiciliacion->domiciliation_status === 'cancellation_pending') {
+                $this->solicitarCancelacionAutomatica($controlDomiciliacion, $usuario);
+            }
         }         
     }
     

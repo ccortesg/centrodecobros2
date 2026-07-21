@@ -249,6 +249,29 @@ class DomiciliacionAndPaymentsFeatureTest extends TestCase
         $this->assertSame(0, DB::table('cancelacionesDom')->count());
     }
 
+    public function test_pending_cancellation_claim_prevents_a_concurrent_provider_call()
+    {
+        DB::table('transacciones')->where('id', 200)->update([
+            'condicion' => 0,
+            'domiciliation_status' => 'cancellation_pending',
+            'cancellation_reason' => 'max_rejected_attempts',
+            'cancellation_idempotency_key' => 'st:cancel:200',
+            'cancellation_attempts' => 1,
+            'cancellation_last_attempt_at' => now(),
+        ]);
+
+        $this->postJson('/CancelarDomiciliacion', [
+            'User' => 'client-a',
+            'Password' => 'token-a',
+            'ClientReference' => 'DOM-A',
+            'reason_code' => 'max_rejected_attempts',
+            'rejected_attempts' => 3,
+        ])->assertStatus(202)->assertJsonPath('code', 'pending');
+
+        $this->assertSame(1, (int) DB::table('transacciones')->where('id', 200)->value('cancellation_attempts'));
+        $this->assertSame(0, DB::table('cancelacionesDom')->count());
+    }
+
     public function test_client_can_access_received_payments_scoped_to_own_records()
     {
         $response = $this->actingAs($this->clientAUser())
@@ -446,6 +469,60 @@ class DomiciliacionAndPaymentsFeatureTest extends TestCase
         $transaccion = DB::table('transacciones')->where('id', 200)->first();
         $this->assertSame(0, (int) $transaccion->intentos);
         $this->assertSame('2026-07-08', $transaccion->ProximoCargo);
+    }
+
+    public function test_automatic_third_consecutive_rejection_stops_charges_and_cancels_domiciliation()
+    {
+        DB::table('users')->where('id', 2)->update(['recurrente' => 1]);
+        DB::table('transacciones')->where('id', 200)->update([
+            'condicion' => 1,
+            'domiciliation_status' => 'active',
+            'ProximoCargo' => now()->toDateString(),
+            'intentos' => 2,
+        ]);
+        DB::table('respuestas')->where('idtransaccion', 200)->update([
+            'number_tkn' => 'MOCK_REJECTED_CHARGE',
+        ]);
+
+        app(\App\Http\Controllers\TransaccionDomController::class)->ejecutarCron();
+
+        $transaction = DB::table('transacciones')->where('id', 200)->first();
+        $this->assertSame(3, (int) $transaction->intentos);
+        $this->assertSame(2, (int) $transaction->condicion);
+        $this->assertSame('cancelled', $transaction->domiciliation_status);
+        $this->assertSame('max_rejected_attempts', $transaction->cancellation_reason);
+        $this->assertSame(1, (int) $transaction->cancellation_attempts);
+        $this->assertNotNull($transaction->cancelled_at);
+        $this->assertDatabaseHas('cancelacionesDom', [
+            'idtransaccion' => 200,
+            'code' => 'success',
+        ]);
+    }
+
+    public function test_api_third_consecutive_rejection_uses_the_same_cancellation_policy()
+    {
+        DB::table('transacciones')->where('id', 200)->update([
+            'condicion' => 1,
+            'domiciliation_status' => 'active',
+            'intentos' => 2,
+        ]);
+        DB::table('respuestas')->where('idtransaccion', 200)->update([
+            'number_tkn' => 'MOCK_REJECTED_CHARGE',
+        ]);
+
+        $this->postJson('/CargoDomiciliacion', [
+            'User' => 'client-a',
+            'Password' => 'token-a',
+            'ClientReference' => 'DOM-A',
+            'Amount' => 0,
+        ])->assertOk();
+
+        $transaction = DB::table('transacciones')->where('id', 200)->first();
+        $this->assertSame(3, (int) $transaction->intentos);
+        $this->assertSame(2, (int) $transaction->condicion);
+        $this->assertSame('cancelled', $transaction->domiciliation_status);
+        $this->assertSame('max_rejected_attempts', $transaction->cancellation_reason);
+        $this->assertSame(1, (int) $transaction->cancellation_attempts);
     }
 
     public function test_client_can_update_next_charge_date_for_own_active_domiciliation()

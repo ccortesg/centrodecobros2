@@ -2,6 +2,7 @@
 
 namespace Tests\Support;
 
+use App\Http\Middleware\VerifyCsrfToken;
 use App\User;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -34,6 +35,8 @@ trait UsesIsolatedCentroCobrosDatabase
             ],
             'services.pagadetodo.mock' => true,
         ]);
+
+        $this->withoutMiddleware(VerifyCsrfToken::class);
 
         DB::purge('sqlite');
         DB::reconnect('sqlite');
@@ -181,6 +184,13 @@ trait UsesIsolatedCentroCobrosDatabase
             $table->date('ProximoCargo')->nullable();
             $table->date('ProximoCargoBase')->nullable();
             $table->integer('intentos')->default(0);
+            $table->string('domiciliation_status')->nullable();
+            $table->string('cancellation_reason')->nullable();
+            $table->string('cancellation_idempotency_key')->nullable()->unique();
+            $table->integer('cancellation_attempts')->default(0);
+            $table->dateTime('cancellation_requested_at')->nullable();
+            $table->dateTime('cancellation_last_attempt_at')->nullable();
+            $table->dateTime('cancelled_at')->nullable();
             $table->integer('condicion')->default(1);
             $table->integer('status')->nullable();
             $table->integer('productivo')->default(1);
@@ -415,6 +425,7 @@ trait UsesIsolatedCentroCobrosDatabase
             $table->string('url_hash');
             $table->string('host');
             $table->boolean('active')->default(true);
+            $table->string('channel')->default('generic');
             $table->string('payload_mode')->default('legacy_exact');
             $table->string('ack_mode')->default('legacy_code_success');
             $table->integer('rate_limit_per_minute')->default(25);
@@ -607,6 +618,7 @@ trait UsesIsolatedCentroCobrosDatabase
             'ProximoCargo' => $tipo === 2 ? now()->addMonth()->toDateString() : null,
             'ProximoCargoBase' => $tipo === 2 ? now()->addMonth()->toDateString() : null,
             'intentos' => 0,
+            'domiciliation_status' => $tipo === 2 ? 'active' : null,
             'condicion' => 1,
             'productivo' => 1,
             'created_at' => now(),

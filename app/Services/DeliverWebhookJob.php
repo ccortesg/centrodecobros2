@@ -52,7 +52,7 @@ class DeliverWebhookJob implements ShouldQueue, ShouldBeUniqueUntilProcessing
             : null;
         $mode = $settings->mode ?? 'legacy';
 
-        if (!$delivery->endpoint || !$delivery->endpoint->active || (!$delivery->is_test && $mode !== 'active')) {
+        if (!$delivery->endpoint || !$delivery->endpoint->active || (!$delivery->is_test && !in_array($mode, ['active', 'hybrid'], true))) {
             $delivery->update(['status' => 'cancelled', 'last_error' => 'Endpoint o cliente no activo.']);
             $this->syncEventStatus($delivery->event);
             return;
