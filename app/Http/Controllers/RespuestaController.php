@@ -389,13 +389,13 @@ class RespuestaController extends Controller
 
         try{
             DB::beginTransaction();
-            $duplicada = $this->respuestaWebhookDuplicada($idtransaccion, $date_response["reference"]);
+            /*$duplicada = $this->respuestaWebhookDuplicada($idtransaccion, $date_response["reference"]);
             if ($duplicada !== null) {
                 $this->statusSynchronizer->sincronizarPorRespuesta($transaccion, $duplicada);
                 DB::commit();
                 $this->procesarNotificacionRespuesta($transaccion, $duplicada, $date_response);
                 return 'success';
-            }
+            }*/
 
             $respuesta = new Respuesta();
             $mytime= Carbon::now('America/Hermosillo');
@@ -460,13 +460,13 @@ class RespuestaController extends Controller
 
         try{
             DB::beginTransaction();
-            $duplicada = $this->respuestaWebhookDuplicada($idtransaccion, $date_response["reference"]);
+            /*$duplicada = $this->respuestaWebhookDuplicada($idtransaccion, $date_response["reference"]);
             if ($duplicada !== null) {
                 $this->statusSynchronizer->sincronizarPorRespuesta($transaccion, $duplicada);
                 DB::commit();
                 $this->procesarNotificacionRespuesta($transaccion, $duplicada, $date_response, true);
                 return 'success';
-            }
+            }*/
 
             $respuesta = new Respuesta();
             $mytime= Carbon::now('America/Hermosillo');
