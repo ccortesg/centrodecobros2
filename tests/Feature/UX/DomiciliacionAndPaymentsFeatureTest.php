@@ -152,6 +152,33 @@ class DomiciliacionAndPaymentsFeatureTest extends TestCase
         $this->assertStringNotContainsString('Cliente B SA', $content);
     }
 
+    public function test_pagos_recibidos_export_includes_all_sources_for_admin()
+    {
+        $adminResponse = $this->actingAs($this->adminUser())
+            ->get('/pagos-recibidos/exportar?buscar=&criterio=cliente', $this->ajaxHeaders())
+            ->assertOk();
+
+        $adminContent = $adminResponse->streamedContent();
+        $this->assertStringContainsString('respuesta', $adminContent);
+        $this->assertStringContainsString('pagospei', $adminContent);
+        $this->assertStringContainsString('transaccionDom', $adminContent);
+    }
+
+    public function test_pagos_recibidos_export_scopes_client_by_owner_and_environment()
+    {
+        DB::table('transacciones')->where('id', 100)->update(['productivo' => 0]);
+
+        $clientResponse = $this->actingAs($this->clientAUser())
+            ->get('/pagos-recibidos/exportar?buscar=&criterio=cliente', $this->ajaxHeaders())
+            ->assertOk();
+
+        $clientContent = $clientResponse->streamedContent();
+        $this->assertStringContainsString('Cliente A SA', $clientContent);
+        $this->assertStringContainsString('DOM-A', $clientContent);
+        $this->assertStringNotContainsString('Cliente B SA', $clientContent);
+        $this->assertStringNotContainsString('LIGA-A', $clientContent);
+    }
+
     public function test_pagos_recibidos_filters_operation_folio_and_authorization_across_sources()
     {
         DB::table('respuestas')->where('id', 1)->update([

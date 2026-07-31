@@ -69,7 +69,9 @@ Si no existe override, el status por defecto es `activo`; actualmente no se mues
 ## Exportacion
 
 - El boton `Exportar` descarga `pagos_recibidos.csv`.
+- Administrador y Cliente pueden exportar desde el modulo autenticado; para Cliente, el middleware permite expresamente `GET pagos-recibidos/exportar`.
 - El endpoint reutiliza la misma consulta unificada del listado y respeta filtros de texto, criterio, rango de fechas, status heredado y ownership.
+- El ownership de Cliente limita cada fuente por `idusuario` y por el ambiente `productivo` de su sesion.
 - Los filtros `foliocpagos` y `autorizacion` también se aplican a la exportación, aunque no agregan columnas nuevas al CSV.
 - La exportacion incluye las tres fuentes actuales: `respuestas`, `pagospei` y `transaccionesDom`.
 

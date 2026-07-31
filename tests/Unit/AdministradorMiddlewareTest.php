@@ -47,6 +47,15 @@ class AdministradorMiddlewareTest extends TestCase
         $this->assertSame(200, $ciudad->getStatusCode());
     }
 
+    public function test_client_role_can_export_received_payments_without_broadening_administrative_access()
+    {
+        $export = $this->middlewareResponse('GET', '/pagos-recibidos/exportar', 2);
+        $users = $this->middlewareResponse('GET', '/user', 2);
+
+        $this->assertSame(200, $export->getStatusCode());
+        $this->assertSame(403, $users->getStatusCode());
+    }
+
     public function test_client_role_cannot_access_user_administration()
     {
         $response = $this->middlewareResponse('GET', '/user', 2);

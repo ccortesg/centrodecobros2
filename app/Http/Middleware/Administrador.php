@@ -61,6 +61,7 @@ class Administrador
                 'transaccionDom/exportar',
                 'transaccionDom/exportarTransacciones',
                 'pagos-recibidos',
+                'pagos-recibidos/exportar',
             ],
             'POST' => [
                 'cliente/registrar',
