@@ -3,7 +3,9 @@
 Fecha: 2026-06-04
 Proyecto: Centro de Cobros
 Ambiente observado: produccion Docker publicada en `https://cc.soportetech.com.mx`
-Repositorio de trabajo: `C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`
+Repositorio de trabajo canonico desde 2026-08-04: `/home/ccortesg/workspace/centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`
+
+La ruta Windows que aparezca mas adelante en evidencia de fases se conserva como referencia historica.
 
 ## Objetivo
 

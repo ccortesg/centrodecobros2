@@ -1,36 +1,30 @@
 # Documentacion tecnica - Centro de Cobros
 
-Ultima actualizacion: 2026-07-10
+Ultima actualizacion: 2026-08-04
 
 ## Punto de entrada actual
 
 Leer en este orden para entender el estado vigente:
 
-1. `docs/PROJECT_OPERATING_MODEL.md`
-2. `docs/AI_AGENT_GUIDE.md`
-3. `docs/ROUTES_AND_FLOW.md`
-4. `docs/ARCHITECTURE.md`
-5. `docs/ENVIRONMENT_AND_OPERATION.md`
-6. `docs/DEVELOPER_ONBOARDING.md`
-7. `docs/SECURITY_AND_RISKS.md`
-8. `docs/INTEGRATIONS.md`
-9. `docs/UX_UI_AUDIT_AND_WORK_PLAN_2026-06-04.md`
-10. `docs/PROJECT_STATUS_DIAGNOSTIC_2026-06-07.md`
+1. `AGENTS.md`
+2. `docs/CODEX_PROJECT_HANDOFF.md`
+3. `docs/PROJECT_OPERATING_MODEL.md`
+4. `docs/AI_AGENT_GUIDE.md`
+5. `docs/ROUTES_AND_FLOW.md`
+6. `docs/ARCHITECTURE.md`
+7. `docs/ENVIRONMENT_AND_OPERATION.md`
+8. `docs/DEVELOPER_ONBOARDING.md`
+9. `docs/SECURITY_AND_RISKS.md`
+10. `docs/INTEGRATIONS.md`
 11. `docs/MODULES/*.md`
-12. `docs/MIGRATION_DEPLOY_AND_ROLLBACK_RUNBOOK.md`
-13. `docs/MIGRATION_RELEASE_CHECKLIST.md`
-14. `docs/MIGRATION_PHASE_34_VALIDACION_PAGADETODO_WEBHOOKS_IDEMPOTENCIA.md`
-15. `docs/MIGRATION_PHASE_35_GITHUB_SANDBOX_RELEASE.md`
-16. `docs/MIGRATION_MASTER_PLAN.md`
-17. `docs/MIGRATION_DECISIONS_LOG.md`
-18. `docs/MIGRATION_RISK_REGISTER.md`
-19. `docs/MIGRATION_CHANGELOG.md`
+12. Documentos fechados y `MIGRATION_*` como evidencia historica.
 
 Los documentos `MIGRATION_PHASE_*` son evidencia historica por fase. Para tareas nuevas, la regla rectora es `PROJECT_OPERATING_MODEL.md`.
 
 ## Estado actual consolidado
 
-- Workspace/repositorio vigente: `C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`.
+- Workspace canonico WSL: `/home/ccortesg/workspace/centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`.
+- Origen Windows preservado: `/mnt/c/temp/centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`; no usarlo como workspace activo despues de verificar la copia.
 - Regla vigente desde 2026-06-03: no crear nuevas carpetas de fase; trabajar siempre sobre este repositorio.
 - Rama vigente: `main`.
 - Remoto: `https://github.com/ccortesg/centrodecobros2.git`.
@@ -38,11 +32,11 @@ Los documentos `MIGRATION_PHASE_*` son evidencia historica por fase. Para tareas
 - Docker: no hay `Dockerfile` ni `docker-compose.yml` versionados en este repo; la orquestacion vive en servidor.
 - Laravel: `12.54.1`.
 - PHP requerido: `^8.2`.
-- PHP local observado: `8.3.27`.
+- PHP local WSL observado: `8.3.31`.
 - Composer local observado: `2.2.6`.
 - Frontend: Vue `3.5.30`, Vite `7.x`.
-- Node/npm observados desde Windows: Node `v20.20.0`, npm `10.8.2`.
-- Rutas vigentes: confirmar con `php artisan route:list`; el corte 2026-07-03 agrega rutas administrativas `integraciones/*` y `user-activity/module`.
+- Node/npm WSL observados: Node `v22.23.1`, npm `10.9.8`; `.nvmrc` fija `22.22.1`.
+- Rutas vigentes: 121 en la auditoria 2026-08-04; confirmar de nuevo con `php artisan route:list` en cada cambio.
 - Assets compilados: no se versionan; se generan con `npm ci && npm run production` en CI/deploy.
 - Contrato publico preservado:
   - `public/js/app.js`
@@ -67,7 +61,7 @@ Los documentos `MIGRATION_PHASE_*` son evidencia historica por fase. Para tareas
 - Middleware `Administrador` con reglas reales por rol.
 - Ownership/whitelists en superficies criticas para cliente, archivos, transacciones, respuestas, SPEI, domiciliacion y exportaciones.
 - Mock controlado Pagadetodo por `services.pagadetodo.mock`.
-- Webhooks `Service/*` endurecidos con validacion minima e idempotencia local en Fase 34.
+- Webhooks `Service/*` con validacion minima. La deduplicacion de respuestas de liga/lector esta actualmente comentada por decision temporal del propietario para conservar intentos validos; no describirla como activa.
 - Repo Git inicializado en `main`, `.gitignore` saneado y workflow GitHub de validacion sandbox agregado.
 - Credenciales Pagadetodo/Pusher externalizadas hacia `.env`, `config/services.php` y variables `VITE_PUSHER_*`.
 - Servicios Pagadetodo probados exitosamente en servidor sandbox y productivo, confirmado por el propietario el 2026-06-08.
@@ -81,7 +75,8 @@ Los documentos `MIGRATION_PHASE_*` son evidencia historica por fase. Para tareas
 - La activacion productiva del motor webhook requiere migraciones aditivas, un worker persistente y rollout por cliente; ver `docs/MODULES/MODULO_NOTIFICACIONES_WEBHOOK_CONFIGURABLES.md`.
 - Realtime Pusher/Echo requiere validacion end-to-end con credenciales aisladas.
 - `npm audit` completo puede reportar deuda dev/tooling; la frontera runtime es `npm audit --omit=dev`.
-- Docker productivo funciona, pero su compose/orquestacion no esta documentado dentro del repo.
+- Docker productivo funciona, pero su compose/orquestacion no esta versionado dentro del repo. El propietario reporta servicios Compose `app` y `queue`.
+- El diagnostico consolidado, matriz cualitativa por modulo y riesgos P0/P1 estan en `docs/CODEX_PROJECT_HANDOFF.md`.
 - Scheduler productivo no debe modificarse ni duplicarse sin solicitud explicita.
 - UX/UI productiva tiene plan de correccion vigente en `docs/UX_UI_AUDIT_AND_WORK_PLAN_2026-06-04.md`.
 

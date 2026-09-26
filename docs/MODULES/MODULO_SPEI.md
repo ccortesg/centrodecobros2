@@ -1,6 +1,6 @@
 # Modulo: SPEI
 
-Ultima actualizacion: 2026-07-10
+Ultima actualizacion: 2026-08-04
 
 ## Proposito
 
@@ -65,6 +65,8 @@ Gestionar generacion de CLABE/referencia SPEI, consulta de estado, registro de p
 - Campos de trazabilidad mezclan texto/json.
 - Falta firma/origen si Pagadetodo lo soporta.
 - Pagadetodo real probado exitosamente desde servidor sandbox/productivo, confirmado por el propietario el 2026-06-08; local no puede reproducir llamadas reales por restriccion de IP de origen.
+- `Service/PagoClabe` actualiza `transacciones.condicion=3` y persiste `pagospei` en transacciones DB separadas; un fallo del segundo guardado puede dejar una transaccion pagada sin su fila fuente.
+- La validacion de expiracion del pago usa el final del dia actual contra el inicio de `ExpirationDate`, mientras la reconciliacion vence solo cuando `ExpirationDate < hoy`; revisar si el pago debe aceptarse durante todo el dia de expiracion.
 
 ## Pruebas recomendadas
 
@@ -82,6 +84,8 @@ Gestionar generacion de CLABE/referencia SPEI, consulta de estado, registro de p
 - Fixtures sanitizados de pagos/cancelaciones reales.
 - Adapter SPEI separado de `TransaccionController`.
 - Pruebas de concurrencia/idempotencia ampliadas.
+- Hacer atomicos el cambio de condicion y el alta de `pagospei`, con rollback probado.
+- Alinear la semantica de la fecha de expiracion con negocio y pruebas de frontera horaria Hermosillo.
 
 ## Corte diagnostico 2026-06-07
 

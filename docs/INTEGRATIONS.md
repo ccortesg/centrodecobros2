@@ -1,6 +1,6 @@
 # Integraciones externas
 
-Ultima actualizacion: 2026-07-14
+Ultima actualizacion: 2026-08-04
 
 ## 1. Pagadetodo
 
@@ -55,10 +55,11 @@ Estas rutas no usan prefijo `/api`:
 ### Estado actual
 
 - Fases 31-33 agregaron validaciones tempranas, ownership y mock controlado.
-- Fase 34 agrego validacion minima e idempotencia local en `Service/*`.
+- Fase 34 agrego validacion minima y helpers de idempotencia. En el HEAD actual, los bloques que rechazan duplicados en respuestas de liga/lector estan comentados por decision temporal del propietario para no descartar intentos validos.
 - El propietario confirmo el 2026-06-08 que los servicios Pagadetodo ya fueron probados exitosamente desde servidor en sandbox y en productivo.
 - La validacion real no es reproducible desde ambiente local por restriccion de IP de origen del proveedor.
 - La firma/origen de los webhooks entrantes de Pagadetodo sigue pendiente por falta de especificacion del proveedor. Esto es independiente de la firma HMAC implementada para webhooks salientes hacia sistemas cliente.
+- `CargoDomiciliacion` debe revisarse antes de ampliar uso API: la busqueda actual por referencia/tipo no incluye ownership del usuario autenticado ni ambiente.
 
 ## 2. Webhooks salientes a sistemas cliente
 
@@ -99,7 +100,7 @@ Si `VITE_PUSHER_APP_KEY` no existe, `window.Echo` queda en `null` y el sistema n
 ## 4. Correo
 
 - SMTP/Postmark configurados por `.env`.
-- `app/Notifications/TransaccionValidada.php` existe como notificacion relevante.
+- El correo transaccional vive en `app/Mail/TransaccionValidada.php`; `app/Notifications/NotifyAdmin.php` cubre la notificacion administrativa.
 - No publicar tokens ni credenciales SMTP/Postmark.
 
 ## 5. OTP/SMS
@@ -128,3 +129,4 @@ Si `VITE_PUSHER_APP_KEY` no existe, `window.Echo` queda en `null` y el sistema n
 - La sanitizacion vive en `App\Services\AuditSanitizer`; los headers/payloads se guardan ya sanitizados.
 - La purga es manual con `php artisan audit:purge --days=365 --dry-run`; no se agrego scheduler.
 - Las entregas configurables tambien se registran en Outgoing API Requests, pero el cuerpo persistido en esa bitacora se sanitiza; no debe confundirse con el cuerpo real cifrado de `webhook_deliveries`.
+- Gap confirmado: `testEndpoint()` admite modo `hybrid`, mientras `DeliverWebhookJob` solo permite pruebas `shadow|active`; una prueba hybrid queda cancelada.

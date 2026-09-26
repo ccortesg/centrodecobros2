@@ -1,6 +1,6 @@
 # Modulo de Notificaciones Webhook Configurables
 
-Ultima actualizacion: 2026-07-14
+Ultima actualizacion: 2026-08-04
 
 ## Estado validado V1.1
 
@@ -13,9 +13,8 @@ Ultima actualizacion: 2026-07-14
 - Pruebas focalizadas: `WebhookNotificationFeatureTest` 25/106,
   `WebhookReplayResponseCommandTest` 4/25 y
   `DomiciliacionAndPaymentsFeatureTest` 30/117.
-- Suite total actual: 184 tests y 820 assertions ejecutadas. Permanecen dos
-  fallos ambientales de smoke por columnas/tablas historicas ausentes en la
-  MySQL local; las 59 pruebas focalizadas de webhook/replay/domiciliacion pasan.
+- [DOCUMENTACION HISTORICA] El corte que implemento V1.1 reporto 184 tests y 820 assertions, con dos fallos ambientales de smoke MySQL y 59 pruebas focalizadas verdes.
+- [VERIFICADO 2026-08-04] Esta auditoria ejecuto solo el carril Unit no destructivo: 28 tests y 171 assertions. Feature, build y browser no se reejecutaron.
 
 ## Objetivo
 
@@ -308,9 +307,10 @@ Secuencia segura por cliente:
 - Database Queue requiere un worker persistente; activar un cliente sin worker deja entregas pendientes.
 - El crecimiento de eventos/intentos requiere una politica de retencion futura. No se agrego scheduler de purga.
 - Los modos son por cliente, no por endpoint. Cambiar a `active` afecta todas sus suscripciones activas.
+- `WebhookNotificationController::testEndpoint()` permite `hybrid`, pero `DeliverWebhookJob` cancela entregas de prueba en ese modo. Hasta alinear ambos contratos, probar endpoints en `shadow` o `active` y revisar el estado final de la entrega.
 - No se hicieron llamadas reales a Pagadetodo ni al receptor desde local; Pagadetodo restringe IP de origen.
 
-## Validaciones locales del corte
+## Validaciones locales del corte historico V1.1
 
 ```text
 PHPUnit Unit: 19 pruebas, 97 aserciones.
@@ -320,4 +320,4 @@ Build frontend de produccion: correcto, sin versionar assets compilados.
 Smoke visual Chrome: correcto para Administrador y Cliente en desktop/movil; modal movil con scroll validado.
 ```
 
-Volver a ejecutar las suites despues de cualquier cambio. Los 13 smoke acoplados a MySQL requieren un dataset/usuario local valido; no deben resolverse con credenciales productivas. El build frontend debe ejecutarse sin versionar `public/js`, `public/css` ni `public/build`.
+Estas cifras son evidencia historica, no el resultado de la auditoria 2026-08-04. Volver a ejecutar las suites despues de cualquier cambio. Los smoke acoplados a MySQL requieren un dataset/usuario local valido; no deben resolverse con credenciales productivas. El build frontend debe ejecutarse sin versionar `public/js`, `public/css` ni `public/build`.

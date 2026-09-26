@@ -102,7 +102,7 @@ class WebhookIdempotencyFeatureTest extends TestCase
         $this->assertSame(5, (int) DB::table('transacciones')->where('id', 201)->value('condicion'));
     }
 
-    public function test_liga_webhook_is_idempotent_for_duplicate_reference()
+    public function test_liga_webhook_preserves_each_duplicate_reference_attempt()
     {
         $count = DB::table('respuestas')
             ->where('idtransaccion', 100)
@@ -120,13 +120,19 @@ class WebhookIdempotencyFeatureTest extends TestCase
             ->assertOk()
             ->assertSee('success', false);
 
-        $this->assertSame(1, DB::table('respuestas')
+        $this->assertSame(2, DB::table('respuestas')
             ->where('idtransaccion', 100)
             ->where('reference', 'RESP-A')
             ->count());
+
+        $this->assertDatabaseHas('respuestas', [
+            'idtransaccion' => 100,
+            'reference' => 'RESP-A',
+            'foliocpagos' => 'FOLIO-DUP',
+        ]);
     }
 
-    public function test_lector_webhook_is_idempotent_after_first_insert()
+    public function test_lector_webhook_preserves_each_received_attempt()
     {
         $payload = [
             'reference' => 'RESP-SPEI-A',
@@ -144,7 +150,7 @@ class WebhookIdempotencyFeatureTest extends TestCase
             ->assertOk()
             ->assertSee('success', false);
 
-        $this->assertSame(1, DB::table('respuestas')
+        $this->assertSame(2, DB::table('respuestas')
             ->where('idtransaccion', 300)
             ->where('reference', 'RESP-SPEI-A')
             ->count());

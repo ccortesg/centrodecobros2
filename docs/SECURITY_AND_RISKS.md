@@ -22,7 +22,7 @@ Ultima actualizacion: 2026-09-25
 3. Autenticacion API heterogenea
    - Endpoints legacy aceptan `User`/`Password` por payload.
    - Validaciones tempranas y mock reducen regresiones locales, pero no sustituyen evidencia servidor ni un contrato moderno.
-   - Webhooks `Service/*` tienen validacion minima e idempotencia local; falta firma/origen hasta recibir especificacion del proveedor.
+   - Webhooks `Service/*` tienen validacion minima; la deduplicacion de liga/lector esta comentada por decision temporal para conservar intentos. Falta firma/origen hasta recibir especificacion del proveedor.
 
 4. Scheduler financiero
    - El scheduler ejecuta procesos sensibles de domiciliacion y revision de status.
@@ -74,6 +74,10 @@ Ultima actualizacion: 2026-09-25
 - Integraciones/Auditoria: riesgo de crecimiento de tablas y exposicion operativa si se amplian campos sin sanitizacion.
 - Webhooks configurables: riesgo de exfiltracion si un administrador configura un endpoint HTTPS incorrecto. No hay allowlist por decision funcional; limitar estrictamente el rol Administrador y auditar cambios.
 - Cargos recurrentes: el posible duplicado por multiples respuestas aprobadas en el JOIN del cron no se resolvio en esta tarea y sigue como riesgo financiero separado.
+- Cargos recurrentes API: `CargoDomiciliacion` localiza la transaccion por `ClientReference + tipo` sin acotarla al usuario autenticado y ambiente; es un riesgo P0 de ownership.
+- SPEI: el cambio de `transacciones.condicion` y el alta de `pagospei` no comparten una unica transaccion DB; un fallo intermedio puede dejar estado pagado sin registro fuente.
+- Webhook test: el controlador admite modo `hybrid`, pero `DeliverWebhookJob` cancela pruebas en ese modo.
+- Domiciliacion Activa: la ruta de export existe, pero no esta en la allowlist de Cliente.
 
 ## Oportunidades de mejora
 
@@ -83,3 +87,4 @@ Ultima actualizacion: 2026-09-25
 4. Pruebas Feature por rol y por flujo financiero.
 5. Documentacion del compose Docker productivo cuando este disponible.
 6. Remediacion controlada de `npm audit` completo.
+7. Corregir primero ownership API, atomicidad SPEI e idempotencia/concurrencia financiera mediante planes separados.

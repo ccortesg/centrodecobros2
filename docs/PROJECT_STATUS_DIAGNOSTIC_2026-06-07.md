@@ -1,5 +1,7 @@
 # Diagnostico tecnico y funcional - Centro de Cobros
 
+> [DOCUMENTACION HISTORICA] Snapshot del 2026-06-07. Para HEAD `4299d198` y el entorno WSL migrado, consultar `docs/CODEX_PROJECT_HANDOFF.md` (auditoria 2026-08-04). Los conteos, validaciones y porcentajes de este archivo no representan el corte actual.
+
 Fecha de corte local del workspace: 2026-06-07
 Workspace: `C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`
 Alcance ejecutado: analisis de codigo/documentacion y actualizacion documental. No se implemento funcionalidad, no se ejecutaron migraciones, no se tocaron credenciales, scheduler, contratos Pagadetodo ni `principal.blade.php`.

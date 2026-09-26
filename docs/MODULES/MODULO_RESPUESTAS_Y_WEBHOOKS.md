@@ -4,7 +4,7 @@ Ultima actualizacion: 2026-09-25
 
 ## Proposito
 
-Recibir, validar y persistir respuestas del proveedor para conciliacion, trazabilidad, callbacks a clientes e idempotencia local.
+Recibir, validar y persistir respuestas del proveedor para conciliacion, trazabilidad y callbacks a clientes. El codigo conserva un helper de idempotencia, pero su aplicacion a liga/lector esta comentada temporalmente.
 
 ## Archivos clave
 
@@ -38,7 +38,7 @@ Recibir, validar y persistir respuestas del proveedor para conciliacion, trazabi
 - Actualizacion de transacciones o tablas SPEI segun flujo.
 - En `legacy/shadow`, callback aprobado a `users.ligaPago`; en `active`, evento configurable en Database Queue.
 - Marcado de bandera `enviada`.
-- Respuestas controladas ante payload incompleto o duplicado.
+- Respuestas controladas ante payload incompleto. Los intentos de liga/lector se persisten actualmente sin rechazar duplicados.
 
 ## Filtros de busqueda
 
@@ -79,12 +79,12 @@ Presentacion compacta del listado:
 - Admin: listado y administracion completa.
 - Cliente: lectura/exportacion acotada por ownership.
 - Consulta de respuestas (`idrol=4`): lectura y detalle de tipos 1-4 con los mismos campos que el Cliente vinculado, usando `idusuario` y `productivo` de este. No puede exportar ni invocar altas, actualizaciones o eliminaciones.
-- Webhooks `Service/*`: entradas externas legacy; su seguridad depende del contrato de proveedor, validacion minima e idempotencia local.
+- Webhooks `Service/*`: entradas externas legacy; su seguridad depende del contrato de proveedor y validacion minima. No asumir deduplicacion activa para liga/lector.
 
 ## Estado Fase 34
 
-- `Service/EntregarPagoLiga` y `Service/EntregarPagoLigaToken` requieren `reference`, `response`, `amount`; deduplican por `idtransaccion + reference`.
-- `Service/EntregarPagoLector` aplica validacion minima e idempotencia equivalente.
+- `Service/EntregarPagoLiga` y `Service/EntregarPagoLigaToken` requieren `reference`, `response`, `amount`; guardan cada intento recibido. El bloque `respuestaWebhookDuplicada()` esta comentado por decision temporal del propietario.
+- `Service/EntregarPagoLector` aplica validacion minima y tambien conserva cada intento mientras su bloque de deduplicacion permanezca comentado.
 - `Service/ConsultaClabe` evita errores por referencias vacias/no encontradas.
 - `Service/PagoClabe` requiere `clabe`, `monto`, `fecha`, `transaccion`; deduplica por `transaccion`.
 - `Service/CancelaClabe` requiere `clabe`, `fecha`, `monto`, `transaccion`, `autorizacion`; deduplica por `transaccion + autorizacion`.
@@ -96,6 +96,7 @@ Presentacion compacta del listado:
 - El callback legacy conserva su comportamiento. El motor `active` agrega timeout, ACK, reintentos e idempotencia; ver `MODULO_NOTIFICACIONES_WEBHOOK_CONFIGURABLES.md`.
 - Pagadetodo real probado exitosamente desde servidor en sandbox y productivo, confirmado por el propietario el 2026-06-08.
 - Validacion local real bloqueada por restriccion de IP de origen del proveedor; usar mock local.
+- Un retry identico puede crear mas de una fila/evento; la solucion futura debe permitir multiples denegados y evitar dos aprobados aplicados para la misma liga sin descartar intentos legitimos.
 
 ## Pruebas recomendadas
 
@@ -104,7 +105,8 @@ Presentacion compacta del listado:
 - Casos manuales:
   - payload completo;
   - payload incompleto;
-  - duplicado exacto;
+  - intentos denegados seguidos de uno aprobado;
+  - retry identico y segundo aprobado, conforme a la politica de idempotencia que se defina;
   - referencia inexistente;
   - rol cliente en listado/exportacion.
   - filtro `Ref. Respuesta` buscando por `respuestas.reference`.
@@ -115,6 +117,7 @@ Presentacion compacta del listado:
 - Guardar evidencia sanitizada de pruebas servidor sandbox/productivo.
 - Completar rollout por cliente del motor configurable y retirar callbacks legacy solo despues de validar `active`.
 - Extraer parseo de payloads a adaptadores probables.
+- Definir e implementar una clave de intento/idempotencia compatible con la regla de negocio antes de reactivar el helper existente.
 
 ## Corte diagnostico 2026-06-07
 

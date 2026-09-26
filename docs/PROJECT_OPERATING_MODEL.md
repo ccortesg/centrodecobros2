@@ -1,14 +1,14 @@
 # Modelo operativo vigente del proyecto
 
-Ultima actualizacion: 2026-06-07
+Ultima actualizacion: 2026-08-04
 
 ## Regla principal de trabajo
 
-A partir del 2026-06-03 el proyecto se trabaja siempre sobre:
+A partir de la migracion verificada del 2026-08-04 el proyecto se trabaja siempre sobre:
 
-`C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`
+`/home/ccortesg/workspace/centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`
 
-No se deben crear nuevas carpetas `phase*` para cambios, correcciones o documentacion futura. La carpeta actual ya es el repositorio de trabajo que se sube a GitHub cuando el propietario lo decida.
+El origen Windows `/mnt/c/temp/centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia` se conserva como respaldo de migracion y no debe editarse despues del handoff. No se deben crear nuevas carpetas `phase*`.
 
 ## Estado operativo actual
 
@@ -17,10 +17,10 @@ No se deben crear nuevas carpetas `phase*` para cambios, correcciones o document
 - Produccion: la plataforma ya funciona en el servidor productivo por Docker, segun confirmacion del propietario el 2026-06-03.
 - Docker: este repositorio no versiona `Dockerfile` ni `docker-compose.yml`; la orquestacion productiva vive en el servidor o en documentacion operativa externa.
 - Backend: Laravel `12.54.1`, `composer.json` exige PHP `^8.2`.
-- PHP local observado: `8.3.27`.
+- PHP local WSL observado: `8.3.31`.
 - Composer local observado: `2.2.6`.
-- Frontend: Vue `3.5.30`, Vite `7.x`, Node Windows `v20.20.0`, npm `10.8.2`.
-- Rutas actuales: `php artisan route:list` registra 100 rutas en el corte 2026-06-07.
+- Frontend: Vue `3.5.30`, Vite `7.3.5`, Node WSL `v22.23.1`, npm `10.9.8`; `.nvmrc` declara `22.22.1`.
+- Rutas actuales: `php artisan route:list` registra 121 rutas en el corte 2026-08-04.
 - Produccion heredada del host: existe PHP `7.4.3`; la version nueva no debe exigir cambiar PHP global del servidor si Docker ya aisla el runtime.
 
 ## Politica de Git
@@ -63,7 +63,7 @@ Backend basico:
 php artisan --version
 php artisan route:list
 php artisan schedule:list
-php vendor/bin/phpunit --testsuite Unit
+php vendor/bin/phpunit --testsuite Unit --do-not-cache-result
 ```
 
 Feature con SQLite y Pagadetodo mock desde Windows/WAMP:
@@ -94,7 +94,7 @@ git diff --check docs
 
 ## Operacion Docker productiva
 
-Como los archivos Docker no estan en este repositorio, ningun agente debe inventar nombres de servicios, volumenes o redes. En servidor se debe inspeccionar primero:
+Como los archivos Docker no estan en este repositorio, ningun agente debe inventar nombres fisicos, volumenes o redes. El propietario ha confirmado los servicios Compose `app` y `queue`; aun asi se debe inspeccionar primero:
 
 ```bash
 docker ps
@@ -117,7 +117,7 @@ Los comandos exactos dependen del `docker compose` productivo real y deben docum
 ## Reglas para agentes de IA
 
 1. Leer este documento antes de proponer cambios.
-2. Trabajar en la carpeta actual, no en copias nuevas.
+2. Trabajar en la ruta canonica WSL, no en copias nuevas ni en el origen Windows preservado.
 3. Localizar ruta, controlador, componente Vue, tabla y documentacion antes de editar.
 4. Mantener cambios pequenos y verificables.
 5. Si cambia comportamiento visible, actualizar la documentacion del modulo afectado en la misma tarea.

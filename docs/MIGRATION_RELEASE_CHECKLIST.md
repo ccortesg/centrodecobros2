@@ -1,7 +1,9 @@
 # Checklist de publicacion y produccion Docker
 
 Ultima actualizacion: 2026-06-03
-Repositorio: `C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`
+Repositorio local canonico: `/home/ccortesg/workspace/centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`
+
+Los comandos WAMP posteriores se conservan como carril historico de Feature SQLite.
 Rama: `main`
 
 ## Predeploy local

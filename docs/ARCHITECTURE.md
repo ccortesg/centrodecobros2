@@ -1,6 +1,6 @@
 # Arquitectura real del sistema
 
-Ultima actualizacion: 2026-07-14
+Ultima actualizacion: 2026-08-04
 
 ## 1. Vista general
 
@@ -24,7 +24,7 @@ Ultima actualizacion: 2026-07-14
 
 - Los controladores HTTP contienen la mayor parte de la logica de negocio.
 - No existe una capa de servicios o dominio consistente.
-- El scheduler llama metodos de controlador, lo que mantiene acoplamiento entre infraestructura y dominio.
+- El scheduler aun llama el metodo de controlador de cargos recurrentes. La reconciliacion general ya fue extraida a `TransaccionStatusSynchronizer` y al comando `transacciones:sincronizar-status`.
 
 ### Persistencia
 
@@ -78,7 +78,7 @@ Ultima actualizacion: 2026-07-14
 3. El componente consume rutas web protegidas o API legacy sin prefijo `/api`.
 4. El controlador valida, aplica rol/ownership, arma payload, invoca proveedor si aplica y persiste.
 5. Reportes/exportaciones consultan datos acotados por rol.
-6. Webhooks `Service/*` actualizan respuestas, transacciones SPEI o callbacks segun contrato.
+6. Webhooks `Service/*` actualizan respuestas, transacciones SPEI o callbacks segun contrato. Los webhooks de liga/lector conservan actualmente todos los intentos porque la deduplicacion esta comentada por decision temporal del propietario.
 7. Las llamadas entrantes/salientes y accesos de usuario se registran en bitacoras administrativas sanitizadas.
 8. En modo `hybrid|active`, un evento financiero persistido produce un evento idempotente, fanout por endpoint y entrega asyncrona con reintentos/HMAC.
 9. Los cargos recurrentes fallidos actualizan el contador bajo bloqueo; el
@@ -91,3 +91,4 @@ Ultima actualizacion: 2026-07-14
 - La deuda principal esta en controladores monoliticos, schema historico, scheduler acoplado y contratos externos directos.
 - La estrategia mas segura es evolucion incremental con pruebas por modulo, no refactors amplios.
 - Cualquier cambio de integracion debe conservar rutas/payloads publicos hasta tener sandbox oficial y evidencia.
+- El detalle vigente de riesgos, roles, datos y estado por modulo esta en `docs/CODEX_PROJECT_HANDOFF.md`.

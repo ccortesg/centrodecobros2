@@ -1,7 +1,9 @@
 # Runbook de deploy y rollback
 
 Ultima actualizacion: 2026-07-03
-Repositorio: `C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`
+Repositorio local canonico: `/home/ccortesg/workspace/centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`
+
+El bloque WAMP de este documento se conserva como alternativa historica para Feature SQLite desde Windows.
 Rama vigente: `main`
 
 ## Estado actual

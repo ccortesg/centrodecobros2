@@ -5,10 +5,19 @@ namespace Tests\Feature\Smoke;
 use App\Console\Kernel as ConsoleKernel;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Tests\Support\UsesIsolatedCentroCobrosDatabase;
 use Tests\TestCase;
 
 class CommandAndDatabaseSmokeTest extends TestCase
 {
+    use UsesIsolatedCentroCobrosDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->setUpIsolatedDatabase();
+    }
+
     public function test_database_connection_is_available_and_uses_the_loaded_schema()
     {
         if (DB::connection()->getDriverName() === 'sqlite') {

@@ -12,34 +12,73 @@ use RuntimeException;
 
 trait UsesIsolatedCentroCobrosDatabase
 {
-    protected function setUpIsolatedDatabase(string $database = ':memory:'): void
+    private const ISOLATED_DATABASE = 'centrodecobros_testing';
+
+    protected function setUpIsolatedDatabase(): void
     {
-        if (!in_array('sqlite', PDO::getAvailableDrivers(), true)) {
-            $drivers = implode(', ', PDO::getAvailableDrivers());
-            $message = 'DB local bloqueada para Feature tests aislados: el PHP CLI no tiene pdo_sqlite. Drivers disponibles: ' . $drivers;
-
-            if (method_exists($this, 'markTestSkipped')) {
-                $this->markTestSkipped($message);
-            }
-
-            throw new RuntimeException($message);
+        if (!app()->environment('testing')) {
+            throw new RuntimeException('Refusing to rebuild the isolated database outside APP_ENV=testing.');
         }
 
-        config([
-            'database.default' => 'sqlite',
-            'database.connections.sqlite' => [
-                'driver' => 'sqlite',
-                'database' => $database,
-                'prefix' => '',
-                'foreign_key_constraints' => false,
-            ],
-            'services.pagadetodo.mock' => true,
-        ]);
+        $connection = (string) config('database.default');
+        $driver = (string) config("database.connections.{$connection}.driver");
+        $configuredDatabase = (string) config("database.connections.{$connection}.database");
+
+        if (!in_array($driver, ['mysql', 'sqlite'], true)) {
+            throw new RuntimeException(sprintf(
+                'Refusing destructive test setup: unsupported driver %s for database %s.',
+                $driver,
+                $configuredDatabase
+            ));
+        }
+
+        config(['services.pagadetodo.mock' => true]);
 
         $this->withoutMiddleware(VerifyCsrfToken::class);
 
-        DB::purge('sqlite');
-        DB::reconnect('sqlite');
+        if ($driver === 'sqlite') {
+            if (!in_array('sqlite', PDO::getAvailableDrivers(), true)) {
+                $drivers = implode(', ', PDO::getAvailableDrivers());
+                $message = 'DB local bloqueada para Feature tests aislados: el PHP CLI no tiene pdo_sqlite. Drivers disponibles: '.$drivers;
+
+                if (method_exists($this, 'markTestSkipped')) {
+                    $this->markTestSkipped($message);
+                }
+
+                throw new RuntimeException($message);
+            }
+
+            config([
+                'database.default' => 'sqlite',
+                'database.connections.sqlite' => [
+                    'driver' => 'sqlite',
+                    'database' => ':memory:',
+                    'prefix' => '',
+                    'foreign_key_constraints' => false,
+                ],
+            ]);
+
+            DB::purge('sqlite');
+            DB::reconnect('sqlite');
+        } else {
+            if (!hash_equals(self::ISOLATED_DATABASE, $configuredDatabase)) {
+                throw new RuntimeException(sprintf(
+                    'Refusing destructive test setup: expected mysql/%s, got mysql/%s.',
+                    self::ISOLATED_DATABASE,
+                    $configuredDatabase
+                ));
+            }
+
+            DB::purge($connection);
+            $databaseConnection = DB::connection($connection);
+            $selectedDatabase = $databaseConnection->selectOne('SELECT DATABASE() AS database_name')->database_name ?? '';
+
+            if (!is_string($selectedDatabase) || !hash_equals(self::ISOLATED_DATABASE, $selectedDatabase)) {
+                throw new RuntimeException('MySQL did not select the authorized disposable testing database.');
+            }
+
+            Schema::dropAllTables();
+        }
 
         $this->createCentroCobrosSchema();
         $this->seedCentroCobrosData();
@@ -219,7 +258,7 @@ trait UsesIsolatedCentroCobrosDatabase
             $table->string('cc_number')->nullable();
             $table->string('cc_expmonth')->nullable();
             $table->string('cc_expyear')->nullable();
-            $table->integer('amount')->nullable();
+            $table->decimal('amount', 14, 2)->nullable();
             $table->string('id_url')->nullable();
             $table->string('email')->nullable();
             $table->string('payment_type')->nullable();

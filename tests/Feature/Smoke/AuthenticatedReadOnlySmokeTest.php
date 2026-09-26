@@ -3,10 +3,19 @@
 namespace Tests\Feature\Smoke;
 
 use App\User;
+use Tests\Support\UsesIsolatedCentroCobrosDatabase;
 use Tests\TestCase;
 
 class AuthenticatedReadOnlySmokeTest extends TestCase
 {
+    use UsesIsolatedCentroCobrosDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->setUpIsolatedDatabase();
+    }
+
     private function activeUser(): User
     {
         $user = User::where('condicion', 1)->orderBy('id')->first();

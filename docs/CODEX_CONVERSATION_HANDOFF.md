@@ -1,5 +1,7 @@
 # Codex Conversation Handoff - Centro de Cobros Fase 34
 
+> [DOCUMENTACION HISTORICA] Este archivo preserva el contexto conversacional acumulado hasta 2026-07-10. El estado tecnico y operativo vigente desde la auditoria 2026-08-04 esta en `docs/CODEX_PROJECT_HANDOFF.md`; no usar los conteos, rutas locales ni pendientes de este documento sin contrastarlos.
+
 Fecha de handoff: 2026-07-10
 Zona horaria de trabajo: America/Hermosillo  
 Workspace local actual: `/mnt/c/temp/centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`  

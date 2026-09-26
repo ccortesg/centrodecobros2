@@ -1,13 +1,13 @@
 # Stack tecnico y dependencias
 
-Ultima actualizacion: 2026-06-03
+Ultima actualizacion: 2026-08-04
 
 ## Backend actual
 
 - Framework: `Laravel 12.54.1`
 - Requisito Composer: `php ^8.2`
 - PHP validado local:
-  - Linux CLI: `8.3.27`, sin `pdo_sqlite`
+  - WSL CLI: `8.3.31`, con `pdo_mysql` y sin `pdo_sqlite`
   - WAMP CLI: `8.3.0`, con `pdo_mysql` y `pdo_sqlite`
 - Composer local observado: `2.2.6`; valida el proyecto, pero no incluye `composer audit`.
 - Base de datos operativa: MySQL productivo o dump autorizado fuera de Git; las migrations son historicas y no reconstruyen por si solas todo el sistema.
@@ -28,14 +28,14 @@ Ultima actualizacion: 2026-06-03
 
 ## Frontend actual
 
-En el shell Linux directo de este corte `node -v` no esta disponible. El runner Windows/WAMP si expone `node v20.20.0` y `npm 10.8.2` via `cmd.exe`. Aun asi, `npm run production` se ejecuto correctamente desde el workspace actual.
+El shell WSL expone Node `v22.23.1` y npm `10.9.8`; `.nvmrc` fija `22.22.1`. El build no se ejecuto en la auditoria 2026-08-04 porque no hubo cambios frontend y la tarea solo autorizo documentacion.
 
 | Paquete | Version instalada |
 | --- | --- |
 | `vue` | `3.5.30` |
 | `@vue/compiler-sfc` | `3.5.30` |
-| `@vitejs/plugin-vue` | `6.0.5` |
-| `vite` | `7.3.1` |
+| `@vitejs/plugin-vue` | `6.0.7` |
+| `vite` | `7.3.5` |
 | `laravel-vite-plugin` | `2.1.0` |
 | `laravel-mix` | `6.0.49` |
 | `axios` | `1.13.6` |
@@ -83,7 +83,7 @@ Artefactos revalidados:
 
 1. El runtime productivo vigente esta aislado por Docker; no cambiar PHP `7.4.3` global del host sin necesidad.
 2. El servidor de produccion no necesita Node/npm en el host si CI o un contenedor genera assets.
-3. Si el build se ejecuta en servidor, usar Node 20/npm compatible y `npm ci && npm run production`.
+3. Si el build se ejecuta en servidor, usar Node 22 compatible con `.nvmrc` y `npm ci && npm run production`.
 4. La app requiere PHP 8.2+ dentro del contenedor/runtime que ejecute Laravel 12.
 5. `plantilla.*` sigue fuera de Vite por decision de alcance y debe preservarse como contrato publico.
 6. Para comandos exactos de deploy, inspeccionar el compose productivo real; no asumir nombre de servicio desde este repo.

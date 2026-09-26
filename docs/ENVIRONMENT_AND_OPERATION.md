@@ -1,25 +1,37 @@
 # Entorno y operacion
 
-Ultima actualizacion: 2026-07-10
+Ultima actualizacion: 2026-08-06
 
 ## Entorno validado de este repositorio
 
 | Capa | Valor actual |
 | --- | --- |
-| Workspace | `C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia` |
+| Workspace local HTTP | `/home/ccortesg/workspace/centrodecobros2` |
+| Origen preservado | `/mnt/c/temp/centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia` |
 | Rama | `main` |
 | Remoto | `https://github.com/ccortesg/centrodecobros2.git` |
 | Produccion | Docker en servidor, confirmado por propietario |
 | Laravel | `12.54.1` |
 | PHP requerido | `^8.2` |
-| PHP local bash | `8.3.27` |
-| PHP Feature recomendado | `C:\wamp64\bin\php\php8.3.0\php.exe` |
-| Composer local | `2.2.6` |
-| Node local compatible | `v24.16.0` en `/home/ccortesg/.nvm/versions/node/v24.16.0/bin/node` |
-| npm Windows | `10.8.2` |
+| PHP local bash | `8.3.31`; `pdo_mysql`, sin `pdo_sqlite` |
+| PHP Feature | PHP WSL `8.3.31` con `pdo_mysql` |
+| Composer local | `2.10.2` |
+| Node local compatible | `.nvmrc` `22.22.1`; runtime observado `22.23.1` |
+| npm WSL | `10.9.8` |
 | Frontend | Vue `3.5.30` + Vite `7.x` |
 | DB productiva | MySQL en servidor |
-| DB pruebas Feature | SQLite aislado |
+| DB aplicacion local | MySQL `centrodecobros`, configurada solo en `.env` ignorado |
+| DB pruebas Feature | MySQL desechable `centrodecobros_testing`, configurada solo en `.env.testing` ignorado |
+
+La base local se inicializa una sola vez desde el dump ignorado y solo si esta completamente vacia. El importador aborta si el ambiente/base no coinciden, si ya hay tablas o si el dump intenta cambiar de base:
+
+```bash
+php scripts/local/import_empty_local_database.php
+php artisan migrate --pretend
+php artisan migrate
+```
+
+Las migraciones de este bloque son para la base local de desarrollo. Produccion conserva su propio runbook, autorizacion y respaldo.
 
 ## Lanes soportadas
 
@@ -32,22 +44,42 @@ php artisan schedule:list
 php vendor/bin/phpunit --testsuite Unit
 ```
 
-### Local Feature con SQLite
+### Local Feature con MySQL desechable
 
-El PHP CLI de Linux puede no traer `pdo_sqlite`. Para Feature completos usar WAMP PHP 8.3:
+El arnes Feature exige simultaneamente `APP_ENV=testing`, driver MySQL y nombre de base real `centrodecobros_testing`. Antes de eliminar tablas comprueba tambien `SELECT DATABASE()`. No ejecutar las pruebas en paralelo porque comparten una sola base desechable.
 
-```powershell
-cd /D C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia
-set APP_ENV=testing&& set DB_CONNECTION=sqlite&& set DB_DATABASE=C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia\storage\phase34_validation.sqlite&& set PAGADETODO_MOCK=true&& C:\wamp64\bin\php\php8.3.0\php.exe scripts\local\prepare_phase33_browser_sqlite.php C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia\storage\phase34_validation.sqlite&& C:\wamp64\bin\php\php8.3.0\php.exe vendor\bin\phpunit --testsuite Feature
+La configuracion MySQL local vive solo en `.env.testing`; no se fuerza en `phpunit.xml`. Esto permite que el workflow existente de CI conserve su SQLite efimero sin recibir credenciales locales ni depender del MySQL del desarrollador.
+
+Estado verificado el 2026-08-06: Laravel y `SELECT DATABASE()` resolvieron exactamente `centrodecobros_testing`. `migrate:fresh` completo las 21 migraciones versionadas y la suite Feature termino correctamente con 160 pruebas y 674 aserciones.
+
+```bash
+APP_ENV=testing php artisan migrate:fresh --force --no-interaction
+php vendor/bin/phpunit --testsuite Feature --do-not-cache-result
 ```
 
-### Frontend
+Las migraciones versionadas siguen siendo parciales respecto al esquema historico. `migrate:fresh` valida que la cadena versionada es ejecutable; el trait `UsesIsolatedCentroCobrosDatabase` crea despues el esquema funcional controlado que requieren las Feature.
 
-```powershell
-cmd /c "node -v && npm -v"
-cmd /c "npm ci"
-cmd /c "npm run production"
-cmd /c "npm audit --omit=dev --audit-level=low"
+### Apache local y permisos
+
+La configuracion versionada sirve `public/` en `http://centrodecobros.local`, habilita `.htaccess` y no permite indices. El VirtualHost fue instalado con privilegios del sistema y quedo verificado el 2026-08-06: la configuracion activa coincide con la plantilla versionada, `apache2ctl configtest` responde `Syntax OK`, `/` responde 302 hacia `/transaccion` y `/login` responde 200. El propietario tambien confirmo el acceso desde su equipo mediante `http://centrodecobros.local/`.
+
+Los comandos se conservan para preparar permisos o reinstalar la configuracion en un entorno local nuevo:
+
+```bash
+./scripts/local/prepare_www_data_permissions.sh
+sudo ./scripts/local/apache/install_apache_site.sh
+```
+
+`storage/` y `bootstrap/cache/` quedan en el grupo `www-data`, con escritura grupal y setgid en directorios; `.env` queda `0640` y `.env.testing` permanece `0600` fuera del alcance de Apache. El nombre `centrodecobros.local` debe resolver a la IP WSL actual desde Windows.
+
+### Frontend WSL
+
+```bash
+node -v
+npm -v
+npm ci
+npm run production
+npm audit --omit=dev --audit-level=low
 ```
 
 ## Build frontend
@@ -69,7 +101,7 @@ Estos artefactos no se versionan; se generan en CI/deploy.
 
 ## Produccion Docker
 
-La aplicacion ya opera en Docker en el servidor productivo. Este repo no contiene el compose productivo, por lo que todo agente debe evitar asumir nombres de servicios. Antes de documentar comandos exactos de servidor se debe inspeccionar:
+La aplicacion ya opera en Docker en el servidor productivo. Este repo no contiene el compose productivo. El propietario reporta servicios Compose `app` y `queue`; antes de operar se debe inspeccionar:
 
 ```bash
 docker ps

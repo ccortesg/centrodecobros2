@@ -1,12 +1,12 @@
 # Prompts sugeridos vigentes
 
-Ultima actualizacion: 2026-06-08
+Ultima actualizacion: 2026-08-04
 
 ## Estado rector
 
 La plataforma ya funciona en produccion por Docker. A partir del 2026-06-03 no se deben crear carpetas nuevas para fases o cambios. Todo trabajo debe realizarse sobre:
 
-`C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`
+`/home/ccortesg/workspace/centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`
 
 Rama vigente: `main`.
 
@@ -16,7 +16,7 @@ Addendum 2026-06-08: el propietario confirmo que los servicios Pagadetodo ya fue
 
 ```text
 Trabaja sobre el proyecto Centro de Cobros en la carpeta actual:
-C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia
+/home/ccortesg/workspace/centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia
 
 No crees una nueva carpeta ni una nueva copia de fase. Usa la rama `main` del repositorio actual.
 
@@ -44,7 +44,7 @@ Restricciones:
 
 ```text
 Trabaja sobre:
-C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia
+/home/ccortesg/workspace/centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia
 
 No crees una nueva carpeta. Analiza el codigo y la documentacion actual para actualizar la documentacion del proyecto y de los modulos.
 
@@ -67,7 +67,7 @@ Entrega:
 
 ```text
 Trabaja sobre:
-C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia
+/home/ccortesg/workspace/centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia
 
 No crees una nueva carpeta. Ejecuta la Etapa 1 del plan UX/UI documentado en `docs/UX_UI_AUDIT_AND_WORK_PLAN_2026-06-04.md`.
 
@@ -93,7 +93,7 @@ Usar solo cuando se trabaje desde servidor/IP autorizado o cuando se documente e
 
 ```text
 Trabaja sobre:
-C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia
+/home/ccortesg/workspace/centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia
 
 No crees una nueva carpeta. Documenta y valida la evidencia de Pagadetodo ejecutada desde servidor/IP autorizado.
 
@@ -119,7 +119,7 @@ Restricciones:
 
 ```text
 Trabaja sobre:
-C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia
+/home/ccortesg/workspace/centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia
 
 No crees una nueva carpeta. Abre un carril controlado para remediar `npm audit` completo del proyecto Centro de Cobros.
 

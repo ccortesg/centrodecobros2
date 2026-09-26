@@ -4,13 +4,17 @@ namespace Tests\Feature\Smoke;
 
 use App\Http\Middleware\VerifyCsrfToken;
 use App\User;
+use Tests\Support\UsesIsolatedCentroCobrosDatabase;
 use Tests\TestCase;
 
 class LegacyFunctionalAlignmentSmokeTest extends TestCase
 {
+    use UsesIsolatedCentroCobrosDatabase;
+
     protected function setUp(): void
     {
         parent::setUp();
+        $this->setUpIsolatedDatabase();
         $this->withoutMiddleware(VerifyCsrfToken::class);
     }
 

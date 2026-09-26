@@ -1,17 +1,19 @@
 # Onboarding de desarrolladores
 
-Ultima actualizacion: 2026-06-03
+Ultima actualizacion: 2026-08-06
 
 ## Lectura inicial obligatoria
 
-1. `docs/PROJECT_OPERATING_MODEL.md`
-2. `docs/README.md`
-3. `docs/AI_AGENT_GUIDE.md`
-4. `docs/ROUTES_AND_FLOW.md`
-5. `docs/ARCHITECTURE.md`
-6. `docs/SECURITY_AND_RISKS.md`
-7. `docs/INTEGRATIONS.md`
-8. `docs/MODULES/*.md`
+1. `AGENTS.md`
+2. `docs/CODEX_PROJECT_HANDOFF.md`
+3. `docs/PROJECT_OPERATING_MODEL.md`
+4. `docs/README.md`
+5. `docs/AI_AGENT_GUIDE.md`
+6. `docs/ROUTES_AND_FLOW.md`
+7. `docs/ARCHITECTURE.md`
+8. `docs/SECURITY_AND_RISKS.md`
+9. `docs/INTEGRATIONS.md`
+10. `docs/MODULES/*.md`
 
 Los documentos `MIGRATION_*` sirven como bitacora historica y evidencia de decisiones; no sustituyen el modelo operativo vigente.
 
@@ -22,23 +24,26 @@ git status --short
 php artisan --version
 php artisan route:list
 php artisan schedule:list
-php vendor/bin/phpunit --testsuite Unit
+php vendor/bin/phpunit --testsuite Unit --do-not-cache-result
 ```
 
 Si la tarea toca frontend:
 
-```powershell
-cmd /c "node -v && npm -v"
-cmd /c "npm ci"
-cmd /c "npm run production"
+```bash
+node -v
+npm -v
+npm ci
+npm run production
 ```
 
-Si la tarea toca contratos Pagadetodo, ownership o webhooks:
+Si la tarea toca contratos Pagadetodo, ownership o webhooks, usar exclusivamente la base MySQL desechable configurada en `.env.testing`:
 
-```powershell
-cd /D C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia
-set APP_ENV=testing&& set DB_CONNECTION=sqlite&& set DB_DATABASE=C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia\storage\phase34_validation.sqlite&& set PAGADETODO_MOCK=true&& C:\wamp64\bin\php\php8.3.0\php.exe scripts\local\prepare_phase33_browser_sqlite.php C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia\storage\phase34_validation.sqlite&& C:\wamp64\bin\php\php8.3.0\php.exe vendor\bin\phpunit --testsuite Feature
+```bash
+cd /home/ccortesg/workspace/centrodecobros2
+php vendor/bin/phpunit --testsuite Feature --do-not-cache-result
 ```
+
+No usar `--parallel`: las Feature reconstruyen la misma base `centrodecobros_testing`. El arnes aborta fuera de `APP_ENV=testing` o si MySQL selecciona otra base.
 
 ## Donde vive la logica real
 
@@ -56,7 +61,7 @@ No esperar boundaries limpios por dominio. Gran parte de las reglas vive en cont
 
 ## Reglas para cambios
 
-1. Trabajar en la carpeta actual, no en copias nuevas.
+1. Trabajar en `/home/ccortesg/workspace/centrodecobros2`, no en copias nuevas ni en el origen Windows preservado.
 2. Mantener cambios pequenos y rastreables.
 3. No ejecutar migraciones productivas.
 4. No tocar scheduler sin orden explicita.
@@ -81,5 +86,5 @@ No esperar boundaries limpios por dominio. Gran parte de las reglas vive en cont
 3. Revisar controlador y query real.
 4. Revisar `storage/logs/laravel.log`.
 5. Confirmar rol, ownership y datos de prueba.
-6. Ejecutar prueba aislada o Feature SQLite.
+6. Ejecutar prueba aislada o Feature MySQL en `centrodecobros_testing`.
 7. Documentar hallazgo si cambia el estado operativo.

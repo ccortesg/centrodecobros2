@@ -186,7 +186,7 @@ class WebhookNotificationFeatureTest extends TestCase
         $this->assertSame(2, (int) $endpoint->fresh()->idusuario);
     }
 
-    public function test_shadow_mode_creates_idempotent_event_and_delivery_without_http_request(): void
+    public function test_shadow_mode_preserves_an_event_and_delivery_per_received_attempt_without_http_request(): void
     {
         $this->configureClient('shadow', false);
         $this->createEndpoint('payment_link.payment.approved');
@@ -202,8 +202,8 @@ class WebhookNotificationFeatureTest extends TestCase
         $this->postJson('/Service/EntregarPagoLiga', $payload)->assertOk();
         $this->postJson('/Service/EntregarPagoLiga', $payload)->assertOk();
 
-        $this->assertSame(1, WebhookEvent::where('event_type', 'payment_link.payment.approved')->count());
-        $this->assertSame(1, WebhookDelivery::where('status', 'shadow')->count());
+        $this->assertSame(2, WebhookEvent::where('event_type', 'payment_link.payment.approved')->count());
+        $this->assertSame(2, WebhookDelivery::where('status', 'shadow')->count());
         $this->assertSame(0, WebhookDeliveryAttempt::count());
     }
 
@@ -301,11 +301,12 @@ class WebhookNotificationFeatureTest extends TestCase
         ]);
     }
 
-    public function test_active_hmac_delivery_signs_the_exact_unmodified_body_and_is_idempotent(): void
+    public function test_active_hmac_delivery_signs_the_exact_unmodified_body_for_each_received_attempt(): void
     {
         $secret = 'donar-con-causa-shared-secret-2026-value';
         $history = [];
         $mock = new MockHandler([
+            new Response(200, ['Content-Type' => 'application/json'], '{"code":"success"}'),
             new Response(200, ['Content-Type' => 'application/json'], '{"code":"success"}'),
         ]);
         $stack = HandlerStack::create($mock);
@@ -329,15 +330,16 @@ class WebhookNotificationFeatureTest extends TestCase
         $this->postJson('/Service/EntregarPagoLiga', $payload)->assertOk();
         $this->postJson('/Service/EntregarPagoLiga', $payload)->assertOk();
 
-        $this->assertCount(1, $history);
-        $delivery = WebhookDelivery::firstOrFail();
-        $event = WebhookEvent::firstOrFail();
+        $this->assertCount(2, $history);
         $request = $history[0]['request'];
+        $event = WebhookEvent::findOrFail($request->getHeaderLine('X-Soportetech-Event-Id'));
+        $delivery = WebhookDelivery::where('webhook_event_id', $event->id)->firstOrFail();
         $rawBody = (string) $request->getBody();
         $decoded = json_decode($rawBody, true);
         $timestamp = (int) $request->getHeaderLine('X-Soportetech-Timestamp');
 
         $this->assertSame('delivered', $delivery->status);
+        $this->assertSame(2, WebhookDelivery::where('status', 'delivered')->count());
         $this->assertSame($delivery->raw_body, $rawBody);
         $this->assertSame($event->id, $request->getHeaderLine('X-Soportetech-Event-Id'));
         $this->assertSame('payment_link.payment.approved', $request->getHeaderLine('X-Soportetech-Event-Type'));
@@ -347,7 +349,7 @@ class WebhookNotificationFeatureTest extends TestCase
             app(WebhookSigner::class)->signature($secret, $timestamp, $event->id, $rawBody),
             $request->getHeaderLine('X-Soportetech-Signature')
         );
-        $this->assertSame(1, WebhookDeliveryAttempt::count());
+        $this->assertSame(2, WebhookDeliveryAttempt::count());
         $this->assertSame(
             '[secreto omitido]',
             WebhookDeliveryAttempt::firstOrFail()->request_headers['X-Soportetech-Signature']

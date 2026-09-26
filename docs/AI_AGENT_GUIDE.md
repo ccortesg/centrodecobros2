@@ -1,27 +1,29 @@
 # Guia para agentes de IA
 
-Ultima actualizacion: 2026-07-10
+Ultima actualizacion: 2026-08-04
 
 ## Regla operativa obligatoria
 
 Trabajar siempre en:
 
-`C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`
+`/home/ccortesg/workspace/centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`
 
-No crear copias nuevas para fases, fixes, documentacion o actualizaciones futuras, salvo instruccion explicita posterior del propietario.
+La ruta `/mnt/c/temp/centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia` es el origen preservado de la migracion a WSL. No crear copias nuevas para fases, fixes, documentacion o actualizaciones futuras, salvo instruccion explicita posterior del propietario.
 
 ## Orden de lectura recomendado
 
-1. `docs/PROJECT_OPERATING_MODEL.md`
-2. `docs/README.md`
-3. `docs/ROUTES_AND_FLOW.md`
-4. `docs/ARCHITECTURE.md`
-5. `docs/ENVIRONMENT_AND_OPERATION.md`
-6. `docs/SECURITY_AND_RISKS.md`
-7. `docs/INTEGRATIONS.md`
-8. `docs/MODULES/*.md`
-9. `routes/web.php` y `routes/api.php`
-10. Controlador y componente Vue del modulo que se vaya a tocar.
+1. `AGENTS.md`
+2. `docs/CODEX_PROJECT_HANDOFF.md`
+3. `docs/PROJECT_OPERATING_MODEL.md`
+4. `docs/README.md`
+5. `docs/ROUTES_AND_FLOW.md`
+6. `docs/ARCHITECTURE.md`
+7. `docs/ENVIRONMENT_AND_OPERATION.md`
+8. `docs/SECURITY_AND_RISKS.md`
+9. `docs/INTEGRATIONS.md`
+10. `docs/MODULES/*.md`
+11. `routes/web.php` y `routes/api.php`
+12. Controlador y componente Vue del modulo que se vaya a tocar.
 
 ## Fuentes de verdad
 
@@ -31,9 +33,9 @@ No crear copias nuevas para fases, fixes, documentacion o actualizaciones futura
 - Configuracion externa: `.env` en servidor, `.env.example`, `config/services.php`, `config/broadcasting.php`.
 - Esquema operativo: MySQL productivo o dump autorizado fuera de Git. No asumir que `database/migrations` reconstruye el sistema real.
 - Pruebas Feature: SQLite preparado por `scripts/local/prepare_phase33_browser_sqlite.php` y soporte bajo `tests/Support`.
-- Inventario de rutas vigente: `php artisan route:list` muestra 110 rutas en el corte 2026-07-03.
+- Inventario de rutas vigente: `php artisan route:list` muestra 121 rutas en el corte 2026-08-04.
 - Addendum 2026-07-03: los modulos de auditoria de integraciones agregan rutas `integraciones/*` y el comando manual `audit:purge`; confirmar el inventario vigente con `route:list` en cada tarea.
-- Diagnostico vigente: `docs/PROJECT_STATUS_DIAGNOSTIC_2026-06-07.md`.
+- Diagnostico vigente: `docs/CODEX_PROJECT_HANDOFF.md`. Los diagnosticos fechados son historicos.
 
 ## Flujo de trabajo para cualquier cambio
 
@@ -64,6 +66,8 @@ No crear copias nuevas para fases, fixes, documentacion o actualizaciones futura
 - No imprimir, exportar ni registrar `webhook_user_settings.hmac_secret`; solo se muestra una vez al crear/rotar.
 - No agregar allowlist/DNS/rangos privados a URLs sin nueva decision del propietario; la regla vigente es formato valido + HTTPS.
 - El posible JOIN duplicado de `ejecutarCron` esta fuera del alcance de webhooks y debe tratarse como pendiente financiero separado.
+- La deduplicacion en `RespuestaController::storePublic()` y `storeLectorPublic()` esta comentada por decision del propietario. No reactivarla como cambio incidental.
+- El endpoint API `CargoDomiciliacion` requiere revisar ownership por `idusuario/productivo`; tratarlo como P0 antes de ampliar esa integracion.
 
 ## Checklist previo a cambios funcionales
 
@@ -90,9 +94,10 @@ Si la tarea toca contratos Pagadetodo o ownership, ejecutar tambien Feature con 
 Si la tarea toca auditoria de integraciones, ejecutar `tests/Unit/AuditSanitizerTest.php` y `tests/Feature/IntegrationAuditFeatureTest.php`.
 Si toca notificaciones webhook, ejecutar tambien `tests/Unit/WebhookSecurityContractTest.php` y `tests/Feature/WebhookNotificationFeatureTest.php` con WAMP PHP 8.3/SQLite.
 
-## Nota de validacion 2026-06-07
+## Nota de validacion 2026-08-04
 
-- El PHP CLI de WSL no trae `pdo_sqlite`; usar `C:\wamp64\bin\php\php8.3.0\php.exe` para Feature SQLite.
+- El PHP CLI WSL 8.3.31 no trae `pdo_sqlite`; usar un runtime de testing autorizado con esa extension. WAMP queda como carril historico, no como workspace canonico.
 - `tests\Feature\Phase32`, `tests\Feature\Phase34` y `tests\Feature\UX` pasaron con WAMP PHP 8.3 y SQLite aislado: 52 tests, 170 assertions.
 - `vendor\bin\phpunit --testsuite Feature` completo fallo en este entorno por smoke tests que intentan MySQL local con `centro_user@localhost`. No corregir eso tocando `.env`, credenciales ni migraciones productivas; abrir un carril de runner/dataset de testing o adaptar los smoke a SQLite controlado.
 - `npm run production` solo debe ejecutarse si hay cambio frontend o si la tarea pide validar build; no versionar los assets generados.
+- Auditoria actual: lint 169 PHP OK; Unit 28 tests/171 assertions OK; 121 rutas y tres tareas scheduler. Feature/build/browser no se ejecutaron en este corte.

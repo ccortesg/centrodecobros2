@@ -10,7 +10,7 @@ Modernizar y mantener `centrodecobros` sin alterar contratos de negocio externos
 ## Reglas vigentes
 
 1. La referencia primaria de schema es MySQL productivo o dump autorizado fuera de Git, mas el uso real en codigo.
-2. Desde 2026-06-03 todo cambio se trabaja en `C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`; no crear copias nuevas de fase salvo instruccion explicita posterior.
+2. Desde la migracion verificada del 2026-08-04 todo cambio se trabaja en `/home/ccortesg/workspace/centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`; el origen Windows queda preservado y no se crean copias nuevas de fase salvo instruccion explicita posterior.
 3. No se deben mezclar upgrades mayores de backend, runtime Vue y bundler en una sola fase.
 4. `principal.blade.php` y el contrato `app.js` / `plantilla.js` / `plantilla.css` / `guest-public.js` siguen siendo restriccion estructural hasta una decision posterior explicita.
 5. `Role.vue`, `ReporteSpei.vue`, `ReporteCargosRecurrentes.vue` y `/url` siguen tratandose como funcionalidad viva.
@@ -21,7 +21,7 @@ Modernizar y mantener `centrodecobros` sin alterar contratos de negocio externos
 
 | Area | Estado real |
 | --- | --- |
-| Workspace actual | `C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia` |
+| Workspace actual | `/home/ccortesg/workspace/centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia` |
 | Estado Git | Repo activo en `main` con remoto GitHub configurado |
 | Produccion | Docker funcionando en servidor; compose no versionado en repo |
 | PHP observado en shell | `8.3.27` |

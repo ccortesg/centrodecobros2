@@ -4,7 +4,7 @@ Ultima actualizacion: 2026-09-25
 
 ## Contexto operativo vigente
 
-- Repositorio activo: `C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`.
+- Repositorio activo: `/home/ccortesg/workspace/centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`.
 - Rama vigente: `main`.
 - Produccion actual: Docker en servidor, confirmado por el propietario el 2026-06-03.
 - No crear copias nuevas para cambios futuros; trabajar sobre el repo actual.
@@ -77,10 +77,10 @@ API para clientes:
 
 Fases 31-33 agregaron validaciones tempranas y mock controlado Pagadetodo para estos contratos, pero la autenticacion sigue basada en `User`/`Password` enviados en payload.
 
-Fase 34 no cambia nombres de rutas ni payloads externos de exito. Endurece internamente:
+Fase 34 no cambia nombres de rutas ni payloads externos de exito. El estado actual es:
 
-- `Service/EntregarPagoLiga` y `Service/EntregarPagoLigaToken`: validacion minima e idempotencia por `idtransaccion + reference`.
-- `Service/EntregarPagoLector`: validacion minima e idempotencia por `idtransaccion + reference`.
+- `Service/EntregarPagoLiga` y `Service/EntregarPagoLigaToken`: validacion minima; la deduplicacion esta comentada temporalmente.
+- `Service/EntregarPagoLector`: validacion minima; la deduplicacion esta comentada temporalmente.
 - `Service/ConsultaClabe`: errores nulos corregidos en referencias vacias/no encontradas.
 - `Service/PagoClabe`: validacion minima e idempotencia por `transaccion`.
 - `Service/CancelaClabe`: validacion minima e idempotencia por `transaccion + autorizacion`.
@@ -110,3 +110,4 @@ Fase 34 no cambia nombres de rutas ni payloads externos de exito. Endurece inter
 - Publicar bajo subcarpeta en Apache puede romper o mezclar assets porque el HTML usa rutas como `js/app.js` y `css/plantilla.css`; para un sandbox futuro usar subdominio/vhost separado o configuracion Docker equivalente.
 - En ambientes paralelos con la misma DB, no habilitar scheduler duplicado.
 - En produccion Docker, validar el compose real antes de documentar comandos de servicios o reinicios.
+- El grupo protegido incluye auditoria y webhooks administrativos `integraciones/*`; el endpoint de actividad de modulo vive bajo `auth`.

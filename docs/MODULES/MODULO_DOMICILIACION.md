@@ -1,6 +1,6 @@
 # Modulo: Domiciliacion y cargos recurrentes
 
-Ultima actualizacion: 2026-07-14
+Ultima actualizacion: 2026-08-04
 
 ## Proposito
 
@@ -121,6 +121,8 @@ Campos de control agregados a `transacciones`:
 - Reglas temporales y de estado embebidas.
 - Riesgo de duplicar cargos si dos instancias ejecutan scheduler contra la misma DB.
 - El JOIN de `ejecutarCron` puede devolver una domiciliacion mas de una vez si existen varias respuestas aprobadas. No se corrigio en la implementacion webhook por decision del propietario; queda como pendiente financiero separado.
+- `POST CargoDomiciliacion` autentica al usuario API, pero la busqueda vigente de la transaccion usa `ClientReference + tipo=2` sin agregar `idusuario` ni `productivo`; es un pendiente P0 de ownership.
+- `GET domiciliacion-activa/exportar` existe, pero no esta incluido en la allowlist GET del rol Cliente. El listado puede funcionar y el boton de exportacion responder 403 para ese rol.
 - Los campos `ProximoCargoBase` e `intentos` requieren ejecutar migracion antes de desplegar codigo que los consulte.
 
 ## Diagnostico de `ejecutarCron`
@@ -166,6 +168,8 @@ Campos de control agregados a `transacciones`:
 - Documentar matriz de estados/frecuencias con ejemplos reales.
 - Agregar pruebas de concurrencia/idempotencia de cargos.
 - Corregir en una tarea separada la multiplicidad del JOIN y agregar locks antes de ampliar concurrencia del cron.
+- Acotar `CargoDomiciliacion` al propietario/ambiente del usuario API y cubrir colisiones de `ClientReference` entre clientes.
+- Decidir si Cliente debe exportar Domiciliacion Activa; si se habilita, agregar allowlist y prueba negativa de ownership.
 - Ejecutar migracion controlada para `ProximoCargoBase` e `intentos` antes de usar esta funcionalidad en servidor.
 
 ## Corte diagnostico 2026-06-07

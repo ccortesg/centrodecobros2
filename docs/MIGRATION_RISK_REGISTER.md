@@ -1,7 +1,9 @@
 ﻿# Registro de Riesgos de Modernizacion
 
 Fecha de corte: 2026-06-03
-Baseline: `C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`
+Baseline historica Windows: `C:\temp\centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`
+
+Workspace canonico desde 2026-08-04: `/home/ccortesg/workspace/centrodecobros_phase34_validacion_pagadetodo_webhooks_idempotencia`
 
 Nota vigente: desde 2026-06-03 esta carpeta es el repositorio de trabajo en rama `main`; no crear copias nuevas para cambios futuros salvo instruccion explicita del propietario.
 
