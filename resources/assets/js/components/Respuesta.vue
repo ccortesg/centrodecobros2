@@ -13,7 +13,7 @@
                         <!--<button type="button" @click="abrirModal('respuesta','registrar')" class="btn btn-secondary">
                             <i class="fa fa-plus-circle"></i>&nbsp;Nuevo
                         </button>--> &nbsp;
-                        <button type="button" @click="descargarExportar()" class="btn btn-success btn-sm">
+                        <button v-if="puedeExportar" type="button" @click="descargarExportar()" class="btn btn-success btn-sm">
                             <i class="fa fa-cloud-download"></i>&nbsp;Exportar
                         </button> &nbsp;
                     </div>
@@ -376,7 +376,7 @@
 <script>
     
     export default {
-        props: ['tipo', 'idrol'],
+        props: ['tipo', 'idrol', 'puedeExportar'],
         data (){
             return {                
                 respuesta_id: 0,

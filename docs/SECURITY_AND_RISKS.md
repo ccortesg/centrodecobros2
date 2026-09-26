@@ -1,6 +1,6 @@
 # Seguridad, robustez y mantenibilidad
 
-Ultima actualizacion: 2026-07-10
+Ultima actualizacion: 2026-09-25
 
 ## Hallazgos de seguridad vigentes
 
@@ -14,6 +14,9 @@ Ultima actualizacion: 2026-07-10
 2. Autorizacion y ownership
    - Fase 31 corrigio middleware `Administrador`: admin tiene acceso total, cliente queda acotado por allowlist y otros roles reciben `403`.
    - Fase 32 agrego ownership por registro y whitelists en clientes, archivos, transacciones, respuestas, SPEI, domiciliacion y exportaciones criticas.
+   - El rol `idrol=4` resuelve un propietario efectivo solo para lectura desde `users.idusuario_vinculado`. El Cliente vinculado debe estar activo y conservar `idrol=2`; si no, el middleware responde `403`.
+   - El rol 4 solo puede listar y ver detalle de Respuestas y Pagos Recibidos. Exportaciones, dashboard y todos los endpoints de operacion permanecen bloqueados en backend; ocultar botones es solo defensa adicional de UI.
+   - La identidad que autoriza escrituras nunca se sustituye por el propietario efectivo. El vinculo no concede capacidad de crear ligas, cambiar estados ni modificar respuestas.
    - Riesgo residual: falta UAT formal por rol con datos reales controlados.
 
 3. Autenticacion API heterogenea
@@ -52,6 +55,7 @@ Ultima actualizacion: 2026-07-10
 ## Robustez e integridad
 
 - Multiples relaciones no tienen FK confiables; validar relaciones desde uso real en codigo.
+- `users.idusuario_vinculado` no tiene FK porque `users.id` no posee unicidad declarada en el esquema legacy. `UserController`, el middleware y el scope de lectura aplican la integridad de forma fail-closed; normalizar la clave queda para una migracion de esquema separada.
 - Folios por `max()+1` pueden tener carreras bajo concurrencia.
 - Controladores monoliticos elevan riesgo de regresion.
 - Manejo de errores sigue mixto: algunas rutas tienen respuestas controladas y otras conservan patrones legacy.

@@ -259,6 +259,13 @@ class RespuestaController extends Controller
         $fechaInicio = $request->fechaInicio ?? '';
         $fechaFin = $request->fechaFin ?? '';
 
+        if (
+            (int) \Auth::user()->idrol === \App\User::ROLE_CONSULTA_RESPUESTAS
+            && !in_array((int) $tipo, [1, 2, 3, 4], true)
+        ) {
+            return $this->respuestaNoAutorizado($request);
+        }
+
         if ($validacionFechas = $this->validarRangoFechasListado($fechaInicio, $fechaFin)) {
             return $validacionFechas;
         }

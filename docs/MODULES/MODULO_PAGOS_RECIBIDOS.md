@@ -1,6 +1,6 @@
 # Modulo: Pagos Recibidos
 
-Ultima actualizacion: 2026-06-18
+Ultima actualizacion: 2026-09-25
 
 ## Proposito
 
@@ -26,6 +26,7 @@ Concentrar en una sola bitacora los pagos recibidos por los canales principales 
 - Target Vue: `menu==30`.
 - Administrador: acceso despues de `Pago con Terminal`.
 - Cliente: acceso antes de `Reportes`, porque ese sidebar no tiene seccion `Pago con Terminal`.
+- Consulta de respuestas: acceso directo en su sidebar restringido; no se muestra Exportar.
 
 ## Fuentes de datos
 
@@ -70,6 +71,7 @@ Si no existe override, el status por defecto es `activo`; actualmente no se mues
 
 - El boton `Exportar` descarga `pagos_recibidos.csv`.
 - Administrador y Cliente pueden exportar desde el modulo autenticado; para Cliente, el middleware permite expresamente `GET pagos-recibidos/exportar`.
+- Consulta de respuestas no puede exportar: el boton se oculta y `GET pagos-recibidos/exportar` responde `403`.
 - El endpoint reutiliza la misma consulta unificada del listado y respeta filtros de texto, criterio, rango de fechas, status heredado y ownership.
 - El ownership de Cliente limita cada fuente por `idusuario` y por el ambiente `productivo` de su sesion.
 - Los filtros `foliocpagos` y `autorizacion` también se aplican a la exportación, aunque no agregan columnas nuevas al CSV.
@@ -101,6 +103,7 @@ Nota: la plataforma comparte `tipo=3` para pantallas de referencia SPEI/Pago en 
 
 - Admin: puede listar registros visibles.
 - Cliente: solo registros propios, usando ownership del registro fuente.
+- Consulta de respuestas (`idrol=4`): solo registros del Cliente activo vinculado, usando el `idusuario` y `productivo` de ese propietario efectivo; no puede exportar ni actualizar status.
 - Otros roles: `403` por middleware existente.
 
 ## Riesgos

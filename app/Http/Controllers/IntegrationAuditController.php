@@ -47,11 +47,21 @@ class IntegrationAuditController extends Controller
     {
         $menu = $request->input('menu');
 
-        if (!is_numeric($menu)) {
+        if (!is_numeric($menu) || !array_key_exists((int) $menu, UserActivityLogger::moduleMap())) {
             return response()->json([
                 'status' => 'error',
                 'msg' => 'Modulo no permitido.',
             ], 422);
+        }
+
+        if (
+            (int) optional($request->user())->idrol === \App\User::ROLE_CONSULTA_RESPUESTAS
+            && !in_array((int) $menu, [2, 12, 15, 27, 30], true)
+        ) {
+            return response()->json([
+                'status' => 'error',
+                'msg' => 'No tienes permisos para acceder a este modulo.',
+            ], 403);
         }
 
         app(UserActivityLogger::class)->log($request, 'module_access', true, null, [

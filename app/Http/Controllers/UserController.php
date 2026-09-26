@@ -5,9 +5,9 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use App\User;
 use App\Persona;
-use Exception;
 
 class UserController extends Controller
 {
@@ -16,13 +16,18 @@ class UserController extends Controller
         if (!$request->ajax()) return redirect('/');
 
         $buscar = $request->buscar;
-        $criterio = $request->criterio;
+        $criterio = in_array($request->criterio, ['nombre', 'num_documento', 'email', 'telefono'], true)
+            ? $request->criterio
+            : 'nombre';
 
         $query = User::join('personas','users.id','=','personas.id')
         ->join('roles','users.idrol','=','roles.id')
+        ->leftJoin('users as cliente_vinculado', 'users.idusuario_vinculado', '=', 'cliente_vinculado.id')
+        ->leftJoin('personas as persona_vinculada', 'cliente_vinculado.id', '=', 'persona_vinculada.id')
         ->select('personas.id','personas.nombre','personas.tipo_documento','personas.num_documento','personas.direccion','personas.telefono',
         'personas.email','users.usuario','users.condicion','users.idrol','roles.nombre as rol','users.IntegrationID','users.BusinessID',
-        'users.productivo');
+        'users.productivo', 'users.idusuario_vinculado', 'cliente_vinculado.usuario as usuario_vinculado',
+        'persona_vinculada.nombre as nombre_vinculado');
         
         if ($buscar!=''){            
             $query->where('personas.'.$criterio, 'like', '%'. $buscar . '%');
@@ -51,23 +56,28 @@ class UserController extends Controller
         return ['usuarios' => $users];
     }
 
+    public function selectClientesVinculables(Request $request)
+    {
+        if (!$request->ajax()) return redirect('/');
+
+        $clientes = User::join('personas', 'users.id', '=', 'personas.id')
+            ->where('users.idrol', User::ROLE_CLIENTE)
+            ->where('users.condicion', 1)
+            ->select('users.id', 'users.usuario', 'personas.nombre', 'users.productivo')
+            ->orderBy('personas.nombre', 'asc')
+            ->get();
+
+        return ['clientes' => $clientes];
+    }
+
     public function store(Request $request)
     {
         if (!$request->ajax()) return redirect('/');
 
-        $this->validate($request, [
-            'nombre' => 'required|string|max:100',
-            'usuario' => 'required|string|max:191|unique:users,usuario',
-            'password' => 'required|string|min:6',
-            'idrol' => 'required|integer|exists:roles,id',
-            'email' => 'nullable|email|max:191',
-            'IntegrationID' => 'nullable|string|max:50',
-            'BusinessID' => 'nullable|string|max:50',
-            'productivo' => 'nullable|boolean',
-        ]);
+        $this->validate($request, $this->validationRules($request));
+        $clienteVinculado = $this->clienteVinculadoValidado($request);
 
-        try{
-            DB::beginTransaction();
+        DB::transaction(function () use ($request, $clienteVinculado) {
 
             $persona = new Persona();
             $persona->nombre = $request->nombre;
@@ -84,40 +94,21 @@ class UserController extends Controller
             $user->usuario = $request->usuario;
             $user->password = bcrypt( $request->password);
             $user->condicion = '1';
-            $user->IntegrationID = $request->IntegrationID;
-            $user->BusinessID = $request->BusinessID;
-            $user->productivo = $request->productivo;
+            $this->aplicarConfiguracionRol($user, $request, $clienteVinculado);
             $user->save();
+        });
 
-            DB::commit();
-        } catch (Exception $e){
-            DB::rollBack();
-        }
+        return response()->json(['status' => 'success']);
     }
 
     public function update(Request $request)
     {
         if (!$request->ajax()) return redirect('/');
 
-        $this->validate($request, [
-            'id' => 'required|integer|exists:users,id',
-            'nombre' => 'required|string|max:100',
-            'usuario' => [
-                'required',
-                'string',
-                'max:191',
-                Rule::unique('users', 'usuario')->ignore($request->id),
-            ],
-            'password' => 'nullable|string|min:6',
-            'idrol' => 'required|integer|exists:roles,id',
-            'email' => 'nullable|email|max:191',
-            'IntegrationID' => 'nullable|string|max:50',
-            'BusinessID' => 'nullable|string|max:50',
-            'productivo' => 'nullable|boolean',
-        ]);
+        $this->validate($request, $this->validationRules($request, true));
+        $clienteVinculado = $this->clienteVinculadoValidado($request, (int) $request->id);
 
-        try{
-            DB::beginTransaction();
+        DB::transaction(function () use ($request, $clienteVinculado) {
 
             $user = User::findOrFail($request->id);
             $persona = Persona::findOrFail($user->id);
@@ -136,15 +127,88 @@ class UserController extends Controller
             }
             $user->condicion = '1';
             $user->idrol = $request->idrol;
-            $user->IntegrationID = $request->IntegrationID;
-            $user->BusinessID = $request->BusinessID;
-            $user->productivo = $request->productivo;
+            $this->aplicarConfiguracionRol($user, $request, $clienteVinculado);
             $user->save();
+        });
 
-            DB::commit();
-        } catch (Exception $e){
-            DB::rollBack();
+        return response()->json(['status' => 'success']);
+    }
+
+    private function validationRules(Request $request, $updating = false)
+    {
+        $roleIsViewer = (int) $request->idrol === User::ROLE_CONSULTA_RESPUESTAS;
+        $linkRules = [
+            Rule::requiredIf($roleIsViewer),
+            'nullable',
+            'integer',
+            Rule::exists('users', 'id')->where(function ($query) {
+                $query->where('idrol', User::ROLE_CLIENTE)->where('condicion', 1);
+            }),
+        ];
+
+        if ($updating) {
+            $linkRules[] = Rule::notIn([(int) $request->id]);
         }
+
+        $rules = [
+            'nombre' => 'required|string|max:100',
+            'usuario' => $updating ? [
+                'required',
+                'string',
+                'max:191',
+                Rule::unique('users', 'usuario')->ignore($request->id),
+            ] : 'required|string|max:191|unique:users,usuario',
+            'password' => $updating ? 'nullable|string|min:6' : 'required|string|min:6',
+            'idrol' => 'required|integer|exists:roles,id',
+            'idusuario_vinculado' => $linkRules,
+            'email' => 'nullable|email|max:191',
+            'IntegrationID' => [Rule::requiredIf(!$roleIsViewer), 'nullable', 'string', 'max:50'],
+            'BusinessID' => [Rule::requiredIf(!$roleIsViewer), 'nullable', 'string', 'max:50'],
+            'productivo' => [Rule::requiredIf(!$roleIsViewer), 'nullable', 'boolean'],
+        ];
+
+        if ($updating) {
+            $rules['id'] = 'required|integer|exists:users,id';
+        }
+
+        return $rules;
+    }
+
+    private function clienteVinculadoValidado(Request $request, $userId = null)
+    {
+        if ((int) $request->idrol !== User::ROLE_CONSULTA_RESPUESTAS) {
+            return null;
+        }
+
+        $cliente = User::where('id', $request->idusuario_vinculado)
+            ->where('idrol', User::ROLE_CLIENTE)
+            ->where('condicion', 1)
+            ->first();
+
+        if (!$cliente || ($userId !== null && (int) $cliente->id === (int) $userId)) {
+            throw ValidationException::withMessages([
+                'idusuario_vinculado' => ['El Cliente vinculado no es válido o no está activo.'],
+            ]);
+        }
+
+        return $cliente;
+    }
+
+    private function aplicarConfiguracionRol(User $user, Request $request, $clienteVinculado)
+    {
+        if ((int) $request->idrol === User::ROLE_CONSULTA_RESPUESTAS) {
+            $user->idusuario_vinculado = $clienteVinculado->id;
+            $user->IntegrationID = 'N/A';
+            $user->BusinessID = 'N/A';
+            $user->productivo = $clienteVinculado->productivo;
+
+            return;
+        }
+
+        $user->idusuario_vinculado = null;
+        $user->IntegrationID = $request->IntegrationID;
+        $user->BusinessID = $request->BusinessID;
+        $user->productivo = $request->productivo;
     }
 
     public function desactivar(Request $request)

@@ -38,6 +38,7 @@
                                     <th>Email</th>
                                     <th>Usuario</th>
                                     <th>Role</th>
+                                    <th>Cliente vinculado</th>
                                     <th>IntegrationID</th>
                                     <th>BusinessID</th>
                                     <th>Productivo</th>
@@ -66,6 +67,12 @@
                                     <td v-text="persona.email"></td>
                                     <td v-text="persona.usuario"></td>
                                     <td v-text="persona.rol"></td>
+                                    <td>
+                                        <span v-if="persona.idusuario_vinculado">
+                                            {{ persona.nombre_vinculado || persona.usuario_vinculado }}
+                                        </span>
+                                        <span v-else>—</span>
+                                    </td>
                                     <td v-text="persona.IntegrationID"></td>
                                     <td v-text="persona.BusinessID"></td>
                                     <td>
@@ -148,6 +155,21 @@
                                         </select>
                                     </div>
                                 </div>
+                                <div v-if="esConsultaRespuestas" class="form-group row">
+                                    <label class="col-md-3 form-control-label" for="cliente-vinculado">Cliente vinculado(*)</label>
+                                    <div class="col-md-9">
+                                        <select id="cliente-vinculado" v-model="idusuario_vinculado" class="form-control">
+                                            <option value="0" disabled>Seleccione un Cliente activo</option>
+                                            <option
+                                                v-for="cliente in arrayClientesVinculables"
+                                                :key="cliente.id"
+                                                :value="cliente.id"
+                                            >
+                                                {{ cliente.nombre }} ({{ cliente.usuario }})
+                                            </option>
+                                        </select>
+                                    </div>
+                                </div>
                                 <div class="form-group row">
                                     <label class="col-md-3 form-control-label" for="email-input">Usuario</label>
                                     <div class="col-md-9">
@@ -160,19 +182,19 @@
                                         <input type="password" v-model="password" class="form-control" placeholder="password del usuario">
                                     </div>
                                 </div>
-                                <div class="form-group row">
+                                <div v-if="!esConsultaRespuestas" class="form-group row">
                                     <label class="col-md-3 form-control-label" for="email-input">IntegrationID</label>
                                     <div class="col-md-9">
                                         <input type="text" v-model="IntegrationID" class="form-control" placeholder="IntegrationID">
                                     </div>
                                 </div>
-                                <div class="form-group row">
+                                <div v-if="!esConsultaRespuestas" class="form-group row">
                                     <label class="col-md-3 form-control-label" for="email-input">BusinessID</label>
                                     <div class="col-md-9">
                                         <input type="text" v-model="BusinessID" class="form-control" placeholder="BusinessID">
                                     </div>
                                 </div>
-                                <div class="form-group row">
+                                <div v-if="!esConsultaRespuestas" class="form-group row">
                                     <label class="col-md-3 form-control-label" for="email-input">Productivo</label>
                                     <div class="col-md-9">
                                         <input type="checkbox" v-model="productivo" class="form-control">
@@ -216,11 +238,13 @@
                 usuario: '',
                 password:'',
                 idrol: '',
+                idusuario_vinculado: 0,
                 IntegrationID: '',
                 BusinessID: '',
                 productivo: 0,
                 arrayPersona : [],
                 arrayRol : [],
+                arrayClientesVinculables: [],
                 modal : 0,
                 tituloModal : '',
                 tipoAccion : 0,
@@ -240,6 +264,9 @@
             }
         },
         computed:{
+            esConsultaRespuestas: function() {
+                return Number(this.idrol) === 4;
+            },
             isActived: function(){
                 return this.pagination.current_page;
             },
@@ -293,6 +320,14 @@
                     console.log(error);
                 });
             },
+            selectClientesVinculables(){
+                let me=this;
+                axios.get('/user/selectClientesVinculables').then(function (response) {
+                    me.arrayClientesVinculables = response.data.clientes;
+                }).catch(function (error) {
+                    console.log(error);
+                });
+            },
 
             cambiarPagina(page,buscar,criterio){
                 let me = this;
@@ -316,6 +351,7 @@
                     'telefono' : this.telefono,
                     'email' : this.email,
                     'idrol' : this.idrol,
+                    'idusuario_vinculado': this.idusuario_vinculado,
                     'usuario': this.usuario,
                     'password': this.password,
                     'IntegrationID': this.IntegrationID,
@@ -349,6 +385,7 @@
                     'telefono' : this.telefono,
                     'email' : this.email,
                     'idrol' : this.idrol,
+                    'idusuario_vinculado': this.idusuario_vinculado,
                     'usuario': this.usuario,
                     'password': this.password,
                     'IntegrationID': this.IntegrationID,
@@ -373,10 +410,13 @@
 
                 if (!this.nombre) this.errorMostrarMsjPersona.push("El nombre de la pesona no puede estar vacío.");
                 if (!this.usuario) this.errorMostrarMsjPersona.push("El nombre de usuario no puede estar vacío.");
-                if (!this.password) this.errorMostrarMsjPersona.push("La password del usuario no puede estar vacía.");
+                if (this.tipoAccion === 1 && !this.password) this.errorMostrarMsjPersona.push("La password del usuario no puede estar vacía.");
                 if (this.idrol==0) this.errorMostrarMsjPersona.push("Seleccione una Role.");
-                if (!this.IntegrationID) this.errorMostrarMsjPersona.push("El IntegrationID no puede estar vacío.");
-                if (!this.BusinessID) this.errorMostrarMsjPersona.push("El BusinessID no puede estar vacío.");
+                if (this.esConsultaRespuestas && !Number(this.idusuario_vinculado)) {
+                    this.errorMostrarMsjPersona.push("Seleccione el Cliente vinculado.");
+                }
+                if (!this.esConsultaRespuestas && !this.IntegrationID) this.errorMostrarMsjPersona.push("El IntegrationID no puede estar vacío.");
+                if (!this.esConsultaRespuestas && !this.BusinessID) this.errorMostrarMsjPersona.push("El BusinessID no puede estar vacío.");
                 if (this.errorMostrarMsjPersona.length) this.errorPersona = 1;
 
                 return this.errorPersona;
@@ -393,6 +433,7 @@
                 this.usuario='';
                 this.password='';
                 this.idrol=0;
+                this.idusuario_vinculado=0;
                 this.IntegrationID='';
                 this.BusinessID='';
                 this.productivo=0;
@@ -400,6 +441,7 @@
             },
             abrirModal(modelo, accion, data = []){
                 this.selectRol();
+                this.selectClientesVinculables();
                 switch(modelo){
                     case "persona":
                     {
@@ -417,6 +459,7 @@
                                 this.usuario='';
                                 this.password='';
                                 this.idrol=0;
+                                this.idusuario_vinculado=0;
                                 this.IntegrationID='';
                                 this.BusinessID='';
                                 this.productivo=0;
@@ -437,8 +480,9 @@
                                 this.telefono = data['telefono'];
                                 this.email = data['email'];
                                 this.usuario = data['usuario'];
-                                this.password=data['password'];
+                                this.password='';
                                 this.idrol=data['idrol'];
+                                this.idusuario_vinculado=data['idusuario_vinculado'] || 0;
                                 this.IntegrationID=data['IntegrationID'];
                                 this.BusinessID=data['BusinessID'];
                                 this.productivo=data['productivo'];

@@ -80,6 +80,7 @@ trait UsesIsolatedCentroCobrosDatabase
             $table->string('password')->nullable();
             $table->integer('condicion')->default(1);
             $table->integer('idrol');
+            $table->unsignedInteger('idusuario_vinculado')->nullable()->index();
             $table->string('token')->nullable();
             $table->string('IntegrationID')->nullable();
             $table->string('BusinessID')->nullable();
@@ -522,6 +523,7 @@ trait UsesIsolatedCentroCobrosDatabase
         DB::table('roles')->insert([
             ['id' => 1, 'nombre' => 'Administrador', 'condicion' => 1],
             ['id' => 2, 'nombre' => 'Cliente', 'condicion' => 1],
+            ['id' => 4, 'nombre' => 'Consulta de respuestas', 'condicion' => 1],
         ]);
 
         DB::table('users')->insert([

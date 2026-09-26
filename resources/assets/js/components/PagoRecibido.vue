@@ -9,7 +9,7 @@
                     <div class="card-header">
                         <i class="fa fa-money"></i>
                         Pagos Recibidos
-                        <button type="button" @click="descargarExportar()" class="btn btn-success btn-sm">
+                        <button v-if="puedeExportar" type="button" @click="descargarExportar()" class="btn btn-success btn-sm">
                             <i class="fa fa-cloud-download"></i>&nbsp;Exportar
                         </button> &nbsp;
                     </div>
@@ -118,6 +118,7 @@
 
 <script>
 export default {
+    props: ['puedeExportar'],
     data() {
         return {
             arrayPagos: [],

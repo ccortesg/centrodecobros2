@@ -1,6 +1,6 @@
 # Modulo: Clientes, personas, usuarios, roles y catalogos
 
-Ultima actualizacion: 2026-07-13
+Ultima actualizacion: 2026-09-25
 
 ## Proposito
 
@@ -36,6 +36,7 @@ Administrar identidades, datos de cliente, usuarios de acceso, roles y catalogos
 - `PUT user/activar`
 - `PUT user/desactivar`
 - `GET user/selectUsuario`
+- `GET user/selectClientesVinculables` (solo Administrador)
 - `GET rol`
 - `GET role`
 - `GET rol/selectRol`
@@ -47,6 +48,7 @@ Administrar identidades, datos de cliente, usuarios de acceso, roles y catalogos
 - `personas` funciona como entidad base.
 - `users.id` y `clientes.id` apuntan a `personas.id`.
 - `users.idrol` apunta a `roles.id`.
+- `users.idusuario_vinculado` identifica el Cliente cuyo alcance de lectura usa una cuenta con rol 4. Es nullable, indexado y se valida en aplicacion porque `users.id` no es una clave unica declarada en el esquema legacy.
 - `clientes.idusuario` vincula cliente con usuario/propietario operativo.
 - `clientes.idciudad` apunta a `ciudades.id`; en datos historicos puede existir `idciudad=0`.
 - `archivos.idpersona` se usa en codigo como vinculo con `personas/clientes`, aunque el dump historico contiene inconsistencias.
@@ -64,6 +66,7 @@ Administrar identidades, datos de cliente, usuarios de acceso, roles y catalogos
 
 - Admin (`idrol=1`): acceso completo al grupo protegido.
 - Cliente (`idrol=2`): acceso limitado a su superficie permitida; ownership por registro restringe clientes, archivos, transacciones, respuestas y exportaciones.
+- Consulta de respuestas (`idrol=4`): cada cuenta requiere exactamente un Cliente activo vinculado; varios revisores pueden compartir el mismo Cliente. Solo consulta Respuestas y Pagos Recibidos, sin exportar ni operar.
 - Otros roles: `403` en el middleware `Administrador` salvo rutas publicas/autenticacion.
 
 ## Criterio de duplicidad de clientes desde API
@@ -80,6 +83,7 @@ Administrar identidades, datos de cliente, usuarios de acceso, roles y catalogos
 - Funcionalidad base operativa.
 - Ownership y whitelists agregados en fases 31-32.
 - `UserController` ya no selecciona hash de password en listados y actualiza password de forma condicional.
+- El alta/edicion de rol 4 exige el Cliente vinculado, guarda identificadores de integracion neutros `N/A`, sincroniza `productivo` desde el Cliente y elimina el vinculo al cambiar a otro rol.
 - Exportaciones criticas estan acotadas por propietario para rol cliente.
 - Clientes legacy con ciudad invalida quedan visibles para consulta; las nuevas altas/ediciones ya no permiten persistir `idciudad=0`.
 - El modal de alta/edicion de clientes carga catalogos de estado y ciudad para Admin y Cliente sin abrir el CRUD de catalogos al rol cliente.

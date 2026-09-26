@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\User;
 use Closure;
 
 class Administrador
@@ -21,11 +22,20 @@ class Administrador
             return $this->deny($request, 401, 'No autenticado.');
         }
 
-        if ((int) $user->idrol === 1) {
+        if ((int) $user->idrol === User::ROLE_ADMINISTRADOR) {
             return $next($request);
         }
 
-        if ((int) $user->idrol === 2 && $this->clientePuedeAcceder($request)) {
+        if ((int) $user->idrol === User::ROLE_CLIENTE && $this->clientePuedeAcceder($request)) {
+            return $next($request);
+        }
+
+        if (
+            (int) $user->idrol === User::ROLE_CONSULTA_RESPUESTAS
+            && $this->consultaRespuestasPuedeAcceder($request)
+            && method_exists($user, 'clienteVinculadoActivo')
+            && $user->clienteVinculadoActivo()
+        ) {
             return $next($request);
         }
 
@@ -39,6 +49,8 @@ class Administrador
 
         $allowed = [
             'GET' => [
+                'main',
+                'dashboard',
                 'estado/selectEstado',
                 'ciudad/selectCiudad',
                 'cliente',
@@ -84,6 +96,22 @@ class Administrador
         ];
 
         return in_array($path, $allowed[$method] ?? [], true);
+    }
+
+    private function consultaRespuestasPuedeAcceder($request)
+    {
+        $path = trim($request->path(), '/');
+        $method = strtoupper($request->method());
+
+        if ($method !== 'GET') {
+            return false;
+        }
+
+        return in_array($path, [
+            'main',
+            'respuesta',
+            'pagos-recibidos',
+        ], true);
     }
 
     private function deny($request, $status, $message)

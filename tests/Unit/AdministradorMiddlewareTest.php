@@ -9,14 +9,28 @@ use Tests\TestCase;
 
 class AdministradorMiddlewareTest extends TestCase
 {
-    private function middlewareResponse(string $method, string $path, int $idrol): Response
+    private function middlewareResponse(string $method, string $path, int $idrol, bool $linkedClientActive = true): Response
     {
         $request = Request::create($path, $method, [], [], [], [
             'HTTP_ACCEPT' => 'application/json',
             'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest',
         ]);
-        $request->setUserResolver(function () use ($idrol) {
-            return (object) ['idrol' => $idrol];
+        $request->setUserResolver(function () use ($idrol, $linkedClientActive) {
+            return new class($idrol, $linkedClientActive) {
+                public int $idrol;
+                private bool $linkedClientActive;
+
+                public function __construct(int $idrol, bool $linkedClientActive)
+                {
+                    $this->idrol = $idrol;
+                    $this->linkedClientActive = $linkedClientActive;
+                }
+
+                public function clienteVinculadoActivo()
+                {
+                    return $this->linkedClientActive ? (object) ['id' => 2] : null;
+                }
+            };
         });
 
         return (new Administrador())->handle($request, function () {
@@ -74,6 +88,35 @@ class AdministradorMiddlewareTest extends TestCase
     public function test_unknown_role_is_denied()
     {
         $response = $this->middlewareResponse('GET', '/cliente', 3);
+
+        $this->assertSame(403, $response->getStatusCode());
+    }
+
+    public function test_response_viewer_can_only_read_allowed_surfaces()
+    {
+        foreach (['/main', '/respuesta', '/pagos-recibidos'] as $path) {
+            $this->assertSame(200, $this->middlewareResponse('GET', $path, 4)->getStatusCode(), $path);
+        }
+
+        $denied = [
+            ['GET', '/dashboard'],
+            ['GET', '/respuesta/exportar'],
+            ['GET', '/pagos-recibidos/exportar'],
+            ['GET', '/user'],
+            ['POST', '/transaccion/registrar'],
+            ['POST', '/respuesta/registrar'],
+            ['PUT', '/respuesta/actualizar'],
+            ['PUT', '/pagos-recibidos/status'],
+        ];
+
+        foreach ($denied as [$method, $path]) {
+            $this->assertSame(403, $this->middlewareResponse($method, $path, 4)->getStatusCode(), $path);
+        }
+    }
+
+    public function test_response_viewer_is_denied_when_linked_client_is_not_active()
+    {
+        $response = $this->middlewareResponse('GET', '/respuesta', 4, false);
 
         $this->assertSame(403, $response->getStatusCode());
     }

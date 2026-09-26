@@ -1,6 +1,6 @@
 # Modulo: Respuestas y webhooks
 
-Ultima actualizacion: 2026-07-10
+Ultima actualizacion: 2026-09-25
 
 ## Proposito
 
@@ -71,13 +71,14 @@ Presentacion compacta del listado:
 - `Date` y `Time` comparten una columna y un encabezado de dos renglones; `Time` aparece con tipografia menor. `Date` usa el formato visual mexicano cuando el valor es reconocible y conserva el texto original recibido cuando el formato externo no puede interpretarse.
 - `NB Error` no despliega texto extenso en la tabla. Cuando existe contenido muestra un icono de libro con tooltip nativo y un modal de detalle; cuando está vacío, la celda permanece vacía.
 - La columna `Status` conserva internamente los valores de origen y usa el contrato visual financiero: `approved` se presenta como `Aprobado` con badge verde de Activo, `denied` como `Denegado` con badge rojo y texto negro de Vencido, y `error` conserva su badge amarillo de Pendiente.
-- La tabla recibe `idrol` desde el shell autenticado. `NB Company` permanece visible para Administrador y se oculta visualmente para Cliente en los cuatro tipos de Respuestas; el dato no se elimina de la respuesta backend en esta iteración.
+- La tabla recibe `idrol` desde el shell autenticado. `NB Company` permanece visible para Administrador y se oculta visualmente para Cliente y Consulta de respuestas en los cuatro tipos; el dato no se elimina de la respuesta backend.
 - El modal `Ver Respuesta` conserva todos sus campos y valores, pero usa una cuadrícula compacta de dos columnas en escritorio para reducir el desplazamiento vertical. En pantallas menores a `768px` vuelve a una columna y mantiene scroll interno solo cuando es necesario.
 
 ## Acceso por rol
 
 - Admin: listado y administracion completa.
 - Cliente: lectura/exportacion acotada por ownership.
+- Consulta de respuestas (`idrol=4`): lectura y detalle de tipos 1-4 con los mismos campos que el Cliente vinculado, usando `idusuario` y `productivo` de este. No puede exportar ni invocar altas, actualizaciones o eliminaciones.
 - Webhooks `Service/*`: entradas externas legacy; su seguridad depende del contrato de proveedor, validacion minima e idempotencia local.
 
 ## Estado Fase 34

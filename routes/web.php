@@ -24,13 +24,13 @@ Route::group(['middleware'=>['auth']],function(){
     
     Route::post('/logout', 'Auth\LoginController@logout')->name('logout');
     Route::post('/user-activity/module', 'IntegrationAuditController@storeModuleActivity');
-    Route::get('/dashboard','DashboardController');
+    Route::get('/dashboard','DashboardController')->middleware('Administrador');
     //Notificaciones
     Route::post('/notification/get','NotificationController@get');
     
     Route::get('/main', function () {
         return view('contenido/contenido');
-    })->name('main');    
+    })->middleware('Administrador')->name('main');
     
     Route::group(['middleware' => ['Administrador']], function () {
 
@@ -124,6 +124,7 @@ Route::group(['middleware'=>['auth']],function(){
         Route::put('/user/desactivar', 'UserController@desactivar');
         Route::put('/user/activar', 'UserController@activar');
         Route::get('/user/selectUsuario', 'UserController@selectUsuario');
+        Route::get('/user/selectClientesVinculables', 'UserController@selectClientesVinculables');
 
         Route::get('/integraciones/outgoing-api-requests', 'IntegrationAuditController@outgoing');
         Route::get('/integraciones/outgoing-api-requests/exportar', 'IntegrationAuditController@exportOutgoing');

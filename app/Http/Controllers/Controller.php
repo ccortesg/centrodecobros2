@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\User;
 use Illuminate\Foundation\Bus\DispatchesJobs;
 use Illuminate\Routing\Controller as BaseController;
 use Illuminate\Foundation\Validation\ValidatesRequests;
@@ -13,7 +14,26 @@ class Controller extends BaseController
 
     protected function usuarioEsAdministrador()
     {
-        return \Auth::check() && (int) \Auth::user()->idrol === 1;
+        return \Auth::check() && (int) \Auth::user()->idrol === User::ROLE_ADMINISTRADOR;
+    }
+
+    protected function usuarioPropietarioLectura()
+    {
+        if (!\Auth::check()) {
+            return null;
+        }
+
+        $user = \Auth::user();
+
+        if ((int) $user->idrol === User::ROLE_CLIENTE) {
+            return $user;
+        }
+
+        if ((int) $user->idrol === User::ROLE_CONSULTA_RESPUESTAS) {
+            return $user->clienteVinculadoActivo();
+        }
+
+        return null;
     }
 
     protected function aplicarScopePropietario($query, $table)
@@ -22,12 +42,18 @@ class Controller extends BaseController
             return $query;
         }
 
+        $propietario = $this->usuarioPropietarioLectura();
+
+        if (!$propietario) {
+            abort(403, 'No autorizado.');
+        }
+
         $prefix = $table ? $table . '.' : '';
 
-        $query->where($prefix . 'idusuario', '=', \Auth::user()->id);
+        $query->where($prefix . 'idusuario', '=', $propietario->id);
 
-        if (isset(\Auth::user()->productivo)) {
-            $query->where($prefix . 'productivo', '=', \Auth::user()->productivo);
+        if (isset($propietario->productivo)) {
+            $query->where($prefix . 'productivo', '=', $propietario->productivo);
         }
 
         return $query;

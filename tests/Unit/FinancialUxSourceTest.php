@@ -37,12 +37,13 @@ class FinancialUxSourceTest extends TestCase
         $styles = file_get_contents(__DIR__ . '/../../resources/assets/js/styles/ux-ui.css');
         $content = file_get_contents(__DIR__ . '/../../resources/views/contenido/contenido.blade.php');
 
-        $this->assertStringContainsString("props: ['tipo', 'idrol']", $source);
+        $this->assertStringContainsString("props: ['tipo', 'idrol', 'puedeExportar']", $source);
         $this->assertStringContainsString('return Number(this.idrol) === 1;', $source);
         $this->assertStringContainsString('<th v-if="esAdmin" class="text-center">NB Company</th>', $source);
         $this->assertStringContainsString('<td v-if="esAdmin" v-text="respuesta.nb_company" class="text-center"></td>', $source);
-        $this->assertSame(4, substr_count($content, '<respuesta :tipo='));
-        $this->assertSame(4, substr_count($content, ':idrol="{{Auth::user()->idrol}}"></respuesta>'));
+        $this->assertSame(8, substr_count($content, '<respuesta :tipo='));
+        $this->assertSame(4, substr_count($content, ':puede-exportar="false"></respuesta>'));
+        $this->assertStringContainsString('v-if="puedeExportar" type="button" @click="descargarExportar()"', $source);
         $this->assertStringContainsString('cdc-response-detail-modal', $source);
         $this->assertStringContainsString('form-horizontal cdc-response-detail-grid', $source);
         $this->assertStringContainsString('grid-template-columns: repeat(2, minmax(0, 1fr));', $styles);

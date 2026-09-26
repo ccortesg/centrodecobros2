@@ -275,10 +275,13 @@ function compactPagination(pagination, radius = 2) {
  * the page. Then, you may begin adding components to this application
  * or customize the JavaScript scaffolding to fit your unique needs.
  */
+const configuredDefaultMenu = Number(document.querySelector('meta[name="default-menu"]')?.getAttribute('content') || 0);
+const defaultMenu = Number.isFinite(configuredDefaultMenu) ? configuredDefaultMenu : 0;
+
 const app = createApp({
     data() {
         return {
-            menu: 0,
+            menu: defaultMenu,
             notifications: []
         };
     },

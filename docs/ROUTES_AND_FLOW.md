@@ -1,6 +1,6 @@
 # Rutas y flujo de navegacion
 
-Ultima actualizacion: 2026-06-07
+Ultima actualizacion: 2026-09-25
 
 ## Contexto operativo vigente
 
@@ -11,7 +11,7 @@ Ultima actualizacion: 2026-06-07
 
 ## 1) Mapa de rutas web
 
-`php artisan route:list` registra 100 rutas en el corte 2026-06-07.
+`php artisan route:list` registra 122 rutas en el corte 2026-09-25.
 
 ### Guest
 
@@ -34,6 +34,7 @@ El middleware `Administrador` esta activo desde Fase 31:
 
 - `idrol=1`: acceso total al grupo protegido.
 - `idrol=2`: acceso limitado a clientes, archivos, ligas visibles, domiciliacion visible, respuestas de lectura/export, importacion y reportes operativos.
+- `idrol=4` (`Consulta de respuestas`): solo `GET /main`, `GET /respuesta` para tipos 1-4 y `GET /pagos-recibidos`; requiere un Cliente activo vinculado y no permite exportaciones ni escrituras.
 - otros roles: `403`.
 
 Fase 32 agrego ownership por recurso dentro de controladores para que el rol cliente opere solo registros propios en clientes, archivos, transacciones, respuestas, SPEI, domiciliacion y exportaciones criticas.
@@ -90,6 +91,7 @@ Fase 34 no cambia nombres de rutas ni payloads externos de exito. Endurece inter
 - `resources/views/contenido/contenido.blade.php` renderiza componentes Vue segun `menu`.
 - El admin ve menus de catalogos, ligas, domiciliacion, SPEI, caja, terminal, reportes y acceso.
 - El cliente ve clientes, ligas, domiciliacion y reportes acotados.
+- El rol Consulta de respuestas inicia en el menu 2 y solo monta Respuestas de Liga, Domiciliacion, Pago en Caja, Terminal y Pagos Recibidos. Su sidebar no contiene altas, operaciones ni exportaciones.
 - Vue 3 monta en `resources/assets/js/app.js` y registra componentes por tag legacy.
 
 ## 4) Endpoints criticos
