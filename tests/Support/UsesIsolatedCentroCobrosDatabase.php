@@ -121,8 +121,8 @@ trait UsesIsolatedCentroCobrosDatabase
             $table->integer('idrol');
             $table->unsignedInteger('idusuario_vinculado')->nullable()->index();
             $table->string('token')->nullable();
-            $table->string('IntegrationID')->nullable();
-            $table->string('BusinessID')->nullable();
+            $table->unsignedInteger('IntegrationID');
+            $table->string('BusinessID');
             $table->integer('productivo')->default(1);
             $table->integer('notificaPago')->default(0);
             $table->string('ligaPago')->nullable();

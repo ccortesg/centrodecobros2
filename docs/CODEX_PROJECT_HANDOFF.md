@@ -510,3 +510,11 @@ La copia WSL queda verificada como checkout canonico. El origen no fue eliminado
 - [VERIFICADO EN ESTA EJECUCION] La migration del rol paso un ciclo aislado `up -> down -> up` sobre `centrodecobros_testing`, confirmando la columna y el rol sin tocar `centrodecobros`.
 - [VERIFICADO EN ESTA EJECUCION] Tras confirmar `APP_ENV=local` y `SELECT DATABASE()=centrodecobros`, se aplico exclusivamente `2026_09_25_120000_add_response_viewer_role_and_user_link`: quedo en batch 7, con `users.idusuario_vinculado` presente y el rol 4 activo.
 - [VALIDACION FALLIDA] `migrate:fresh` completo sigue bloqueado antes de esta migration: el baseline legacy falla en `2018_02_27_143638_create_personas_table` porque `personas` ya existe. Esta deuda historica no se corrigio incidentalmente; el arnes Feature restauró la base desechable y la nueva migration se valido de forma aislada.
+
+## 29. Correccion de alta de Consulta de respuestas del 2026-10-01
+
+- El log productivo reporto MySQL 1366 al insertar `N/A` en `users.IntegrationID`. La inspeccion local de solo lectura confirma `INT UNSIGNED NOT NULL`; `BusinessID` es `VARCHAR(255) NOT NULL`.
+- Alta y edicion del rol 4 ahora guardan `IntegrationID=0` y `BusinessID=N/A`. El cero representa ausencia de integracion para este rol; sus permisos siguen restringidos por middleware y ownership, no por estos identificadores.
+- El arnes Feature replica ambos tipos y restricciones de `users`. Las pruebas cubren alta, edicion, cambio del Cliente vinculado, conversion entre roles, rollback de Persona ante fallo de User y restricciones de acceso existentes.
+- [VERIFICADO EL 2026-10-01] Feature completo en MySQL `centrodecobros_testing` con proveedor mock: 167 pruebas y 774 aserciones; prueba dedicada: 7 pruebas y 100 aserciones; Unit: 30 pruebas y 184 aserciones. Sintaxis PHP, Composer, carga de rutas/scheduler y `git diff --check` correctos. No se ejecutaron cargos ni tareas programadas.
+- No requiere migration ni build frontend. Para desplegar, publicar el controlador corregido y verificar un alta controlada; no desactivar el modo estricto MySQL. La verificacion productiva queda pendiente.

@@ -198,7 +198,7 @@ class UserController extends Controller
     {
         if ((int) $request->idrol === User::ROLE_CONSULTA_RESPUESTAS) {
             $user->idusuario_vinculado = $clienteVinculado->id;
-            $user->IntegrationID = 'N/A';
+            $user->IntegrationID = 0;
             $user->BusinessID = 'N/A';
             $user->productivo = $clienteVinculado->productivo;
 

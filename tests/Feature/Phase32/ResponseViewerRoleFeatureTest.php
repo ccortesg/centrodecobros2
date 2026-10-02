@@ -37,7 +37,7 @@ class ResponseViewerRoleFeatureTest extends TestCase
         $this->assertCount(2, $viewers);
         foreach ($viewers as $viewer) {
             $this->assertSame(2, (int) $viewer->idusuario_vinculado);
-            $this->assertSame('N/A', $viewer->IntegrationID);
+            $this->assertSame(0, (int) $viewer->IntegrationID);
             $this->assertSame('N/A', $viewer->BusinessID);
             $this->assertSame(1, (int) $viewer->productivo);
         }
@@ -153,6 +153,72 @@ class ResponseViewerRoleFeatureTest extends TestCase
         $this->actingAs($viewer)->get('/main')->assertStatus(403);
     }
 
+    public function test_admin_can_edit_relink_and_convert_response_viewer_roles(): void
+    {
+        $viewer = $this->createViewer();
+        $password = $viewer->password;
+        DB::table('users')->where('id', 3)->update(['productivo' => 0]);
+        $payload = $this->viewerPayload('response-viewer');
+        $payload['id'] = $viewer->id;
+        $payload['idusuario_vinculado'] = 3;
+        $payload['password'] = '';
+        $payload['IntegrationID'] = '999';
+        $payload['BusinessID'] = 'IGNORED';
+
+        $this->actingAs($this->adminUser())->putJson('/user/actualizar', $payload, $this->ajaxHeaders())
+            ->assertOk();
+        $viewer->refresh();
+        $this->assertSame(3, (int) $viewer->idusuario_vinculado);
+        $this->assertSame(0, (int) $viewer->IntegrationID);
+        $this->assertSame('N/A', $viewer->BusinessID);
+        $this->assertSame(0, (int) $viewer->productivo);
+        $this->assertSame($password, $viewer->password);
+
+        foreach ([User::ROLE_CLIENTE, User::ROLE_ADMINISTRADOR] as $role) {
+            $payload['idrol'] = $role;
+            unset($payload['IntegrationID'], $payload['BusinessID']);
+            $this->actingAs($this->adminUser())->putJson('/user/actualizar', $payload, $this->ajaxHeaders())
+                ->assertUnprocessable()->assertJsonValidationErrors(['IntegrationID', 'BusinessID']);
+            $payload['IntegrationID'] = '117';
+            $payload['BusinessID'] = '000040';
+            $payload['productivo'] = 1;
+            $this->actingAs($this->adminUser())->putJson('/user/actualizar', $payload, $this->ajaxHeaders())
+                ->assertOk();
+            $viewer->refresh();
+            $this->assertNull($viewer->idusuario_vinculado);
+            $this->assertSame(117, (int) $viewer->IntegrationID);
+            $this->assertSame('000040', $viewer->BusinessID);
+
+            $payload['idrol'] = User::ROLE_CONSULTA_RESPUESTAS;
+            $this->actingAs($this->adminUser())->putJson('/user/actualizar', $payload, $this->ajaxHeaders())
+                ->assertOk();
+            $viewer->refresh();
+            $this->assertSame(0, (int) $viewer->IntegrationID);
+            $this->assertSame(3, (int) $viewer->idusuario_vinculado);
+        }
+    }
+
+    public function test_failed_user_insert_rolls_back_the_new_person(): void
+    {
+        $peopleBefore = DB::table('personas')->count();
+        $usersBefore = DB::table('users')->count();
+        // Force a real NOT NULL constraint failure after Persona has been inserted.
+        User::creating(function (User $user) {
+            $user->IntegrationID = null;
+        });
+
+        try {
+            $this->actingAs($this->adminUser())
+                ->postJson('/user/registrar', $this->viewerPayload('rollback-viewer'), $this->ajaxHeaders())
+                ->assertStatus(500);
+            $this->assertSame($peopleBefore, DB::table('personas')->count());
+            $this->assertSame($usersBefore, DB::table('users')->count());
+            $this->assertDatabaseMissing('personas', ['email' => 'rollback-viewer@example.com']);
+        } finally {
+            User::flushEventListeners();
+        }
+    }
+
     private function createViewer(): User
     {
         DB::table('personas')->insert([
@@ -172,7 +238,7 @@ class ResponseViewerRoleFeatureTest extends TestCase
             'idrol' => User::ROLE_CONSULTA_RESPUESTAS,
             'idusuario_vinculado' => 2,
             'condicion' => 1,
-            'IntegrationID' => 'N/A',
+            'IntegrationID' => 0,
             'BusinessID' => 'N/A',
             'productivo' => 1,
         ]);

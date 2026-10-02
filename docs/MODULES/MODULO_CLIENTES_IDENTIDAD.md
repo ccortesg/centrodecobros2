@@ -1,6 +1,6 @@
 # Modulo: Clientes, personas, usuarios, roles y catalogos
 
-Ultima actualizacion: 2026-09-25
+Ultima actualizacion: 2026-10-01
 
 ## Proposito
 
@@ -83,7 +83,7 @@ Administrar identidades, datos de cliente, usuarios de acceso, roles y catalogos
 - Funcionalidad base operativa.
 - Ownership y whitelists agregados en fases 31-32.
 - `UserController` ya no selecciona hash de password en listados y actualiza password de forma condicional.
-- El alta/edicion de rol 4 exige el Cliente vinculado, guarda identificadores de integracion neutros `N/A`, sincroniza `productivo` desde el Cliente y elimina el vinculo al cambiar a otro rol.
+- El alta/edicion de rol 4 exige el Cliente vinculado, guarda `IntegrationID=0` y `BusinessID=N/A` como valores neutros compatibles con el esquema MySQL, sincroniza `productivo` desde el Cliente y elimina el vinculo al cambiar a otro rol.
 - Exportaciones criticas estan acotadas por propietario para rol cliente.
 - Clientes legacy con ciudad invalida quedan visibles para consulta; las nuevas altas/ediciones ya no permiten persistir `idciudad=0`.
 - El modal de alta/edicion de clientes carga catalogos de estado y ciudad para Admin y Cliente sin abrir el CRUD de catalogos al rol cliente.
